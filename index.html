@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overlay Tips</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
 <meta name="description" content="Free daily sports and racing tips from Overlay Tips. Every bet posted, every result tracked in units.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +31,7 @@
   nav{position:sticky;top:0;z-index:20;background:rgba(6,8,7,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
   .brand{display:flex;align-items:center;gap:10px;font-family:"Space Mono",monospace;font-weight:700;letter-spacing:.32em;font-size:14px}
+  .brand-mark{height:38px;width:auto;display:block;margin-top:-6px}
   .navlinks{display:flex;gap:24px;font-size:14px;color:var(--muted);align-items:center}
   .navlinks a:hover{color:var(--text)}
   .navlinks .btn{padding:9px 16px;font-size:14px;color:#04140c}
@@ -173,6 +176,7 @@
   /* join */
   .join{text-align:center;position:relative}
   .join::before{content:"";position:absolute;left:50%;top:50%;width:min(700px,100%);height:400px;transform:translate(-50%,-50%);background:radial-gradient(ellipse,rgba(98,240,168,.13),transparent 65%);pointer-events:none}
+  .join-logo{display:block;width:min(300px,70%);height:auto;margin:0 auto 34px;position:relative;filter:drop-shadow(0 0 40px rgba(98,240,168,.3))}
   .join h2{font-size:clamp(40px,8vw,72px)}
   .join p{color:var(--muted);max-width:460px;margin:0 auto 28px;font-size:17px}
   .join .cta-row{justify-content:center}
@@ -203,10 +207,7 @@
 <nav>
   <div class="wrap">
     <a href="#top" class="brand" aria-label="Overlay Tips home">
-      <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path d="M3 24 L11 15 L17 20 L28 7" stroke="#62f0a8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M21 6 H29 V14" stroke="#62f0a8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <img src="logo-mark.png" alt="" class="brand-mark">
       OVERLAY TIPS
     </a>
     <div class="navlinks">
@@ -382,6 +383,7 @@
 
 <section id="join" class="join">
   <div class="wrap">
+    <img src="logo-full.png" alt="Overlay Tips" class="join-logo">
     <div class="mono">Free while it lasts</div>
     <h2>Get the tips <span class="g">first.</span></h2>
     <p>Every bet posted. DM <b style="color:var(--mint2)">"OVERLAY"</b> on Instagram to join the WhatsApp group.</p>
