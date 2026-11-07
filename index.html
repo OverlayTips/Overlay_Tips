@@ -14,8 +14,8 @@
     --mint:#62f0a8; --mint2:#a8f7cf; --mint-dim:#1d5a3f; --red:#ff6b6b;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth;overflow-x:clip}
-  body{background:var(--bg);color:var(--text);font-family:Archivo,system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:clip}
+  html{scroll-behavior:smooth;overflow-x:hidden;overflow-x:clip}
+  body{background:var(--bg);color:var(--text);font-family:Archivo,system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
   body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
     background-image:linear-gradient(rgba(98,240,168,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(98,240,168,.035) 1px,transparent 1px);
     background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 20%,transparent 75%)}
@@ -33,6 +33,8 @@
   .navlinks a:hover{color:var(--text)}
   .navlinks .btn{padding:9px 16px;font-size:14px;color:#04140c}
   @media(max-width:720px){.navlinks a:not(.btn){display:none}}
+  .brand,.btn{white-space:nowrap}
+  @media(max-width:380px){.brand{letter-spacing:.18em;font-size:13px}.navlinks .btn{padding:8px 14px}}
 
   /* buttons */
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 22px;border-radius:999px;font-weight:800;font-style:italic;font-size:16px;transition:transform .15s,box-shadow .2s,background .2s}
@@ -45,8 +47,9 @@
   /* hero */
   .hero{padding:64px 0 40px}
   .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
-  @media(max-width:860px){.hero-grid{grid-template-columns:1fr;gap:36px}}
-  .hero h1{font-size:clamp(46px,8.5vw,84px);font-weight:900;font-style:italic;line-height:.92;letter-spacing:-.035em;margin:16px 0 20px}
+  @media(max-width:860px){.hero-grid{grid-template-columns:minmax(0,1fr);gap:36px}}
+  .hero-grid>*,.stats>*,.members-grid>*,.grid3>*{min-width:0}
+  .hero h1{font-size:clamp(40px,8.5vw,84px);font-weight:900;font-style:italic;line-height:.92;letter-spacing:-.035em;margin:16px 0 20px}
   .hero h1 .g{background:linear-gradient(100deg,var(--mint2),var(--mint));-webkit-background-clip:text;background-clip:text;color:transparent}
   .hero .lead{font-size:18px;color:var(--muted);max-width:480px;margin-bottom:28px}
   .hero .lead b{color:var(--text);font-weight:600}
@@ -56,8 +59,8 @@
 
   /* chart card */
   .chart-card{background:linear-gradient(165deg,#0f2a1e 0%,#0b1311 55%);border:1px solid var(--mint-dim);border-radius:22px;padding:24px 22px 16px;box-shadow:0 30px 80px rgba(98,240,168,.08)}
-  .chart-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-  .chart-card .big{font-size:clamp(54px,9vw,78px);font-weight:900;font-style:italic;letter-spacing:-.035em;line-height:.9;color:var(--mint2);text-shadow:0 0 40px rgba(98,240,168,.35)}
+  .chart-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .chart-card .big{font-size:clamp(46px,9vw,78px);font-weight:900;font-style:italic;letter-spacing:-.035em;line-height:.9;color:var(--mint2);text-shadow:0 0 40px rgba(98,240,168,.35)}
   .chart-card .sub{font-size:14px;color:var(--muted);margin-top:8px}
   .chart-card .sub b{color:var(--text)}
   .live{display:inline-flex;align-items:center;gap:6px;font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.15em;color:var(--mint);border:1px solid var(--mint-dim);padding:5px 9px;border-radius:999px;white-space:nowrap}
@@ -82,7 +85,7 @@
 
   /* stats */
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:40px}
-  @media(max-width:760px){.stats{grid-template-columns:1fr 1fr}}
+  @media(max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat b{font-size:26px}}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
   .stat b{display:block;font-size:30px;font-weight:900;font-style:italic;letter-spacing:-.02em;color:var(--mint2)}
   .stat span{font-size:13px;color:var(--muted)}
