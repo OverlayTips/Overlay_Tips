@@ -31,7 +31,7 @@
 /* old referral links (/?ref=handle) go to the giveaway page */
 (function(){var q=location.search;if(/[?&]ref=/.test(q))location.replace('giveaway.html'+q);})();
 </script>
-<link rel="stylesheet" href="site.css?v=20261108b">
+<link rel="stylesheet" href="site.css?v=20261108c">
 </head>
 <body class="no-js">
 
@@ -385,6 +385,15 @@ rt.innerHTML = days.map(x=>`
 const tk = document.getElementById('ticker');
 const items = winners.map(([n,o])=>`<span><i>✓</i>${n}<em>${o}</em></span>`).join('');
 tk.innerHTML = items + items;
+/* scroll the roll with JS (a CSS-animated strip this wide gets dropped by iPhone Safari) */
+(function(){
+  const box=tk.parentElement, slow=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const speed=(slow?12:window.innerWidth<720?45:38); // px per second
+  let pos=0,last=null;
+  function step(t){ if(last!==null){ pos+=speed*(t-last)/1000; const half=tk.scrollWidth/2; if(half>0&&pos>=half) pos-=half; box.scrollLeft=pos; }
+    last=t; requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+})();
 
 /* profit curve */
 (function(){
