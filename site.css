@@ -332,3 +332,4 @@
   .freetip-u{display:inline-block;font-size:.55em;vertical-align:middle;margin-left:6px;padding:4px 10px;border-radius:999px;background:var(--mint2);color:#04140c;font-style:normal}
   .freetip p{color:var(--text);max-width:680px;margin:0 0 10px}
   .freetip small{color:var(--muted);font-size:12px}
+  .freetip-slip{display:block;width:100%;max-width:520px;border-radius:14px;border:1px solid var(--line);margin:6px 0 12px}
