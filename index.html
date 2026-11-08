@@ -115,7 +115,7 @@
 </header>
 
 <section id="today">
-  <div class="wrap">
+  <div class="wrap today-grid">
     <div class="today reveal">
       <div>
         <div class="mono"><span class="dot" style="display:inline-block;margin-right:8px;vertical-align:middle"></span>Today</div>
@@ -128,6 +128,19 @@
         </div>
       </div>
       <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Get today's tips</a>
+    </div>
+    <div class="yday reveal" id="yday" aria-live="polite">
+      <div class="yday-top">
+        <div class="mono" id="ydayLabel">Yesterday's results</div>
+        <span class="yday-date" id="ydayDate"></span>
+      </div>
+      <div class="yday-u" id="ydayU"></div>
+      <div class="yday-what" id="ydayWhat"></div>
+      <ul class="yday-legs" id="ydayLegs"></ul>
+      <div class="yday-foot">
+        <a href="#results">All results →</a>
+        <button type="button" id="ydayCard" hidden>View results card</button>
+      </div>
     </div>
   </div>
 </section>
@@ -295,7 +308,9 @@ const days = [
   {d:'Thu', n:'5 Nov', what:'Oaks Day 3/6 · NBA 4/7 · NBL 1/1', sub:'Racing +2.85U (Rey Magnerio @ $3.50) · NBA 4-3 +0.86U · Avdija, Kessler & Brunson cashed', u:5.84, staked:null, bets:14, won:8},
   {d:'Fri', n:'6 Nov', what:'NFL TNF 2-1 · NBA 1-1', sub:'Henry & Hill cashed · Franz dropped 15 assists', u:1.70, staked:null, bets:5, won:3},
   {d:'Sat', n:'7 Nov', what:'Stakes Day · 8/16 winners', sub:'Rosehill 3/3 +21.80U · Flemington 2/7 +2.50U · NBA 3/6 −0.03U', u:24.27, staked:42.75, bets:16, won:8},
-  {d:'Sun', n:'8 Nov', what:'NBA 2/4 · NBL 1/1 · RL 0/1', sub:'Clingan & Braun unders cashed · Kendric Davis 25+ @ $2.10', u:0.26, staked:13.25, bets:6, won:3},
+  {d:'Sun', n:'8 Nov', what:'NBA 2/4 · NBL 1/1 · RL 0/1', sub:'Clingan & Braun unders cashed · Kendric Davis 25+ @ $2.10', u:0.26, staked:13.25, bets:6, won:3, img:'res-sun.jpg',
+    legs:[['Kendric Davis 25+ pts','2.10',2,1],['Clingan U22.5 Pts+Reb','1.88',2.5,1],['Braun U6.5 Reb+Ast','2.05',2.25,1],['Jokic O37.5 Pts+Reb','1.80',2.5,0],['K. George U25.5 PRA','1.80',2.5,0],['Australia 1-12 v Samoa','3.20',1.5,0]]},
+  /* legs (optional): [bet, odds, units, 1 = won / 0 = lost]   img (optional): results card image */
 ];
 const winners = [
   ['Point of Law','Melbourne Cup'],['Evaporate','7.50'],['Birdman','6.00'],['Pinhole','3.00'],
@@ -306,6 +321,24 @@ const winners = [
 const fmt = u => (u>=0?'+':'−')+Math.abs(u).toFixed(2)+'U';
 const total = days.reduce((a,b)=>a+b.u,0);
 const maxDay = Math.max(...days.map(x=>Math.abs(x.u)));
+
+/* yesterday's results card: shows the latest day in `days` */
+(function(){
+  const last=days[days.length-1]; if(!last) return;
+  const mel=new Date(new Date().toLocaleString('en-US',{timeZone:'Australia/Melbourne'})); mel.setHours(0,0,0,0);
+  const dd=new Date(last.n+' 2026'); dd.setHours(0,0,0,0);
+  const diff=Math.round((mel-dd)/864e5);
+  document.getElementById('ydayLabel').textContent = diff<=0 ? "Today's results" : diff===1 ? "Yesterday's results" : 'Latest results';
+  document.getElementById('ydayDate').textContent=last.d+' '+last.n;
+  const u=document.getElementById('ydayU'); u.textContent=fmt(last.u)+(Math.abs(last.u)<10?' ':'')+''; u.classList.toggle('neg',last.u<0);
+  const bits=[last.what]; if(last.bets) bits.push(last.won+'/'+last.bets+' bets won');
+  document.getElementById('ydayWhat').textContent=bits.join(' · ');
+  const ul=document.getElementById('ydayLegs');
+  if(last.legs){ ul.innerHTML=last.legs.map(([b,o,un,w])=>`<li class="${w?'w':'l'}"><i>${w?'✓':'✗'}</i><span>${b}</span><em>${un}U @ ${o}</em></li>`).join(''); }
+  else ul.remove();
+  if(last.img){ const btn=document.getElementById('ydayCard'); btn.hidden=false;
+    btn.addEventListener('click',()=>{const lb=document.getElementById('lightbox'),im=document.getElementById('lbImg');im.src=last.img;im.alt=last.d+' '+last.n+' results card';lb.classList.add('open');lb.setAttribute('aria-hidden','false');}); }
+})();
 
 /* tracking stats */
 const has = k => days.every(x=>x[k]!=null);
