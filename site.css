@@ -324,3 +324,11 @@
   .terms-toc a{text-decoration:none;font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 14px;color:var(--text)}
   .terms-note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--mint);border-radius:12px;padding:12px 14px;color:var(--muted);font-size:14px;margin-bottom:14px}
   .terms-foot{margin-top:30px;color:var(--muted);font-size:14px}
+
+  /* free tip */
+  .freetip{position:relative;overflow:hidden;margin-top:16px;background:linear-gradient(165deg,#0f2a1e 0%,#0b1311 55%);border:1px solid var(--mint-dim);border-radius:22px;padding:24px 22px 20px}
+  .freetip-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .freetip h3{font-size:clamp(22px,4vw,30px);font-weight:900;font-style:italic;letter-spacing:-.02em;margin:14px 0 10px;color:var(--mint2)}
+  .freetip-u{display:inline-block;font-size:.55em;vertical-align:middle;margin-left:6px;padding:4px 10px;border-radius:999px;background:var(--mint2);color:#04140c;font-style:normal}
+  .freetip p{color:var(--text);max-width:680px;margin:0 0 10px}
+  .freetip small{color:var(--muted);font-size:12px}
