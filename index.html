@@ -483,6 +483,21 @@ gal.querySelectorAll('.shot').forEach(s=>s.addEventListener('click',()=>{lbImg.s
 const closeLb=()=>{lb.classList.remove('open');lb.setAttribute('aria-hidden','true')};
 lb.addEventListener('click',closeLb);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb()});
+
+/* highlight Home / Results in the nav depending on where you are */
+(function(){
+  const res=document.getElementById('results');
+  const homeL=document.querySelectorAll('.navlinks a[href="index.html"], .tabbar a[href="index.html"]');
+  const resL=document.querySelectorAll('a[href="index.html#results"]');
+  const set=onRes=>{
+    homeL.forEach(a=>{a.classList.toggle('on',!onRes); onRes?a.removeAttribute('aria-current'):a.setAttribute('aria-current','page');});
+    resL.forEach(a=>{a.classList.toggle('on',onRes); onRes?a.setAttribute('aria-current','location'):a.removeAttribute('aria-current');});
+  };
+  const check=()=>{const r=res.getBoundingClientRect(),m=window.innerHeight*0.4; set(r.top<=m && r.bottom>=m);};
+  resL.forEach(a=>a.addEventListener('click',()=>set(true)));
+  window.addEventListener('scroll',check,{passive:true}); window.addEventListener('hashchange',check);
+  check();
+})();
 </script>
 </body>
 </html>
