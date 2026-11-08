@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bonus Bet Calculator · Overlay Tips</title>
+<meta name="description" content="Free bonus bet conversion calculator. Work out your lay or hedge stake and your guaranteed return.">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#060807;--panel:#0e1312;--panel2:#121a18;--line:#1b2523;--text:#ecf5f1;--muted:#87978f;--mint:#62f0a8;--mint2:#a8f7cf;--mint-dim:#1d5a3f;--red:#ff6b6b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{overflow-x:hidden;overflow-x:clip}
+  body{background:var(--bg);color:var(--text);font-family:Archivo,system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(98,240,168,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(98,240,168,.035) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 20%,transparent 75%)}
+  main,nav,footer{position:relative;z-index:1}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:880px;margin:0 auto;padding:0 20px}
+  .mono{font-family:"Space Mono",monospace;letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:var(--mint)}
+  nav{position:sticky;top:0;z-index:20;background:rgba(6,8,7,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px;max-width:1080px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Mono",monospace;font-weight:700;letter-spacing:.32em;font-size:14px;white-space:nowrap}
+  .brand img{height:38px;margin-top:-6px}
+  .back{font-size:14px;color:var(--muted);white-space:nowrap}
+  .back:hover{color:var(--text)}
+  @media(max-width:380px){.brand{letter-spacing:.18em;font-size:13px}}
+
+  header{padding:48px 0 18px}
+  h1{font-size:clamp(36px,7vw,60px);font-weight:900;font-style:italic;letter-spacing:-.035em;line-height:.95;margin:12px 0 14px}
+  h1 .g{background:linear-gradient(100deg,var(--mint2),var(--mint));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{color:var(--muted);font-size:17px;max-width:600px}
+
+  .tabs{display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px;margin:28px 0 16px;width:max-content;max-width:100%}
+  .tabs button{font:inherit;font-weight:700;font-size:14px;border:0;background:none;color:var(--muted);padding:10px 16px;border-radius:999px;cursor:pointer;flex:1}
+  @media(max-width:420px){.tabs{width:100%}.tabs button{font-size:13px;padding:9px 10px;line-height:1.2}}
+  .tabs button.on{background:var(--mint2);color:#04140c;font-style:italic;font-weight:800}
+
+  .calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+  @media(max-width:720px){.calc{grid-template-columns:minmax(0,1fr)}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px}
+  .panel h2{font-size:18px;font-weight:900;font-style:italic;margin-bottom:14px}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#0a0f0e;border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:16px}
+  .seg button{font:inherit;font-size:13px;font-weight:700;border:0;background:none;color:var(--muted);padding:9px 6px;border-radius:9px;cursor:pointer}
+  .seg button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--mint-dim)}
+  label{display:block;margin-bottom:14px}
+  label span{display:block;font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  label small{display:block;color:var(--muted);font-size:12px;margin-top:5px}
+  .inp{display:flex;align-items:center;background:#0a0f0e;border:1px solid var(--line);border-radius:12px;padding:0 14px;transition:border-color .2s}
+  .inp:focus-within{border-color:var(--mint)}
+  .inp i{font-style:normal;color:var(--muted);font-weight:700}
+  .inp input{flex:1;min-width:0;width:100%;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:20px;font-weight:700;padding:12px 8px;font-variant-numeric:tabular-nums}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:end}
+
+  .result{background:linear-gradient(165deg,#0f2a1e 0%,#0b1311 60%);border-color:var(--mint-dim)}
+  .hero-num{font-size:clamp(46px,9vw,64px);font-weight:900;font-style:italic;letter-spacing:-.035em;line-height:1;color:var(--mint2);text-shadow:0 0 40px rgba(98,240,168,.3);font-variant-numeric:tabular-nums}
+  .hero-num.neg{color:var(--red);text-shadow:none}
+  .conv{display:inline-block;margin-top:10px;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.1em;padding:5px 10px;border-radius:999px;border:1px solid var(--mint-dim);color:var(--mint)}
+  .do{margin-top:20px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .do .mono{color:var(--muted);margin-bottom:8px}
+  .do p{font-size:16px}
+  .do p b{color:var(--mint2);font-size:22px;font-style:italic;font-weight:900}
+  .lines{margin-top:14px;display:grid;gap:8px}
+  .line{display:flex;justify-content:space-between;gap:12px;font-size:15px;padding:10px 0;border-top:1px solid var(--line)}
+  .line span{color:var(--muted)}
+  .line b{font-variant-numeric:tabular-nums}
+  .line b.pos{color:var(--mint2)} .line b.neg{color:var(--red)}
+  .warn{margin-top:12px;font-size:13px;color:#ffb36b;display:none}
+
+  .tips{margin:16px 0 0}
+  .tips .panel{padding:22px 24px}
+  .tips ul{list-style:none;display:grid;gap:10px}
+  .tips li{color:var(--muted);font-size:15px;padding-left:22px;position:relative}
+  .tips li::before{content:"→";position:absolute;left:0;color:var(--mint)}
+  .tips li b{color:var(--text)}
+
+  .cta{margin:28px 0 0;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px}
+  .cta p{color:var(--muted)} .cta p b{color:var(--text)}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 20px;border-radius:999px;font-weight:800;font-style:italic;font-size:15px;background:var(--mint2);color:#04140c;box-shadow:0 8px 30px rgba(98,240,168,.25)}
+
+  footer{border-top:1px solid var(--line);padding:30px 0 44px;margin-top:56px;color:var(--muted);font-size:13px;line-height:1.65}
+  footer b{color:var(--mint2)}
+  footer a{text-decoration:underline;text-underline-offset:3px}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a href="index.html" class="brand"><img src="logo-mark.png" alt="">OVERLAY TIPS</a>
+    <a href="index.html" class="back">← Back to tips</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <header>
+    <div class="mono">Free tool</div>
+    <h1>Bonus bet <span class="g">calculator</span></h1>
+    <p class="lead">Turn bookie bonus bets into cash. Enter your odds and the calculator shows exactly what to bet on the other side, and what you'll get back whichever way it lands.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="on" data-mode="lay">Lay on exchange</button>
+    <button data-mode="bb">Back / back (2 bookies)</button>
+  </div>
+
+  <div class="calc">
+    <div class="panel">
+      <h2 id="formTitle">Your bets</h2>
+      <div class="seg" id="typeSeg">
+        <button class="on" data-type="bonus">Bonus bet</button>
+        <button data-type="cash">Cash bet</button>
+      </div>
+
+      <label><span id="stakeLbl">Bonus bet amount</span>
+        <div class="inp"><i>$</i><input id="stake" type="number" inputmode="decimal" value="50" min="0" step="any"></div>
+      </label>
+
+      <div class="two">
+        <label><span id="o1Lbl">Back odds</span>
+          <div class="inp"><input id="o1" type="number" inputmode="decimal" value="5.00" min="1" step="any"></div>
+        </label>
+        <label><span id="o2Lbl">Lay odds</span>
+          <div class="inp"><input id="o2" type="number" inputmode="decimal" value="5.20" min="1" step="any"></div>
+        </label>
+      </div>
+
+      <label id="commWrap"><span>Exchange commission</span>
+        <div class="inp"><input id="comm" type="number" inputmode="decimal" value="8" min="0" max="100" step="any"><i>%</i></div>
+        <small>Check your exchange's commission rate for the market you're betting on.</small>
+      </label>
+    </div>
+
+    <div class="panel result">
+      <div class="mono">Guaranteed return</div>
+      <div class="hero-num" id="profit">$0.00</div>
+      <span class="conv" id="conv">0% conversion</span>
+
+      <div class="do">
+        <div class="mono" id="doTitle">What to do</div>
+        <p id="doText"></p>
+      </div>
+
+      <div class="lines" id="lines"></div>
+      <div class="warn" id="warn"></div>
+    </div>
+  </div>
+
+  <div class="tips">
+    <div class="panel">
+      <div class="mono" style="margin-bottom:12px">Getting the most out of it</div>
+      <ul>
+        <li><b>Bonus bets: go for higher odds.</b> The stake isn't returned, so longer odds usually convert a bigger share. Around $4–$8 tends to be the sweet spot.</li>
+        <li><b>Keep the gap small.</b> The closer the back and lay (or both bookie) odds are, the less you lose. Check the odds right before you place both bets.</li>
+        <li><b>Place both bets back to back.</b> Odds move fast. If one side changes, put the new odds in and re-check before you place the second bet.</li>
+        <li><b>Back / back needs two outcomes only.</b> Use it for markets like head-to-head or line betting, with the two sides at different bookies.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cta">
+    <p><b>Want the tips too?</b> Free daily tips, every result tracked.</p>
+    <a class="btn" href="https://ig.me/m/overlay_tips" target="_blank" rel="noopener">DM "OVERLAY" to join →</a>
+  </div>
+
+  <footer>
+    <b>18+ only. Gamble responsibly.</b> This calculator is a guide only. Odds change, so check every bet before you place it. Only bet what you can afford to lose.
+    Need help? Call Gambling Help Online on <b>1800 858 858</b> or visit <a href="https://www.gamblinghelponline.org.au" target="_blank" rel="noopener">gamblinghelponline.org.au</a>.
+    Self-exclude from all Australian bookmakers at <a href="https://www.betstop.gov.au" target="_blank" rel="noopener">betstop.gov.au</a>.
+  </footer>
+</main>
+
+<script>
+let mode='lay', type='bonus';
+const $=id=>document.getElementById(id);
+const money=v=>(v<0?'−$':'$')+Math.abs(v).toFixed(2);
+const num=id=>parseFloat($(id).value);
+
+function setLabels(){
+  $('stakeLbl').textContent = type==='bonus' ? 'Bonus bet amount' : 'Cash stake';
+  if(mode==='lay'){
+    $('o1Lbl').textContent='Back odds · bookie'; $('o2Lbl').textContent='Lay odds · exchange';
+    $('commWrap').style.display='';
+  }else{
+    $('o1Lbl').textContent = type==='bonus' ? 'Odds · bonus bet side' : 'Odds · bookie 1';
+    $('o2Lbl').textContent='Odds · other side'; $('commWrap').style.display='none';
+  }
+}
+
+function calc(){
+  const S=num('stake'), o1=num('o1'), o2=num('o2'), c=(num('comm')||0)/100;
+  const warn=$('warn'); warn.style.display='none';
+  if(!(S>0)||!(o1>1)||!(o2>1)){ $('profit').textContent='—'; $('conv').textContent='Enter your odds'; $('doText').textContent=''; $('lines').innerHTML=''; return; }
+  let other, ifA, ifB, extra=[], doText;
+  if(mode==='lay'){
+    if(o2-c<=0){ $('profit').textContent='—'; return; }
+    other = type==='bonus' ? S*(o1-1)/(o2-c) : S*o1/(o2-c);
+    const liab = other*(o2-1);
+    ifA = (type==='bonus' ? S*(o1-1) : S*(o1-1)) - liab;
+    ifB = other*(1-c) - (type==='bonus' ? 0 : S);
+    doText = `Lay <b>${money(other)}</b> at ${o2.toFixed(2)} on the exchange`;
+    extra=[['Lay stake',money(other)],['Liability (needed in exchange)',money(liab)],['If bookie bet wins',money(ifA),ifA],['If exchange lay wins',money(ifB),ifB]];
+    if(o2<o1){warn.textContent='Lay odds are lower than back odds, which is unusual. Double-check the numbers.';warn.style.display='block';}
+  }else{
+    other = type==='bonus' ? S*(o1-1)/o2 : S*o1/o2;
+    ifA = (type==='bonus' ? S*(o1-1) : S*(o1-1)) - other;
+    ifB = other*(o2-1) - (type==='bonus' ? 0 : S);
+    doText = `Bet <b>${money(other)}</b> cash on the other side at ${o2.toFixed(2)}`;
+    extra=[['Cash bet, other side',money(other)],['If bonus side wins',money(ifA),ifA],['If other side wins',money(ifB),ifB]];
+    const book=1/o1+1/o2; if(book>1.12){warn.textContent='Big gap between the two odds, so you lose a lot of value. Look for closer prices.';warn.style.display='block';}
+  }
+  const p=Math.min(ifA,ifB);
+  $('profit').textContent=money(p);
+  $('profit').classList.toggle('neg',p<0);
+  $('conv').textContent = type==='bonus' ? `${(p/S*100).toFixed(1)}% conversion` : (p<0?`Qualifying loss ${(p/S*100).toFixed(1)}%`:`Profit ${(p/S*100).toFixed(1)}%`);
+  $('doTitle').textContent='What to do';
+  $('doText').innerHTML=doText;
+  $('lines').innerHTML=extra.map(([l,v,n])=>`<div class="line"><span>${l}</span><b class="${n==null?'':(n>=0?'pos':'neg')}">${v}</b></div>`).join('');
+}
+
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  mode=b.dataset.mode;
+  if(mode==='bb' && num('o2')>num('o1')*0.9 && num('o1')===5){ $('o2').value='1.22'; }
+  if(mode==='lay' && num('o1')===5 && num('o2')===1.22){ $('o2').value='5.20'; }
+  setLabels(); calc();
+}));
+document.querySelectorAll('#typeSeg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#typeSeg button').forEach(x=>x.classList.toggle('on',x===b));
+  type=b.dataset.type; setLabels(); calc();
+}));
+['stake','o1','o2','comm'].forEach(id=>$(id).addEventListener('input',calc));
+setLabels(); calc();
+</script>
+</body>
+</html>
