@@ -311,3 +311,16 @@
   .mem-tix{margin-top:18px;background:linear-gradient(120deg,#0f2a1e 0%,#0e1312 55%,#1c1a10 100%);border:1px solid var(--mint-dim);border-radius:22px;padding:24px 24px 22px}
   .mem-tix h3{font-size:24px;font-weight:900;font-style:italic;margin:8px 0 8px}
   .mem-tix p{color:var(--muted);max-width:760px}
+
+  /* terms */
+  .terms{max-width:820px}
+  .terms h2{font-size:24px;font-weight:900;font-style:italic;margin:38px 0 14px;scroll-margin-top:120px}
+  .terms ol{margin:0;padding-left:22px;display:grid;gap:12px}
+  .terms li{color:var(--muted);font-size:15px;line-height:1.6;padding-left:4px}
+  .terms li::marker{color:var(--mint);font-family:"Space Mono",monospace;font-size:13px}
+  .terms li b{color:var(--text)}
+  .terms a{color:var(--mint2);text-decoration:underline;text-underline-offset:3px}
+  .terms-toc{display:flex;flex-wrap:wrap;gap:8px}
+  .terms-toc a{text-decoration:none;font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 14px;color:var(--text)}
+  .terms-note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--mint);border-radius:12px;padding:12px 14px;color:var(--muted);font-size:14px;margin-bottom:14px}
+  .terms-foot{margin-top:30px;color:var(--muted);font-size:14px}
