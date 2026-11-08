@@ -96,12 +96,14 @@
 
   /* ticker */
   .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#09100d;overflow:hidden;white-space:nowrap;padding:14px 0;margin-top:36px}
-  .ticker-track{display:inline-flex;gap:36px;animation:scroll 38s linear infinite;padding-left:36px}
+  .ticker-track{display:inline-flex;gap:36px;padding-left:36px;will-change:transform;-webkit-animation:scroll 38s linear infinite;animation:scroll 38s linear infinite}
+  @media(max-width:720px){.ticker-track{-webkit-animation-duration:26s;animation-duration:26s}}
   .ticker span{font-weight:700;font-size:15px}
   .ticker span i{font-style:normal;color:var(--mint);margin-right:6px}
   .ticker span em{font-style:normal;font-family:"Space Mono",monospace;font-size:13px;color:var(--mint2);margin-left:6px}
-  @keyframes scroll{to{transform:translateX(-50%)}}
-  @media (prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+  @-webkit-keyframes scroll{from{-webkit-transform:translate3d(0,0,0)}to{-webkit-transform:translate3d(-50%,0,0)}}
+  @keyframes scroll{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+  @media (prefers-reduced-motion:reduce){.ticker-track{-webkit-animation-duration:70s;animation-duration:70s}}
 
   /* stats */
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:40px}
