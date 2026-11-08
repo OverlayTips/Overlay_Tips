@@ -97,13 +97,55 @@
   footer{border-top:1px solid var(--line);padding:30px 0 44px;margin-top:56px;color:var(--muted);font-size:13px;line-height:1.65}
   footer b{color:var(--mint2)}
   footer a{text-decoration:underline;text-underline-offset:3px}
+  /* nav + tabs */
+  nav{position:sticky;top:0;z-index:20;background:rgba(6,8,7,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  nav .navrow{display:flex;align-items:center;justify-content:space-between;height:62px;gap:16px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Mono",monospace;font-weight:700;letter-spacing:.32em;font-size:14px;white-space:nowrap}
+  .brand-mark{height:38px;width:auto;display:block;margin-top:-6px}
+  .navlinks{display:flex;gap:4px;font-size:14px;color:var(--muted);align-items:center}
+  .navlinks a:not(.btn){padding:8px 12px;border-radius:999px;transition:color .2s,background .2s}
+  .navlinks a:not(.btn):hover{color:var(--text);background:var(--panel)}
+  .navlinks a.on{color:#04140c;background:var(--mint2);font-weight:800;font-style:italic}
+  .navlinks .btn{padding:9px 16px;font-size:14px;color:#04140c;margin-left:8px;white-space:nowrap}
+  .tabbar{display:none}
+  @media(max-width:860px){
+    .navlinks a:not(.btn){display:none}
+    .tabbar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 20px 10px;max-width:1080px;margin:0 auto}
+    .tabbar::-webkit-scrollbar{display:none}
+    .tabbar a{flex:none;font-size:13px;font-weight:700;color:var(--muted);padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--panel);white-space:nowrap}
+    .tabbar a.on{color:#04140c;background:var(--mint2);border-color:var(--mint2);font-style:italic;font-weight:800}
+  }
+  @media(max-width:380px){.brand{letter-spacing:.18em;font-size:13px}.navlinks .btn{padding:8px 14px}}
+  nav .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  nav .btn{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;font-weight:800;font-style:italic;transition:background .2s}
+  nav .btn-mint{background:var(--mint2);color:#04140c}
+  nav .btn-mint:hover{background:#c4fbe0}
 </style>
 </head>
 <body>
 <nav>
-  <div class="wrap">
-    <a href="index.html" class="brand"><img src="logo-mark.png" alt="">OVERLAY TIPS</a>
-    <a href="index.html" class="back">← Back to tips</a>
+  <div class="wrap navrow">
+    <a href="index.html" class="brand" aria-label="Overlay Tips home">
+      <img src="logo-mark.png" alt="" class="brand-mark">
+      OVERLAY TIPS
+    </a>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="index.html#results">Results</a>
+      <a href="giveaway.html">Giveaway</a>
+      <a href="merch.html">Merch</a>
+      <a href="calculator.html" class="on" aria-current="page">Bonus calc</a>
+      <a href="about.html">About</a>
+      <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
+    </div>
+  </div>
+  <div class="tabbar" aria-label="Site sections">
+    <a href="index.html">Home</a>
+    <a href="index.html#results">Results</a>
+    <a href="giveaway.html">Giveaway</a>
+    <a href="merch.html">Merch</a>
+    <a href="calculator.html" class="on" aria-current="page">Bonus calc</a>
+    <a href="about.html">About</a>
   </div>
 </nav>
 
