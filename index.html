@@ -210,6 +210,9 @@
   .tool-card h3{font-size:clamp(24px,4vw,32px);font-weight:900;font-style:italic;letter-spacing:-.02em;margin:10px 0 8px;line-height:1.05}
   .tool-card h3 .g{color:var(--mint2)}
   .tool-card p{color:var(--muted);max-width:520px}
+  .merch-items{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .merch-items span{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--mint-dim);border-radius:14px;background:var(--panel2);font-weight:700;font-size:14px}
+  .merch-items svg{width:20px;height:20px;stroke:var(--mint);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   @media(max-width:700px){.tool-card{grid-template-columns:minmax(0,1fr)}.tool-card .btn{justify-self:start}}
 
   /* faq */
@@ -446,6 +449,25 @@
       </div>
       <span class="btn btn-mint">Open calculator →</span>
     </a>
+  </div>
+</section>
+
+<section id="merch">
+  <div class="wrap">
+    <div class="today give reveal">
+      <div>
+        <div class="mono">Merch · coming soon</div>
+        <h3>Overlay Tips <span class="g">hoodies &amp; caps</span></h3>
+        <p>First drop is in the works. Get on the waitlist to hear first when it lands. Free to join, no payment now.</p>
+        <div class="merch-items">
+          <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l-5 4 2 4 2-1v11h10V10l2 1 2-4-5-4"/><path d="M8 3a4 4 0 0 0 8 0"/></svg>Hoodie</span>
+          <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15c0-5 4-9 9-9s9 4 9 9"/><path d="M3 15h13c3 0 5 1 5 2H3z"/></svg>Cap</span>
+        </div>
+      </div>
+      <div class="give-cta">
+        <a class="btn btn-mint" href="https://tally.so/r/GeKbgQ" target="_blank" rel="noopener">Join the waitlist →</a>
+      </div>
+    </div>
   </div>
 </section>
 
