@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://overlaytips.github.io/Overlay_Tips/</loc><lastmod>2026-11-08</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>
-  <url><loc>https://overlaytips.github.io/Overlay_Tips/calculator.html</loc><lastmod>2026-11-08</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://overlaytips.github.io/Overlay_Tips/</loc><lastmod>2026-11-08</lastmod></url>
+  <url><loc>https://overlaytips.github.io/Overlay_Tips/giveaway.html</loc><lastmod>2026-11-08</lastmod></url>
+  <url><loc>https://overlaytips.github.io/Overlay_Tips/merch.html</loc><lastmod>2026-11-08</lastmod></url>
+  <url><loc>https://overlaytips.github.io/Overlay_Tips/about.html</loc><lastmod>2026-11-08</lastmod></url>
+  <url><loc>https://overlaytips.github.io/Overlay_Tips/calculator.html</loc><lastmod>2026-11-08</lastmod></url>
 </urlset>
