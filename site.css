@@ -128,6 +128,23 @@
   .steps span{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.08em;padding:6px 11px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
   .steps span b{color:var(--mint)}
   @media(max-width:700px){.today{grid-template-columns:1fr}}
+  .today-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:stretch}
+  @media(max-width:900px){.today-grid{grid-template-columns:minmax(0,1fr)}}
+  .today-grid .today{grid-template-columns:1fr}
+  .today-grid .today .btn{justify-self:start}
+  .yday{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:26px 26px 22px;display:flex;flex-direction:column}
+  .yday-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .yday-date{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+  .yday-u{font-size:54px;font-weight:900;font-style:italic;letter-spacing:-.03em;line-height:1;margin-top:12px;color:var(--mint2);font-variant-numeric:tabular-nums}
+  .yday-u.neg{color:var(--muted)}
+  .yday-what{color:var(--muted);font-size:14px;margin-top:6px}
+  .yday-legs{list-style:none;margin:16px 0 0;display:flex;flex-direction:column;gap:6px}
+  .yday-legs li{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;font-size:14px;padding:8px 10px;border-radius:10px;background:var(--panel2)}
+  .yday-legs li i{font-style:normal;font-weight:900;text-align:center}
+  .yday-legs li.w i{color:var(--mint)} .yday-legs li.l i{color:var(--red)} .yday-legs li.l span{color:var(--muted)}
+  .yday-legs li em{font-style:normal;font-family:"Space Mono",monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+  .yday-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:auto;padding-top:16px;font-size:14px;font-weight:700}
+  .yday-foot a{color:var(--mint)} .yday-foot button{font:inherit;background:none;border:0;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
   .give{border-color:var(--mint-dim);background:linear-gradient(165deg,#0f2a1e 0%,#0b1311 60%)}
   .give h3 .g{color:var(--mint2)}
   .give .fine{font-size:12px;color:var(--muted);margin-top:14px}
