@@ -76,6 +76,12 @@
   .cta-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
   .free-tag{font-size:13px;color:var(--muted);margin-top:14px}
   .free-tag b{color:var(--mint)}
+  .spots{margin-top:18px;max-width:420px}
+  .spots-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px;color:var(--muted)}
+  .spots-top b{font-size:20px;font-weight:900;font-style:italic;color:var(--mint2);font-variant-numeric:tabular-nums}
+  .spots-bar{height:10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;margin-top:8px}
+  .spots-bar i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--mint),var(--mint2));box-shadow:0 0 14px rgba(98,240,168,.6);transition:width 1.4s cubic-bezier(.2,.8,.2,1)}
+  .spots-sub{font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:8px}
 
   /* chart card */
   .chart-card{background:linear-gradient(165deg,#0f2a1e 0%,#0b1311 55%);border:1px solid var(--mint-dim);border-radius:22px;padding:24px 22px 16px;box-shadow:0 30px 80px rgba(98,240,168,.08)}
@@ -277,7 +283,11 @@
         <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">DM "OVERLAY" to join →</a>
         <a class="btn btn-ghost" href="#results">See results</a>
       </div>
-      <p class="free-tag"><b>●</b> The first 500 followers get in free</p>
+      <div class="spots" data-followers="19" data-cap="500" aria-live="polite">
+        <div class="spots-top"><span><b class="spots-left">481</b> free spots left</span><span class="spots-count">19 / 500 taken</span></div>
+        <div class="spots-bar" role="progressbar" aria-label="Free spots taken" aria-valuemin="0" aria-valuemax="500" aria-valuenow="19"><i></i></div>
+        <div class="spots-sub">First 500 followers get in free · then it goes paid</div>
+      </div>
     </div>
 
     <div class="chart-card reveal">
@@ -391,7 +401,11 @@
       <p class="quote">Overlay tips absolutely printing value. Tell your friends. This will not be free forever.</p>
       <p class="who">A WhatsApp member, after Stakes Day (+24.27U)</p>
       <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">DM "OVERLAY" for the WhatsApp</a>
-      <p class="free-tag"><b>●</b> The first 500 followers get in free</p>
+      <div class="spots" data-followers="19" data-cap="500" aria-live="polite">
+        <div class="spots-top"><span><b class="spots-left">481</b> free spots left</span><span class="spots-count">19 / 500 taken</span></div>
+        <div class="spots-bar" role="progressbar" aria-label="Free spots taken" aria-valuemin="0" aria-valuemax="500" aria-valuenow="19"><i></i></div>
+        <div class="spots-sub">First 500 followers get in free · then it goes paid</div>
+      </div>
     </div>
     <img class="members-img reveal" src="members.jpg" alt="Overlay Tips Saturday 7 Nov results: six winning slips and messages from WhatsApp members">
   </div>
@@ -627,6 +641,17 @@ window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
     btn.removeAttribute('href'); btn.style.opacity='.55'; btn.style.pointerEvents='none';
   }
 })();
+
+/* spots left bar: update data-followers when the follower count changes */
+document.querySelectorAll('.spots').forEach(el=>{
+  const f=+el.dataset.followers, cap=+el.dataset.cap, taken=Math.min(f,cap), left=Math.max(cap-f,0);
+  el.querySelector('.spots-left').textContent=left;
+  el.querySelector('.spots-count').textContent=taken+' / '+cap+' taken';
+  el.querySelector('.spots-bar').setAttribute('aria-valuenow',taken);
+  const bar=el.querySelector('.spots-bar i'); const pct=Math.max(2,taken/cap*100);
+  requestAnimationFrame(()=>setTimeout(()=>bar.style.width=pct+'%',300));
+  if(left===0){el.querySelector('.spots-top span').innerHTML='<b>0</b> free spots left';}
+});
 
 /* gallery + lightbox */
 const gal=document.getElementById('gallery');
