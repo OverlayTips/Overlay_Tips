@@ -31,7 +31,7 @@
 /* old referral links (/?ref=handle) go to the giveaway page */
 (function(){var q=location.search;if(/[?&]ref=/.test(q))location.replace('giveaway.html'+q);})();
 </script>
-<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="site.css?v=20261108b">
 </head>
 <body class="no-js">
 
@@ -334,7 +334,11 @@ const maxDay = Math.max(...days.map(x=>Math.abs(x.u)));
   const bits=[last.what]; if(last.bets) bits.push(last.won+'/'+last.bets+' bets won');
   document.getElementById('ydayWhat').textContent=bits.join(' · ');
   const ul=document.getElementById('ydayLegs');
-  if(last.legs){ ul.innerHTML=last.legs.map(([b,o,un,w])=>`<li class="${w?'w':'l'}"><i>${w?'✓':'✗'}</i><span>${b}</span><em>${un}U @ ${o}</em></li>`).join(''); }
+  if(last.legs){ ul.innerHTML=last.legs.map(([b,o,un,w])=>{const pl=w?un*(parseFloat(o)-1):-un;
+    return `<li class="${w?'w':'l'}"><i>${w?'✓':'✗'}</i><span>${b}</span><em><b>${fmt(+pl.toFixed(2))}</b>${un}U @ ${o}</em></li>`}).join(''); }
+  if(last.staked||last.bets){ const st=document.createElement('div'); st.className='yday-stats';
+    st.innerHTML=[['Staked',last.staked!=null?last.staked.toFixed(2)+'U':'–'],['ROI',last.staked?(last.u/last.staked*100).toFixed(1)+'%':'–'],['Strike',last.bets?last.won+'/'+last.bets:'–']].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('');
+    document.getElementById('ydayWhat').after(st); }
   else ul.remove();
   if(last.img){ const btn=document.getElementById('ydayCard'); btn.hidden=false;
     btn.addEventListener('click',()=>{const lb=document.getElementById('lightbox'),im=document.getElementById('lbImg');im.src=last.img;im.alt=last.d+' '+last.n+' results card';lb.classList.add('open');lb.setAttribute('aria-hidden','false');}); }
