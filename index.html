@@ -125,6 +125,11 @@
   .steps span{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.08em;padding:6px 11px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
   .steps span b{color:var(--mint)}
   @media(max-width:700px){.today{grid-template-columns:1fr}}
+  .give{border-color:var(--mint-dim);background:linear-gradient(165deg,#0f2a1e 0%,#0b1311 60%)}
+  .give h3 .g{color:var(--mint2)}
+  .give .fine{font-size:12px;color:var(--muted);margin-top:14px}
+  .give .fine a{text-decoration:underline}
+  .give-cta{display:flex;flex-direction:column;gap:10px;align-items:stretch;position:relative;z-index:1}
 
   /* kpis */
   .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
@@ -247,6 +252,7 @@
       OVERLAY TIPS
     </a>
     <div class="navlinks">
+      <a href="#giveaway">Giveaway</a>
       <a href="#results">Results</a>
       <a href="#members">Members</a>
       <a href="#how">How it works</a>
@@ -319,6 +325,27 @@
         </div>
       </div>
       <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Get today's tips</a>
+    </div>
+  </div>
+</section>
+
+<section id="giveaway">
+  <div class="wrap">
+    <div class="today give reveal">
+      <div>
+        <div class="mono"><span class="dot" style="display:inline-block;margin-right:8px;vertical-align:middle"></span>Giveaway · <span id="giveStatus">closes Sun 22 Nov</span></div>
+        <h3>Refer a mate. <span class="g">You both get $50.</span></h3>
+        <p>Every mate you refer = 1 entry in the draw. If you're drawn, you <b>and</b> your mate get $50 cash each via PayID. Drawn live on Mon 23 Nov.</p>
+        <div class="steps">
+          <span><b>1</b> Enter below</span>
+          <span><b>2</b> Share your link</span>
+          <span><b>3</b> More mates = more entries</span>
+        </div>
+        <p class="fine">Your link: <b id="myLink">overlaytips.github.io/Overlay_Tips/?ref=YOURHANDLE</b><br>18+ Australian residents only. Free to enter. Full terms on the entry form. Gamble responsibly.</p>
+      </div>
+      <div class="give-cta">
+        <a class="btn btn-mint" id="giveBtn" href="https://tally.so/r/VpjDrv?ref=overlay_tips" target="_blank" rel="noopener">Enter the giveaway →</a>
+      </div>
     </div>
   </div>
 </section>
@@ -583,6 +610,18 @@ document.querySelectorAll('.reveal').forEach(r=>{ if(io) io.observe(r); else { r
 const st=document.getElementById('sticky');
 const onScroll=()=>st.classList.toggle('show', window.scrollY>500 && (window.innerHeight+window.scrollY) < document.body.scrollHeight-260);
 window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+/* giveaway: pass ?ref= through to the Tally form, close after deadline */
+(function(){
+  const btn=document.getElementById('giveBtn'); if(!btn) return;
+  const raw=(new URLSearchParams(location.search).get('ref')||'').replace(/^@/,'').trim().slice(0,40);
+  if(raw) btn.href='https://tally.so/r/VpjDrv?ref='+encodeURIComponent(raw);
+  if(Date.now() > Date.parse('2026-11-22T23:59:59+11:00')){
+    document.getElementById('giveStatus').textContent='entries closed';
+    btn.textContent='Entries closed · draw Mon 23 Nov';
+    btn.removeAttribute('href'); btn.style.opacity='.55'; btn.style.pointerEvents='none';
+  }
+})();
 
 /* gallery + lightbox */
 const gal=document.getElementById('gallery');
