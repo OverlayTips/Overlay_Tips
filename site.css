@@ -307,3 +307,7 @@
   .mem-extra div{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
   .mem-extra b{display:block;font-style:italic;font-weight:900}
   .mem-extra span{color:var(--muted);font-size:13.5px}
+
+  .mem-tix{margin-top:18px;background:linear-gradient(120deg,#0f2a1e 0%,#0e1312 55%,#1c1a10 100%);border:1px solid var(--mint-dim);border-radius:22px;padding:24px 24px 22px}
+  .mem-tix h3{font-size:24px;font-weight:900;font-style:italic;margin:8px 0 8px}
+  .mem-tix p{color:var(--muted);max-width:760px}
