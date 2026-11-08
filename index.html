@@ -84,12 +84,12 @@
       <div class="chart-top">
         <div>
           <div class="mono">November · month to date</div>
-          <div class="big" id="bigNum">+80.41U</div>
-          <div class="sub"><b>$804 profit</b> for a $10 unit punter</div>
+          <div class="big" id="bigNum">+80.67U</div>
+          <div class="sub"><b>$807 profit</b> for a $10 unit punter</div>
         </div>
         <span class="live"><span class="dot"></span>TRACKED</span>
       </div>
-      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Cumulative profit in units across November: from 0 to plus 80.41 units over six days">
+      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Cumulative profit in units across November: from 0 to plus 80.67 units over seven days">
         <defs>
           <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#62f0a8" stop-opacity=".28"/>
@@ -106,7 +106,7 @@
 
   <div class="wrap">
     <div class="stats reveal">
-      <div class="stat"><b>6/6</b><span>Winning days</span></div>
+      <div class="stat"><b>7/7</b><span>Winning days</span></div>
       <div class="stat"><b>+35.80U</b><span>Best day · Cup Day</span></div>
       <div class="stat"><b>+24.27U</b><span>Stakes Day · 8/16</span></div>
       <div class="stat"><b>100%</b><span>Of bets posted</span></div>
@@ -279,7 +279,7 @@
 </div>
 
 <div class="sticky" id="sticky">
-  <small><b>+80.41U this month</b>Free for the first 500</small>
+  <small><b>+80.67U this month</b>Free for the first 500</small>
   <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
 </div>
 
@@ -294,11 +294,12 @@ const days = [
   {d:'Thu', n:'5 Nov', what:'Oaks Day 3/6 · NBA 4/7 · NBL 1/1', sub:'Racing +2.85U (Rey Magnerio @ $3.50) · NBA 4-3 +0.86U · Avdija, Kessler & Brunson cashed', u:5.84, staked:null, bets:14, won:8},
   {d:'Fri', n:'6 Nov', what:'NFL TNF 2-1 · NBA 1-1', sub:'Henry & Hill cashed · Franz dropped 15 assists', u:1.70, staked:null, bets:5, won:3},
   {d:'Sat', n:'7 Nov', what:'Stakes Day · 8/16 winners', sub:'Rosehill 3/3 +21.80U · Flemington 2/7 +2.50U · NBA 3/6 −0.03U', u:24.27, staked:42.75, bets:16, won:8},
+  {d:'Sun', n:'8 Nov', what:'NBA 2/4 · NBL 1/1 · RL 0/1', sub:'Clingan & Braun unders cashed · Kendric Davis 25+ @ $2.10', u:0.26, staked:13.25, bets:6, won:3},
 ];
 const winners = [
   ['Point of Law','Melbourne Cup'],['Evaporate','7.50'],['Birdman','6.00'],['Pinhole','3.00'],
   ['Savvy Spy','2.70'],['Horseshoe Hill','2.50'],['Harden 3+ threes','2.25'],['Barrett 35+ PRA','1.86'],
-  ['Dybantsa 6+ reb','1.81'],['Doolittle + Roma SGM','✓'],['Henry & Hill','TNF']
+  ['Dybantsa 6+ reb','1.81'],['Doolittle + Roma SGM','✓'],['Henry & Hill','TNF'],['K. Davis 25+ pts','2.10'],['Braun U6.5 R+A','2.05']
 ];
 
 const fmt = u => (u>=0?'+':'−')+Math.abs(u).toFixed(2)+'U';
