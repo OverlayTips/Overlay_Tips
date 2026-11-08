@@ -109,6 +109,17 @@
   .steps span b{color:var(--mint)}
   @media(max-width:700px){.today{grid-template-columns:1fr}}
 
+  /* kpis */
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+  @media(max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px}
+  .kpi span{display:block;font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .kpi b{display:block;font-size:28px;font-weight:900;font-style:italic;letter-spacing:-.02em;margin-top:6px;color:var(--mint2);font-variant-numeric:tabular-nums}
+  .kpi small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .row .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .row .meta em{font-style:normal;font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 8px}
+  .row .meta em b{color:var(--mint)}
+
   /* results */
   .results{border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--panel)}
   .row{display:grid;grid-template-columns:96px 1fr 110px;gap:18px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);transition:background .2s}
@@ -163,6 +174,14 @@
   .card h3{font-size:21px;font-weight:900;font-style:italic;margin:10px 0 8px}
   .card p{color:var(--muted);font-size:15px}
 
+  /* tool card */
+  .tool-card{display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;background:linear-gradient(160deg,#0f2a1e,#0b1210 60%);border:1px solid var(--mint-dim);border-radius:22px;padding:30px;transition:transform .2s,box-shadow .2s}
+  .tool-card:hover{transform:translateY(-3px);box-shadow:0 20px 60px rgba(98,240,168,.12)}
+  .tool-card h3{font-size:clamp(24px,4vw,32px);font-weight:900;font-style:italic;letter-spacing:-.02em;margin:10px 0 8px;line-height:1.05}
+  .tool-card h3 .g{color:var(--mint2)}
+  .tool-card p{color:var(--muted);max-width:520px}
+  @media(max-width:700px){.tool-card{grid-template-columns:minmax(0,1fr)}.tool-card .btn{justify-self:start}}
+
   /* faq */
   .faq{display:grid;gap:10px;max-width:760px}
   details{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:0 22px}
@@ -215,6 +234,7 @@
       <a href="#members">Members</a>
       <a href="#how">How it works</a>
       <a href="#faq">FAQ</a>
+      <a href="calculator.html">Bonus calc</a>
       <a class="btn btn-mint" href="https://ig.me/m/overlay_tips" target="_blank" rel="noopener">Join free</a>
     </div>
   </div>
@@ -291,6 +311,7 @@
     <div class="mono reveal">Tracked results</div>
     <h2 class="reveal">November, <span class="g">day by day</span></h2>
     <p class="intro reveal">Every bet goes up before the game, and every result goes up after it. Here's the month so far.</p>
+    <div class="kpis reveal" id="kpis"></div>
     <div class="results reveal" id="resultsTable"></div>
     <p class="note">1 unit (1U) = your standard stake. Full slips for every day are on our Instagram.</p>
 
@@ -349,6 +370,19 @@
         <p>Every result goes on the record, wins and losses. No deleted posts, no cherry-picking.</p>
       </div>
     </div>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="wrap">
+    <a class="tool-card reveal" href="calculator.html">
+      <div>
+        <div class="mono">Free tool</div>
+        <h3>Bonus bet <span class="g">conversion calculator</span></h3>
+        <p>Turn bookie bonus bets into cash. Work out the lay or hedge stake and see your guaranteed return before you bet.</p>
+      </div>
+      <span class="btn btn-mint">Open calculator →</span>
+    </a>
   </div>
 </section>
 
@@ -424,12 +458,12 @@ document.body.classList.remove('no-js');
 
 /* ---- data: edit here to update the site ---- */
 const days = [
-  {d:'Mon', n:'2 Nov', what:'NBA 3-0 · NFL 3-3', sub:'Clean sweep on the NBA card', u:6.55},
-  {d:'Tue', n:'3 Nov', what:'Cup Day', sub:'Racing +32.7U (Point of Law won the Cup) · NBA 5-4 +1.0U · NFL SGM + JSN 110+ +2.1U', u:35.80},
-  {d:'Wed', n:'4 Nov', what:'2/2', sub:'Doolittle + Roma SGM', u:6.25},
-  {d:'Thu', n:'5 Nov', what:'Oaks Day 3/6 · NBA 4/7 · NBL 1/1', sub:'Racing +2.85U (Rey Magnerio @ $3.50) · NBA 4-3 +0.86U · Avdija, Kessler & Brunson cashed', u:5.84},
-  {d:'Fri', n:'6 Nov', what:'NFL TNF 2-1 · NBA 1-1', sub:'Henry & Hill cashed · Franz dropped 15 assists', u:1.70},
-  {d:'Sat', n:'7 Nov', what:'Stakes Day · 8/16 winners', sub:'Rosehill 3/3 +21.80U · Flemington 2/7 +2.50U · NBA 3/6 −0.03U · 56.8% ROI', u:24.27},
+  {d:'Mon', n:'2 Nov', what:'NBA 3-0 · NFL 3-3', sub:'Clean sweep on the NBA card', u:6.55, staked:null, bets:null, won:null},
+  {d:'Tue', n:'3 Nov', what:'Cup Day', sub:'Racing +32.7U (Point of Law won the Cup) · NBA 5-4 +1.0U · NFL SGM + JSN 110+ +2.1U', u:35.80, staked:null, bets:null, won:null},
+  {d:'Wed', n:'4 Nov', what:'2/2', sub:'Doolittle + Roma SGM', u:6.25, staked:null, bets:2, won:2},
+  {d:'Thu', n:'5 Nov', what:'Oaks Day 3/6 · NBA 4/7 · NBL 1/1', sub:'Racing +2.85U (Rey Magnerio @ $3.50) · NBA 4-3 +0.86U · Avdija, Kessler & Brunson cashed', u:5.84, staked:null, bets:null, won:null},
+  {d:'Fri', n:'6 Nov', what:'NFL TNF 2-1 · NBA 1-1', sub:'Henry & Hill cashed · Franz dropped 15 assists', u:1.70, staked:null, bets:5, won:3},
+  {d:'Sat', n:'7 Nov', what:'Stakes Day · 8/16 winners', sub:'Rosehill 3/3 +21.80U · Flemington 2/7 +2.50U · NBA 3/6 −0.03U', u:24.27, staked:42.75, bets:16, won:8},
 ];
 const winners = [
   ['Point of Law','Melbourne Cup'],['Evaporate','7.50'],['Birdman','6.00'],['Pinhole','3.00'],
@@ -441,12 +475,35 @@ const fmt = u => (u>=0?'+':'−')+Math.abs(u).toFixed(2)+'U';
 const total = days.reduce((a,b)=>a+b.u,0);
 const maxDay = Math.max(...days.map(x=>Math.abs(x.u)));
 
+/* tracking stats */
+const has = k => days.every(x=>x[k]!=null);
+const sum = k => days.reduce((a,x)=>a+(x[k]||0),0);
+function meta(x){
+  const m=[];
+  if(x.staked!=null) m.push(`<em>Staked <b>${x.staked.toFixed(2)}U</b></em>`, `<em>ROI <b>${(x.u/x.staked*100).toFixed(1)}%</b></em>`);
+  if(x.bets!=null && x.won!=null) m.push(`<em>Strike <b>${x.won}/${x.bets}</b></em>`);
+  return m.length?`<div class="meta">${m.join('')}</div>`:'';
+}
+(function(){
+  let streak=0,best=0; days.forEach(x=>{streak=x.u>0?streak+1:0;best=Math.max(best,streak)});
+  const bestDay=days.reduce((a,b)=>b.u>a.u?b:a);
+  const k=[
+    ['Profit', fmt(total), `$${(total*10).toFixed(0)} on $10 units`],
+    has('staked') ? ['ROI', (total/sum('staked')*100).toFixed(1)+'%', `${sum('staked').toFixed(2)}U staked`] : null,
+    has('bets')&&has('won') ? ['Strike rate', (sum('won')/sum('bets')*100).toFixed(0)+'%', `${sum('won')}/${sum('bets')} bets won`] : null,
+    ['Winning days', `${days.filter(x=>x.u>0).length}/${days.length}`, `${best}-day win streak`],
+    ['Avg per day', fmt(total/days.length), `${days.length} days tracked`],
+    ['Best day', fmt(bestDay.u), `${bestDay.d} ${bestDay.n}`],
+  ].filter(Boolean).slice(0,8);
+  document.getElementById('kpis').innerHTML=k.map(([l,v,sm])=>`<div class="kpi"><span>${l}</span><b>${v}</b><small>${sm}</small></div>`).join('');
+})();
+
 /* results table */
 const rt = document.getElementById('resultsTable');
 rt.innerHTML = days.map(x=>`
   <div class="row">
     <div class="date"><b>${x.d}</b>${x.n}</div>
-    <div class="what">${x.what}${x.sub?`<small>${x.sub}</small>`:''}<div class="bar"><i data-w="${Math.max(4,Math.abs(x.u)/maxDay*100)}"></i></div></div>
+    <div class="what">${x.what}${x.sub?`<small>${x.sub}</small>`:''}${meta(x)}<div class="bar"><i data-w="${Math.max(4,Math.abs(x.u)/maxDay*100)}"></i></div></div>
     <div class="u">${fmt(x.u)}</div>
   </div>`).join('') + `
   <div class="row total">
