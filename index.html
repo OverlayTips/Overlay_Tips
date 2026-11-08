@@ -138,6 +138,9 @@
   .give .fine{font-size:12px;color:var(--muted);margin-top:14px}
   .give .fine a{text-decoration:underline}
   .give-cta{display:flex;flex-direction:column;gap:10px;align-items:stretch;position:relative;z-index:1}
+  .entry-count{text-align:center;padding:14px 18px;border:1px solid var(--mint-dim);border-radius:16px;background:rgba(6,8,7,.5)}
+  .entry-count b{display:block;font-size:40px;font-weight:900;font-style:italic;letter-spacing:-.02em;color:var(--mint2);line-height:1;font-variant-numeric:tabular-nums}
+  .entry-count span{display:block;font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:6px}
 
   /* kpis */
   .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
@@ -364,12 +367,14 @@
         <div class="steps">
           <span><b>1</b> Follow @overlay_tips</span>
           <span><b>2</b> Enter</span>
-          <span><b>2</b> Share your link</span>
-          <span><b>3</b> More mates = more entries</span>
+          <span><b>3</b> Share your link</span>
+          <span><b>4</b> More mates = more entries</span>
         </div>
         <p class="fine">Your link: <b id="myLink">overlaytips.github.io/Overlay_Tips/?ref=YOURHANDLE</b><br>Entries close Sun 22 Nov 2026, 11:59pm AEDT. Free to enter: fill in the entry form. 18+ Australian residents only. No betting account needed. Full terms on the entry form. Gamble responsibly.</p>
       </div>
       <div class="give-cta">
+        <!-- ENTRY COUNT: update data-entries (and the number inside <b>) with the number of people entered -->
+        <div class="entry-count" id="entryCount" data-entries="1" data-updated="8 Nov"><b>1</b><span>entered so far · updated 8 Nov</span></div>
         <a class="btn btn-mint" id="giveBtn" href="https://tally.so/r/VpjDrv?ref=overlay_tips" target="_blank" rel="noopener">Enter the giveaway →</a>
       </div>
     </div>
@@ -670,6 +675,14 @@ document.querySelectorAll('.reveal').forEach(r=>{ if(io) io.observe(r); else { r
 const st=document.getElementById('sticky');
 const onScroll=()=>st.classList.toggle('show', window.scrollY>500 && (window.innerHeight+window.scrollY) < document.body.scrollHeight-260);
 window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+/* giveaway entry counter */
+(function(){
+  const el=document.getElementById('entryCount'); if(!el) return;
+  const n=+el.dataset.entries||0, b=el.querySelector('b'), t0=performance.now();
+  el.querySelector('span').textContent=(n===1?'person':'people')+' entered so far · updated '+el.dataset.updated;
+  (function step(t){const p=Math.min(1,(t-t0)/1200);b.textContent=Math.round(n*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(step)})(t0);
+})();
 
 /* giveaway: pass ?ref= through to the Tally form, close after deadline */
 (function(){
