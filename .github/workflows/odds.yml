@@ -1,13 +1,13 @@
 name: Update odds
 
 # 3 updates a day (Sydney time):
-#   ~7am and ~9:30am  -> GitHub schedule below (UTC crons cover both AEDT and AEST; the time check skips the wrong one)
-#   5:45pm            -> the "Daily odds picks" Claude scheduled task triggers this, waits, then sends the picks alert
+#   ~7am    -> GitHub schedule below (UTC crons cover both AEDT and AEST; the time check skips the wrong one)
+#   9:13am  -> the "Morning odds picks" Claude scheduled task triggers this, waits, then sends the picks alert
+#   5:45pm  -> the "Daily odds picks" Claude scheduled task does the same
 # Use "Run workflow" in the Actions tab for an extra refresh any time.
 on:
   schedule:
     - cron: "53 19,20 * * *"   # 6:53am Sydney (AEDT = 19:53 UTC, AEST = 20:53 UTC)
-    - cron: "23 22,23 * * *"   # 9:23am Sydney (AEDT = 22:23 UTC, AEST = 23:23 UTC)
   workflow_dispatch: {}
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
           if [ "${{ github.event_name }}" != "schedule" ]; then echo "RUN=true" >> "$GITHUB_ENV"; exit 0; fi
           T=$(TZ=Australia/Sydney date +%H%M); echo "Sydney time $T"
           # allow for GitHub's scheduling delays; skip the cron that lands in the wrong daylight-saving hour
-          if { [ "$T" -ge 0645 ] && [ "$T" -le 0745 ]; } || { [ "$T" -ge 0915 ] && [ "$T" -le 1015 ]; }; then
+          if [ "$T" -ge 0645 ] && [ "$T" -le 0745 ]; then
             echo "RUN=true" >> "$GITHUB_ENV"
           else
             echo "RUN=false" >> "$GITHUB_ENV"; echo "Not an update slot in Sydney, skipping."
