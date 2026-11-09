@@ -137,6 +137,13 @@
   .sharebar{display:inline-flex;gap:6px}
   .sharebtn{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-weight:800;font-size:14px;color:var(--text);white-space:nowrap}
   .sharebtn.wa{background:#25d366;border-color:#25d366;color:#04140c}
+  .swipe{display:none}
+  @media(max-width:640px){
+    th:first-child,td:first-child{white-space:normal;max-width:none;min-width:132px;width:42%;overflow:visible;line-height:1.3;box-shadow:6px 0 8px -6px rgba(0,0,0,.6)}
+    td:first-child .pt{display:block;margin-top:2px}
+    .swipe{display:block;font-size:12px;color:var(--muted);padding:0 16px 8px;text-align:right}
+    .ev table:not(.bb) th:nth-child(4),.ev table:not(.bb) td.mv{display:none}
+  }
   [hidden]{display:none!important}
 </style>
 </head>
@@ -398,7 +405,7 @@ function render(){
         return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
       return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="fair">${r.fair?r.fair.toFixed(2)+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
-    return `<div class="ev">${head}<div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
+    return `<div class="ev">${head}<div class="swipe">Swipe for every bookie →</div><div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
   if(top) $('list').insertAdjacentHTML('afterbegin',top);
 }
