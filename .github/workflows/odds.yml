@@ -1,8 +1,13 @@
 name: Update odds
 
+# 3 updates a day (Sydney time):
+#   ~7am and ~9:30am  -> GitHub schedule below (UTC crons cover both AEDT and AEST; the time check skips the wrong one)
+#   5:45pm            -> the "Daily odds picks" Claude scheduled task triggers this, waits, then sends the picks alert
+# Use "Run workflow" in the Actions tab for an extra refresh any time.
 on:
-  # Runs once a day: the "Daily odds picks" Claude scheduled task triggers it just before 6pm Sydney,
-  # waits for it, then sends the picks alert. Use "Run workflow" in the Actions tab for an extra refresh.
+  schedule:
+    - cron: "53 19,20 * * *"   # 6:53am Sydney (AEDT = 19:53 UTC, AEST = 20:53 UTC)
+    - cron: "23 22,23 * * *"   # 9:23am Sydney (AEDT = 22:23 UTC, AEST = 23:23 UTC)
   workflow_dispatch: {}
 
 permissions:
@@ -17,19 +22,34 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PW_SET: ${{ secrets.ODDS_PAGE_PASSWORD != '' }}
+      PROPS_EVERY_HOURS: "2"
     steps:
+      - name: Check Sydney time
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "RUN=true" >> "$GITHUB_ENV"; exit 0; fi
+          T=$(TZ=Australia/Sydney date +%H%M); echo "Sydney time $T"
+          # allow for GitHub's scheduling delays; skip the cron that lands in the wrong daylight-saving hour
+          if { [ "$T" -ge 0645 ] && [ "$T" -le 0745 ]; } || { [ "$T" -ge 0915 ] && [ "$T" -le 1015 ]; }; then
+            echo "RUN=true" >> "$GITHUB_ENV"
+          else
+            echo "RUN=false" >> "$GITHUB_ENV"; echo "Not an update slot in Sydney, skipping."
+          fi
+
       - uses: actions/checkout@v4
+        if: env.RUN == 'true'
 
       - name: Load previous data
+        if: env.RUN == 'true'
         run: |
           git fetch --depth=1 origin odds-data && git worktree add odds-data FETCH_HEAD || mkdir -p odds-data
 
       - uses: actions/setup-python@v5
+        if: env.RUN == 'true'
         with:
           python-version: "3.12"
 
       - name: Fetch odds
-        if: env.PW_SET == 'true'
+        if: env.RUN == 'true' && env.PW_SET == 'true'
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
@@ -39,13 +59,14 @@ jobs:
           python scripts/fetch_odds.py
 
       - name: Wipe unprotected data (no ODDS_PAGE_PASSWORD secret yet)
-        if: env.PW_SET != 'true'
+        if: env.RUN == 'true' && env.PW_SET != 'true'
         run: |
           rm -f odds-data/*.json
           echo '{"v":0,"locked":"no-password"}' > odds-data/data.json
           echo "::warning::Add the ODDS_PAGE_PASSWORD secret to start publishing odds"
 
       - name: Publish to odds-data branch
+        if: env.RUN == 'true'
         run: |
           cd odds-data
           rm -rf .git-tmp && git init -q -b odds-data .git-tmp
