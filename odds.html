@@ -199,6 +199,7 @@
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
       <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button">📲 Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
+      <label class="stakebox" id="evtBox" hidden>Show<select id="evtSel"><option value="all">Everything</option><option value="props">Player overs/unders</option><option value="games">Game markets</option></select></label>
       <label class="stakebox" id="mvBox" hidden>Show<select id="mvSel"><option value="all">Steamers + drifters</option><option value="steam">Steamers (shortening)</option><option value="drift">Drifters (lengthening)</option></select></label>
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
       <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
@@ -334,7 +335,7 @@ function render(){
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   SHARE=[]; $('shareBar').hidden=!(['ev','arb','pp'].includes(view)||view.startsWith('bk:'));
-  $('mvBox').hidden=view!=='mv';
+  $('mvBox').hidden=view!=='mv'; $('evtBox').hidden=view!=='ev';
   myBook=view.startsWith('bk:')?view.slice(3):(['ev','arb','pp'].includes(view)?bookFilter:'all');
   $('bookBox').hidden=!['ev','arb','pp'].includes(view); if(!$('bookBox').hidden) fillBooks();
   const isB=view==='bonus', isA=view==='arb';
@@ -430,7 +431,8 @@ function renderEV(){
   $('legend').textContent='Every game market and player prop, ranked by edge: how much the best bookie price beats the fair price (bookie margins removed). Higher = more +EV. Check the price is still there before betting. Price signals, not sure things.';
   const q=$('q').value.trim().toLowerCase();
   const pool=evs.filter(e=>sport==='all'||e.sport_title===sport);
-  $('list').innerHTML=topEV(pool,q,{limit:60,title:'🔥 Highest EV bets',
+  $('evtSel').value=evType;
+  $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,title:evType==='props'?'🔥 Highest EV player overs/unders':evType==='games'?'🔥 Highest EV game markets':'🔥 Highest EV bets',
     meta:'Games and player props, best edge first.',
     empty:'<div class="empty"><h3>No +EV bets right now</h3>Nothing beats the fair price by more than 0.5% at the moment. Check again after the next update.</div>'});
 }
@@ -457,6 +459,7 @@ $('copyBtn').onclick=async()=>{const t=shareText(); if(!t){alert('No bets to cop
   try{await navigator.clipboard.writeText(t);$('copyBtn').textContent='Copied ✓';setTimeout(()=>$('copyBtn').textContent='Copy',1500);}
   catch(e){prompt('Copy this:',t);}};
 
+let evType=store.get('evType','all');
 let myBook='all', bookFilter=store.get('bookFilter','all');
 function fillBooks(){
   const O=DATA.odds,P=DATA.props||{events:[]},seen={};
@@ -482,7 +485,8 @@ function topEV(evs,q,o={}){
     if(new Date(e.commence_time)<=now) return;
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
     mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
-      t.rows.forEach(r=>{ if(!r.fair||r.nfair<3) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r); if(!pk) return;
+      t.rows.forEach(r=>{ if(!r.fair||r.nfair<3) return;
+        if(o.type==='props'&&!(r.s.desc&&r.point!=null)) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r); if(!pk) return;
         const edge=(pk.price/r.fair-1)*100;
         if(edge>0.5&&(!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q)))
         out.push({e,mk,r,pk,edge}); });});
@@ -711,6 +715,7 @@ function renderMovers(){
     <div class="ev-meta">Biggest moves first. ${out.length>60?'Top 60 of '+out.length:out.length+' found'}.</div></div></div>
     <div class="tbl-wrap"><table class="bb mvt"><tr><th>Move</th><th>Bet</th><th>Opened → now</th><th>Best now</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
+$('evtSel').onchange=e=>{evType=e.target.value;store.set('evType',evType);render();};
 $('mvSel').onchange=e=>{mvMode=e.target.value;store.set('mvMode',mvMode);render();};
 function renderArbs(){
   const O=DATA.odds, P=DATA.props||{events:[]};
