@@ -92,7 +92,9 @@
   .lock{font-size:14px;color:var(--muted);padding:6px 0}
   .lock:hover{color:var(--text)}
   .navr{display:flex;gap:18px;align-items:center}
-  .viewtabs{display:flex;gap:6px;margin-top:18px}
+  .viewtabs{display:flex;gap:6px;margin-top:18px;overflow-x:auto;scrollbar-width:none;max-width:100%}
+  .viewtabs::-webkit-scrollbar{display:none}
+  .viewtabs button{white-space:nowrap;flex:none}
   .viewtabs button{padding:9px 16px;border-radius:12px;font-weight:900;font-style:italic;font-size:15px;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
   .viewtabs button.on{color:var(--text);border-color:var(--mint-dim);background:var(--panel2)}
   .seg{overflow-x:auto;max-width:100%;scrollbar-width:none}
@@ -144,6 +146,7 @@
     <h1>Odds <span class="g">tracker</span></h1>
     <div class="status" id="status"></div>
     <div class="viewtabs" id="views">
+      <button data-v="ev">🔥 Highest EV</button>
       <button data-v="games" class="on">Games</button>
       <button data-v="props">Player props</button>
       <button data-v="bonus">Bonus bets</button>
@@ -173,7 +176,7 @@ const store = {get(k,d){try{const v=localStorage.getItem('odds.'+k);return v==nu
                set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v))}catch(e){}},
                del(k){try{localStorage.removeItem('odds.'+k)}catch(e){}}};
 
-let DATA=null, view=store.get('view','games'), sport=store.get('sport','all'), movers=store.get('movers',false);
+let DATA=null, view=store.get('view','ev'), sport=store.get('sport','all'), movers=store.get('movers',false);
 let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
 const SHORT={sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet',picklebet:'Picklebet'};
@@ -272,6 +275,9 @@ function render(){
   const isB=view==='bonus';
   $('markets').hidden=isB; $('moversBox').hidden=isB; $('stakeBox').hidden=!isB; $('bpropsBox').hidden=!isB;
   if(isB){ renderBonus(); return; }
+  const isE=view==='ev';
+  $('markets').hidden=isE; $('moversBox').hidden=isE;
+  if(isE){ renderEV(); return; }
 
   const evs = view==='games'?O.events:P.events;
   const counts={}; evs.forEach(e=>counts[e.sport_title]=(counts[e.sport_title]||0)+1);
@@ -341,8 +347,26 @@ function render(){
   if(top) $('list').insertAdjacentHTML('afterbegin',top);
 }
 
+const MKT_LABEL={h2h:'H2H',spreads:'Line',totals:'Total'};
+function renderEV(){
+  const O=DATA.odds, P=DATA.props||{events:[]};
+  const evs=O.events.concat(P.events);
+  const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
+  if(sport!=='all'&&!counts[sport]) sport='all';
+  $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
+    `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
+  $('q').placeholder='Search team or player';
+  $('legend').textContent='Every game market and player prop, ranked by edge: how much the best bookie price beats the fair price (bookie margins removed). Higher = more +EV. Check the price is still there before betting. Price signals, not sure things.';
+  const q=$('q').value.trim().toLowerCase();
+  $('list').innerHTML=topEV(evs.filter(e=>sport==='all'||e.sport_title===sport),q,{limit:60,title:'Highest EV bets',
+    meta:'Games and player props, best edge first.',
+    empty:'<div class="empty"><h3>No +EV bets right now</h3>Nothing beats the fair price by more than 0.5% at the moment. Check again after the next update.</div>'});
+}
+
 /* highest +EV props across every market, best first */
-function topEV(evs,q){
+function topEV(evs,q,o={}){
+  const limit=o.limit||25;
   const now=new Date(), out=[];
   evs.forEach(e=>{
     if(new Date(e.commence_time)<=now) return;
@@ -352,15 +376,15 @@ function topEV(evs,q){
         out.push({e,mk,r}); });});
   });
   out.sort((a,b)=>b.r.edge-a.r.edge);
-  if(!out.length) return '';
-  const rows=out.slice(0,25).map(({e,mk,r})=>`<tr>
+  if(!out.length) return o.empty||'';
+  const rows=out.slice(0,limit).map(({e,mk,r})=>`<tr>
     <td><span class="evp">+${r.edge.toFixed(1)}%</span></td>
-    <td>${esc(r.s.desc||'')} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span><br><span class="bk">${esc(PROP_LABEL[mk]||mk)}</span></td>
+    <td>${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(r.point!=null?' '+r.point:'')+'</span>':esc(r.s.name)+(r.point!=null?' <span class="pt">'+fmtPt(mk,r.point)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
     <td><b>${r.best.toFixed(2)}</b> <span class="bk">${esc(bkName(r.bestBook))}</span></td>
     <td>${r.fair.toFixed(2)}</td>
     <td>${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
-  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Top +EV props right now</div>
-    <div class="ev-meta">Every prop market, ranked by edge vs the fair price. ${out.length>25?'Top 25 of '+out.length:out.length+' found'}.</div></div></div>
+  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">${o.title||'Top +EV props right now'}</div>
+    <div class="ev-meta">${o.meta||'Every prop market, ranked by edge vs the fair price.'} ${out.length>limit?'Top '+limit+' of '+out.length:out.length+' found'}.</div></div></div>
     <div class="tbl-wrap"><table class="bb"><tr><th>Edge</th><th>Bet</th><th>Best price</th><th>Fair</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 
