@@ -160,7 +160,8 @@
     <h1>Odds <span class="g">tracker</span></h1>
     <div class="status" id="status"></div>
     <div class="viewtabs" id="views">
-      <button data-v="ev">🔥 Best bets</button>
+      <button data-v="ev">🔥 Highest EV</button>
+      <button data-v="arb">⚖️ Arbs</button>
       <button data-v="games" class="on">Games</button>
       <button data-v="props">Player props</button>
       <button data-v="bonus">Bonus bets</button>
@@ -190,7 +191,7 @@ const store = {get(k,d){try{const v=localStorage.getItem('odds.'+k);return v==nu
                set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v))}catch(e){}},
                del(k){try{localStorage.removeItem('odds.'+k)}catch(e){}}};
 
-let DATA=null, view=store.get('view','ev'); if(view==='arb') view='ev'; let sport=store.get('sport','all'), movers=store.get('movers',false);
+let DATA=null, view=store.get('view','ev'), sport=store.get('sport','all'), movers=store.get('movers',false);
 let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
 const SHORT={sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet',picklebet:'Picklebet'};
@@ -286,9 +287,10 @@ function render(){
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  const isB=view==='bonus', isE0=view==='ev';
-  $('markets').hidden=isB||isE0; $('moversBox').hidden=isB||isE0; $('stakeBox').hidden=!(isB||isE0); $('bpropsBox').hidden=!isB;
-  $('stakeLbl').textContent=isE0?'Arb stake $':'Bonus bet $';
+  const isB=view==='bonus', isA=view==='arb';
+  $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB;
+  $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
+  if(isA){ renderArbs(); return; }
   if(isB){ renderBonus(); return; }
   const isE=view==='ev';
   $('markets').hidden=isE; $('moversBox').hidden=isE;
@@ -372,10 +374,10 @@ function renderEV(){
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
   $('q').placeholder='Search team or player';
-  $('legend').textContent='Arbs: bet every side at the bookies shown and you profit whatever happens (stakes split from your arb stake). Highest EV: bets where the best bookie price beats the fair price (bookie margins removed). Prices are from the last update, so confirm each price and line before betting. Betfair left out of arbs (commission). Price signals, not sure things.';
+  $('legend').textContent='Every game market and player prop, ranked by edge: how much the best bookie price beats the fair price (bookie margins removed). Higher = more +EV. Check the price is still there before betting. Price signals, not sure things.';
   const q=$('q').value.trim().toLowerCase();
   const pool=evs.filter(e=>sport==='all'||e.sport_title===sport);
-  $('list').innerHTML=arbsHTML(pool,q)+topEV(pool,q,{limit:60,title:'🔥 Highest EV bets',
+  $('list').innerHTML=topEV(pool,q,{limit:60,title:'🔥 Highest EV bets',
     meta:'Games and player props, best edge first.',
     empty:'<div class="empty"><h3>No +EV bets right now</h3>Nothing beats the fair price by more than 0.5% at the moment. Check again after the next update.</div>'});
 }
@@ -468,7 +470,7 @@ function renderBonus(){
       <td>${calc}</td></tr>`;}).join('');
   $('list').innerHTML=`<div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Hedge (cash)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
 }
-$('bstake').oninput=()=>{if(!DATA)return; if(view==='bonus')renderBonus(); else if(view==='ev')renderEV();};
+$('bstake').oninput=()=>{if(!DATA)return; if(view==='bonus')renderBonus(); else if(view==='arb')renderArbs();};
 $('bprops').onchange=e=>{bprops=e.target.checked;store.set('bprops',bprops);render();};
 
 /* ---------- arbitrage: best prices across bookies that add up to under 100% ---------- */
@@ -499,6 +501,19 @@ function findArbs(evs){
     });
   });
   return out.sort((a,b)=>b.margin-a.margin);
+}
+function renderArbs(){
+  const O=DATA.odds, P=DATA.props||{events:[]};
+  const evs=O.events.concat(P.events);
+  const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
+  if(sport!=='all'&&!counts[sport]) sport='all';
+  $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
+    `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
+  $('q').placeholder='Search team or player';
+  $('legend').textContent='Arbs: bet every side at the bookies shown and you profit whatever happens. Stakes are split so every outcome pays the same. Prices are from the last update and arbs vanish fast, so confirm every leg is still there (same line) before betting. Watch for different void rules if a player is scratched, and bookies may limit accounts that arb a lot. Betfair left out (commission).';
+  const q=$('q').value.trim().toLowerCase();
+  $('list').innerHTML=arbsHTML(evs.filter(e=>sport==='all'||e.sport_title===sport),q);
 }
 function arbsHTML(evs,q){
   const T=Math.max(1,parseFloat($('bstake').value)||100);
