@@ -333,3 +333,25 @@
   .freetip p{color:var(--text);max-width:680px;margin:0 0 10px}
   .freetip small{color:var(--muted);font-size:12px}
   .freetip-slip{display:block;width:100%;max-width:300px;border-radius:14px;border:1px solid var(--line);margin:6px 0 12px}
+
+  /* results: losing days */
+  .row .u.neg{color:var(--red)}
+  .row .bar.neg i{background:var(--red)}
+  /* by-sport tracker */
+  .sport-head{margin-top:44px}
+  .sport-head h3{font-size:clamp(24px,4vw,32px);font-weight:900;font-style:italic;letter-spacing:-.02em;margin:8px 0 16px}
+  .sports-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+  @media(max-width:1000px){.sports-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:640px){.sports-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sport-top{flex-direction:column;gap:4px}}
+  .sport{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 18px 14px;min-width:0}
+  .sport-top{display:flex;flex-direction:column;gap:4px}
+  .sport-top span{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .sport-top b{font-size:26px;font-weight:900;font-style:italic;letter-spacing:-.02em;color:var(--mint2);font-variant-numeric:tabular-nums}
+  .sport-top b.neg{color:var(--red)}
+  .sport small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .spark{display:block;width:100%;height:auto;margin-top:12px;overflow:visible}
+  .spark .zero{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+  .spark .ln{fill:none;stroke:var(--mint);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+  .spark .pt{fill:var(--bg);stroke:var(--mint);stroke-width:2}
+  .spark.neg .ln,.spark.neg .pt{stroke:var(--red)}
+  .spark-empty{margin-top:12px;height:60px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:12px;font-size:12px;color:var(--muted)}
