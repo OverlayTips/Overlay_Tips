@@ -92,11 +92,16 @@
   .lock{font-size:14px;color:var(--muted);padding:6px 0}
   .lock:hover{color:var(--text)}
   .navr{display:flex;gap:18px;align-items:center}
-  .viewtabs{display:flex;gap:6px;margin-top:18px;overflow-x:auto;scrollbar-width:none;max-width:100%}
-  .viewtabs::-webkit-scrollbar{display:none}
-  .viewtabs button{white-space:nowrap;flex:none}
-  .viewtabs button{padding:9px 16px;border-radius:12px;font-weight:900;font-style:italic;font-size:15px;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
-  .viewtabs button.on{color:var(--text);border-color:var(--mint-dim);background:var(--panel2)}
+  .viewtabs{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;margin-top:20px}
+  .viewtabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:10px 6px;border-radius:14px;
+    border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:800;font-size:13px;line-height:1.1;text-align:center;transition:border-color .15s,background .15s,color .15s}
+  .viewtabs button i{font-style:normal;font-size:19px;line-height:1;height:20px;display:flex;align-items:center}
+  .viewtabs button i.bdg{font-size:10px;font-weight:900;letter-spacing:.04em;padding:3px 6px;border-radius:6px;border:1px solid var(--mint-dim);color:var(--mint2);height:auto}
+  .viewtabs button:hover{color:var(--text);border-color:#26332f}
+  .viewtabs button.on{color:var(--text);border-color:var(--mint);background:linear-gradient(160deg,#0f2a1e,var(--panel2) 70%);box-shadow:0 0 0 1px rgba(98,240,168,.15) inset}
+  .viewtabs button.on span{color:var(--mint2)}
+  @media(max-width:900px){.viewtabs{grid-template-columns:repeat(3,minmax(0,1fr))}.viewtabs button{min-height:60px;font-size:13.5px;white-space:nowrap}}
+  @media(max-width:360px){.viewtabs{gap:6px}.viewtabs button{font-size:12px;padding:9px 4px}}
   .seg{overflow-x:auto;max-width:100%;scrollbar-width:none}
   .seg::-webkit-scrollbar{display:none}
   .seg button{white-space:nowrap}
@@ -174,15 +179,15 @@
     <h1>Odds <span class="g">tracker</span></h1>
     <div class="status" id="status"></div>
     <div class="viewtabs" id="views">
-      <button data-v="ev">🔥 Highest EV</button>
-      <button data-v="arb">⚖️ Arbs</button>
-      <button data-v="pp">🎯 Prop picks</button>
-      <button data-v="mv">📈 Movers</button>
-      <button data-v="bk:sportsbet">Sportsbet</button>
-      <button data-v="bk:tab">TAB</button>
-      <button data-v="games" class="on">Games</button>
-      <button data-v="props">Player props</button>
-      <button data-v="bonus">Bonus bets</button>
+      <button data-v="ev"><i>🔥</i><span>Top EV</span></button>
+      <button data-v="arb"><i>⚖️</i><span>Arbs</span></button>
+      <button data-v="pp"><i>🎯</i><span>Prop picks</span></button>
+      <button data-v="mv"><i>📈</i><span>Movers</span></button>
+      <button data-v="bk:sportsbet"><i class="bdg">SB</i><span>Sportsbet</span></button>
+      <button data-v="bk:tab"><i class="bdg">TAB</i><span>TAB</span></button>
+      <button data-v="games" class="on"><i>🏟️</i><span>Games</span></button>
+      <button data-v="props"><i>👤</i><span>All props</span></button>
+      <button data-v="bonus"><i>🎁</i><span>Bonus bets</span></button>
     </div>
   </header>
 
