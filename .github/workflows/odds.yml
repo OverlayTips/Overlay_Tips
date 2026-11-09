@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PW_SET: ${{ secrets.ODDS_PAGE_PASSWORD != '' }}
-      PROPS_EVERY_HOURS: "2"
+      PROPS_EVERY_HOURS: "0"
     steps:
       - name: Check Sydney time
         run: |
