@@ -125,27 +125,27 @@ class Api:
 
 # ---------------- history ----------------
 def okey(market, o):
-    # one series per side (and per player for props); a line move stays the same series
+    # one series per side; game lines keep one series through line moves (-4.5 -> -6.5 is a move),
+    # player props get one series per line so prices are only ever compared at the same line
     who = o.get("description")
-    return f"{market}|{who + '|' if who else ''}{o['name']}"
+    if who:
+        return f"{market}|{who}|{o['name']}|{o.get('point')}"
+    return f"{market}|{o['name']}"
 
 
 def record(hist, ev):
-    pts = {}
-    for bk in ev.get("bookmakers", []):
-        for m in bk.get("markets", []):
-            for o in m.get("outcomes", []):
-                if o.get("point") is not None:
-                    c = pts.setdefault(okey(m["key"], o), {})
-                    c[o["point"]] = c.get(o["point"], 0) + 1
-    main_pt = {k: max(c, key=lambda p: (c[p], -abs(p))) for k, c in pts.items()}
+    import picks
+    main = picks.main_points(ev)
     best = {}
     for bk in ev.get("bookmakers", []):
         for m in bk.get("markets", []):
+            if m["key"].endswith("_lay"):
+                continue
             for o in m.get("outcomes", []):
-                k = okey(m["key"], o)
-                if k in main_pt and o.get("point") != main_pt[k]:
+                mp = main.get((m["key"], o.get("description") or "", o["name"]))
+                if mp is not None and o.get("point") != mp:
                     continue
+                k = okey(m["key"], o)
                 if k not in best or o["price"] > best[k][0]:
                     best[k] = (o["price"], bk["key"], o.get("point"))
     he = hist.setdefault(ev["id"], {"commence_time": ev["commence_time"], "series": {}})

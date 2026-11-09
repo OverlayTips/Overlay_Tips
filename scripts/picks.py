@@ -30,23 +30,59 @@ def _mlabel(k):
 
 
 def _groups(ev):
-    """Yield (market_key, group_name, {side_label: {book: (price, point)}}) at each side's main line."""
+    """Yield (market_key, group_name, {side_label: {book: (price, point)}}, main) at each side's main line."""
+    main = main_points(ev)
     raw = {}
     for bk in ev.get("bookmakers", []):
         for m in bk.get("markets", []):
             if m["key"].endswith("_lay"):
                 continue   # Betfair lay prices aren't backable, so they'd create fake arbs
             for o in m.get("outcomes", []):
-                g = (m["key"], o.get("description") or "")
-                raw.setdefault(g, {}).setdefault(o["name"], {})[bk["key"]] = (o["price"], o.get("point"))
+                d = o.get("description") or ""
+                mp = main.get((m["key"], d, o["name"]))
+                if mp is not None and o.get("point") != mp:
+                    continue
+                raw.setdefault((m["key"], d), {}).setdefault(o["name"], {})[bk["key"]] = (o["price"], o.get("point"))
     for (mk, desc), sides in raw.items():
-        main = {}
-        for side, books in sides.items():
-            pts = [p for _, p in books.values() if p is not None]
-            if pts:
-                main[side] = max(set(pts), key=lambda p: (pts.count(p), -abs(p)))
-        clean = {s: {b: v for b, v in books.items() if s not in main or v[1] == main[s]} for s, books in sides.items()}
-        yield mk, desc, clean, main
+        m = {side: main[(mk, desc, side)] for side in sides if (mk, desc, side) in main}
+        yield mk, desc, sides, m
+
+def _opp_names(names, name):
+    return [n for n in names if n != name]
+
+
+def main_points(ev):
+    """Pick the 'main' line for every (market, player, side).
+
+    Bookies (esp. Aussie ones) often send ladders/milestones (Over 14.5, 19.5, 24.5 ...) in the same
+    market. The main line is the one most bookies price on BOTH sides (Over and Under at the same line,
+    or Team -x / Team +x), then the most bookies, then the price closest to evens."""
+    per = {}      # (mk, desc, name) -> {point: {book: price}}
+    names = {}    # (mk, desc) -> set(names)
+    for bk in ev.get("bookmakers", []):
+        for m in bk.get("markets", []):
+            if m["key"].endswith("_lay"):
+                continue
+            for o in m.get("outcomes", []):
+                if o.get("point") is None:
+                    continue
+                d = o.get("description") or ""
+                names.setdefault((m["key"], d), set()).add(o["name"])
+                per.setdefault((m["key"], d, o["name"]), {}).setdefault(o["point"], {})[bk["key"]] = o["price"]
+    main = {}
+    for (mk, d, name), pts in per.items():
+        opps = _opp_names(names.get((mk, d), ()), name)
+        def score(p):
+            books = pts[p]
+            paired = 0
+            for on in opps:
+                op = per.get((mk, d, on), {}).get(-p if mk == "spreads" else p, {})
+                paired = max(paired, len(set(books) & set(op)))
+            prices = sorted(books.values())
+            med = prices[len(prices) // 2]
+            return (paired, len(books), -abs(med - 1.91))
+        main[(mk, d, name)] = max(pts, key=score)
+    return main
 
 
 def _game(ev):

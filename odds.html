@@ -263,16 +263,32 @@ function eventRows(ev, mk){
   const sides=[], seen={};
   books.forEach(b=>b.markets.find(m=>m.key===mk).outcomes.forEach(o=>{const s=sideOf(o); if(!seen[s.key]){seen[s.key]=1;sides.push(s);}}));
   if(sides.some(s=>s.desc)) sides.sort((a,b)=>a.desc.localeCompare(b.desc)||(a.name==='Over'?-1:b.name==='Over'?1:0));
-  const pick=(b,s)=>b.markets.find(m=>m.key===mk).outcomes.find(o=>sideOf(o).key===s.key);
+  const IDX={}; books.forEach(b=>{const m={}; b.markets.find(x=>x.key===mk).outcomes.forEach(o=>{const k=sideOf(o).key;(m[k]=m[k]||[]).push(o);}); IDX[b.key]=m;});
+  const outsOf=(b,s)=>IDX[b.key][s.key]||[];
+  // main line: bookies often send ladders (Over 14.5, 19.5, 24.5...). Prefer the line most bookies price on
+  // BOTH sides, then the most bookies, then the price closest to evens.
   const main={};
-  sides.forEach(s=>{const c={};books.forEach(b=>{const o=pick(b,s);if(o&&o.point!=null)c[o.point]=(c[o.point]||0)+1;});
-    const ks=Object.keys(c); if(ks.length) main[s.key]=+ks.sort((a,b)=>c[b]-c[a]||Math.abs(a)-Math.abs(b))[0];});
+  sides.forEach(s=>{
+    const pts={}; books.forEach(b=>outsOf(b,s).forEach(o=>{ if(o.point!=null)(pts[o.point]=pts[o.point]||{})[b.key]=o.price; }));
+    const opps=sides.filter(x=>x.desc===s.desc&&x.key!==s.key);
+    let bestP=null,bestScore=null;
+    Object.keys(pts).forEach(k=>{const p=+k, bk=pts[k];
+      let paired=0; opps.forEach(op=>{const want=mk==='spreads'?-p:p; let n=0;
+        books.forEach(b=>{ if(bk[b.key]!=null&&outsOf(b,op).some(o=>o.point===want)) n++; }); paired=Math.max(paired,n);});
+      const pr=Object.values(bk).sort((a,b)=>a-b), med=pr[pr.length>>1];
+      const sc=[paired,pr.length,-Math.abs(med-1.91)];
+      if(!bestScore||sc[0]>bestScore[0]||(sc[0]===bestScore[0]&&(sc[1]>bestScore[1]||(sc[1]===bestScore[1]&&sc[2]>bestScore[2])))){bestScore=sc;bestP=p;}
+    });
+    if(bestP!=null) main[s.key]=bestP;
+  });
+  const pick=(b,s)=>{const os=outsOf(b,s); if(!os.length) return null; if(main[s.key]==null) return os[0];
+    return os.find(o=>o.point===main[s.key])||os.reduce((a,o)=>Math.abs(o.point-main[s.key])<Math.abs(a.point-main[s.key])?o:a);};
   const hist=DATA.history?.events?.[ev.id]?.series||{};
   const rows=sides.map(s=>{
     const cells=books.map(b=>{const o=pick(b,s);return o?{price:o.price,point:o.point,ok:o.point==null||o.point===main[s.key]}:null;});
     const ok=cells.filter(c=>c&&c.ok).map(c=>c.price);
     const best=ok.length?Math.max(...ok):NaN;
-    const ser=hist[mk+'|'+s.key]; let mv=null;
+    const ser=hist[mk+'|'+s.key+(s.desc?'|'+main[s.key]:'')]; let mv=null;
     if(ser&&ser.length>1){const a=ser[0],z=ser[ser.length-1];mv={from:a[1],to:z[1],fp:a[3],tp:z[3],pct:(z[1]-a[1])/a[1]*100};}
     const bi=cells.findIndex(c=>c&&c.ok&&c.price===best);
     return {s,cells,best,bestBook:bi>=0?books[bi]:null,point:main[s.key],mv};
@@ -652,7 +668,9 @@ function renderMovers(){
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
     mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
       t.rows.forEach(r=>{ if(!r.mv) return;
-        const ptMove=r.mv.fp!=null&&r.mv.tp!=null&&r.mv.fp!==r.mv.tp;
+        if(r.mv.from<1.12||r.mv.to<1.12||r.mv.from>15||r.mv.to>15) return;
+        let ptMove=r.mv.fp!=null&&r.mv.tp!=null&&r.mv.fp!==r.mv.tp;
+        if(ptMove&&(r.s.desc||Math.abs(r.mv.tp-r.mv.fp)>6)) return;   // props: same line only; game lines: sane moves only
         // a line move toward this side counts as steam: for spreads/totals use the point change as well
         const pct=r.mv.pct;
         if(Math.abs(pct)<3&&!ptMove) return;
