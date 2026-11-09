@@ -102,6 +102,7 @@
   .seg button{white-space:nowrap}
   tr.grp td{border-top:1px solid #26332f}
   .stakebox{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 14px}
+  .stakebox select{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--text);font:inherit;font-size:14px}
   .stakebox input{width:70px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--text);font:inherit;font-size:14px}
   .bb td,.bb th{text-align:left;white-space:normal;min-width:120px;vertical-align:top}
   .bb td.conv{font-weight:900;font-size:16px;color:var(--mint2);min-width:70px}
@@ -128,6 +129,8 @@
     .topev td.c-price{grid-area:price;text-align:right;white-space:nowrap}
     .topev td.c-fair{grid-area:fair;text-align:right;white-space:nowrap;color:var(--muted);font-size:13px}
     .topev td.c-fair::before{content:"fair "}
+    .topev td.c-fair.others::before{content:"others "}
+    .topev td.c-fair .bk{display:none}
     .topev td.c-game{grid-area:game;font-size:13px;color:var(--muted)}
   }
   [hidden]{display:none!important}
@@ -162,6 +165,7 @@
     <div class="viewtabs" id="views">
       <button data-v="ev">🔥 Highest EV</button>
       <button data-v="arb">⚖️ Arbs</button>
+      <button data-v="pp">🎯 Prop picks</button>
       <button data-v="games" class="on">Games</button>
       <button data-v="props">Player props</button>
       <button data-v="bonus">Bonus bets</button>
@@ -175,6 +179,8 @@
       <input class="search" id="q" type="search" placeholder="Search team">
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
+      <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
+      <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2">$2.00</option><option value="2.5" selected>$2.50</option><option value="3">$3.00</option></select></label>
       <label class="toggle" id="bpropsBox" hidden><input type="checkbox" id="bprops"> Include player props</label>
     </div>
   </div>
@@ -288,13 +294,14 @@ function render(){
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   const isB=view==='bonus', isA=view==='arb';
-  $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB;
+  $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB; $('gapBox').hidden=true; $('maxBox').hidden=true;
   $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
   if(isA){ renderArbs(); return; }
   if(isB){ renderBonus(); return; }
-  const isE=view==='ev';
-  $('markets').hidden=isE; $('moversBox').hidden=isE;
+  const isE=view==='ev', isP=view==='pp';
+  $('markets').hidden=isE||isP; $('moversBox').hidden=isE||isP; $('gapBox').hidden=!isP; $('maxBox').hidden=!isP;
   if(isE){ renderEV(); return; }
+  if(isP){ renderPropPicks(); return; }
 
   const evs = view==='games'?O.events:P.events;
   const counts={}; evs.forEach(e=>counts[e.sport_title]=(counts[e.sport_title]||0)+1);
@@ -502,6 +509,49 @@ function findArbs(evs){
   });
   return out.sort((a,b)=>b.margin-a.margin);
 }
+
+/* ---------- prop picks: overs/unders under a max price where one bookie is well above the rest ---------- */
+let gapMin=+store.get('gapMin',5), maxOdds=+store.get('maxOdds',2.5);
+function renderPropPicks(){
+  const P=DATA.props||{events:[]};
+  $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
+  const counts={}; P.events.forEach(e=>counts[e.sport_title]=1);
+  if(sport!=='all'&&!counts[sport]) sport='all';
+  $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
+    `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
+  $('q').placeholder='Search team or player';
+  $('legend').textContent=`Player prop overs and unders priced at $${maxOdds.toFixed(2)} or less, where one bookie pays at least ${gapMin}% more than the other bookies (median) at the same line. Gap = how far above the others it is. Edge = vs the fair price. Check the price is still there before betting. Price signals, not sure things.`;
+  const q=$('q').value.trim().toLowerCase(), now=new Date(), out=[];
+  P.events.filter(e=>(sport==='all'||e.sport_title===sport)&&new Date(e.commence_time)>now).forEach(e=>{
+    const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
+    mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
+      t.rows.forEach(r=>{
+        if(r.point==null||!r.bestBook||!(r.best<=maxOdds)) return;
+        const bi=t.books.indexOf(r.bestBook);
+        const others=r.cells.filter((c,i)=>c&&c.ok&&i!==bi).map(c=>c.price).sort((a,b)=>a-b);
+        if(others.length<3) return;
+        const m=others.length>>1, med=others.length%2?others[m]:(others[m-1]+others[m])/2;
+        const gap=(r.best/med-1)*100;
+        if(gap<gapMin) return;
+        if(q&&!((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q)) return;
+        out.push({e,mk,r,med,gap,n:others.length+1});
+      });});
+  });
+  out.sort((a,b)=>b.gap-a.gap);
+  if(!out.length){$('list').innerHTML=`<div class="empty"><h3>No standout prop prices right now</h3>No over/under at $${maxOdds.toFixed(2)} or less is ${gapMin}%+ above the other bookies. Try a lower min gap, or check after the next update.</div>`;return;}
+  const rows=out.slice(0,60).map(({e,mk,r,med,gap,n})=>`<tr>
+    <td class="c-edge"><span class="evp">+${gap.toFixed(1)}%</span><small style="display:block;color:var(--muted);font-size:12px">vs others</small></td>
+    <td class="c-bet">${esc(r.s.desc||'')} <span class="pt">${esc(r.s.name)} ${r.point}</span><br><span class="bk">${esc(PROP_LABEL[mk]||mk)}${r.edge!=null?' · edge '+(r.edge>0?'+':'')+r.edge.toFixed(1)+'%':''}</span></td>
+    <td class="c-price"><b>${r.best.toFixed(2)}</b> <span class="bk">${esc(bkName(r.bestBook))}</span></td>
+    <td class="c-fair others">${med.toFixed(2)} <span class="bk">(${n-1} others)</span></td>
+    <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
+  $('list').innerHTML=`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">🎯 Prop picks under $${maxOdds.toFixed(2)}</div>
+    <div class="ev-meta">One bookie well above the rest, biggest gap first. ${out.length>60?'Top 60 of '+out.length:out.length+' found'}.</div></div></div>
+    <div class="tbl-wrap"><table class="bb ppt"><tr><th>Gap</th><th>Bet</th><th>Best price</th><th>Others pay</th><th>Game</th></tr>${rows}</table></div></div>`;
+}
+$('gapSel').onchange=e=>{gapMin=+e.target.value;store.set('gapMin',gapMin);render();};
+$('maxSel').onchange=e=>{maxOdds=+e.target.value;store.set('maxOdds',maxOdds);render();};
 function renderArbs(){
   const O=DATA.odds, P=DATA.props||{events:[]};
   const evs=O.events.concat(P.events);
