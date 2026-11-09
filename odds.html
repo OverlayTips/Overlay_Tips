@@ -133,6 +133,9 @@
     .topev td.c-fair .bk{display:none}
     .topev td.c-game{grid-area:game;font-size:13px;color:var(--muted)}
   }
+  .sharebar{display:inline-flex;gap:6px}
+  .sharebtn{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-weight:800;font-size:14px;color:var(--text);white-space:nowrap}
+  .sharebtn.wa{background:#25d366;border-color:#25d366;color:#04140c}
   [hidden]{display:none!important}
 </style>
 </head>
@@ -181,6 +184,7 @@
       <input class="search" id="q" type="search" placeholder="Search team">
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
+      <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button">📲 Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
       <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
       <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2">$2.00</option><option value="2.5" selected>$2.50</option><option value="3">$3.00</option></select></label>
@@ -296,6 +300,7 @@ function render(){
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
+  SHARE=[]; $('shareBar').hidden=!(['ev','arb','pp'].includes(view)||view.startsWith('bk:'));
   myBook=view.startsWith('bk:')?view.slice(3):(['ev','arb','pp'].includes(view)?bookFilter:'all');
   $('bookBox').hidden=!['ev','arb','pp'].includes(view); if(!$('bookBox').hidden) fillBooks();
   const isB=view==='bonus', isA=view==='arb';
@@ -396,6 +401,27 @@ function renderEV(){
 }
 
 /* "my bookie": price a row at one chosen bookie instead of the best price */
+/* ---------- WhatsApp post: top picks from whatever tab is showing ---------- */
+let SHARE=[];
+const shortTeam=t=>String(t).split(' ').slice(-1)[0];
+function shareLine(e,mk,o,price,book){
+  const lbl=MKT_LABEL[mk]||PROP_LABEL[mk]||mk;
+  const sel=o.desc?`${o.desc} ${o.name}${o.point!=null?' '+o.point:''} ${lbl}`:`${o.name}${o.point!=null?' '+fmtPt(mk,o.point):''} (${lbl})`;
+  const t=new Date(e.commence_time).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'});
+  return `${sel} @ $${price.toFixed(2)} (${bkName(book)})\n   ${e.sport_title} · ${shortTeam(e.home_team)} v ${shortTeam(e.away_team)} · ${t}`;
+}
+function shareText(){
+  if(!SHARE.length) return '';
+  const d=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
+  const lines=SHARE.slice(0,6).map((l,i)=>`${i+1}. ${l}`).join('\n\n');
+  return `🔥 *Overlay Tips: Best bets* (${d})\n\n${lines}\n\nPrices at time of posting and can move.\n18+ | Gamble responsibly | overlay.tips`;
+}
+$('waBtn').onclick=()=>{const t=shareText(); if(!t){alert('No bets to post on this tab right now.');return;}
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');};
+$('copyBtn').onclick=async()=>{const t=shareText(); if(!t){alert('No bets to copy on this tab right now.');return;}
+  try{await navigator.clipboard.writeText(t);$('copyBtn').textContent='Copied ✓';setTimeout(()=>$('copyBtn').textContent='Copy',1500);}
+  catch(e){prompt('Copy this:',t);}};
+
 let myBook='all', bookFilter=store.get('bookFilter','all');
 function fillBooks(){
   const O=DATA.odds,P=DATA.props||{events:[]},seen={};
@@ -427,6 +453,7 @@ function topEV(evs,q,o={}){
         out.push({e,mk,r,pk,edge}); });});
   });
   out.sort((a,b)=>b.edge-a.edge);
+  if(!o.noBook) out.slice(0,5).forEach(({e,mk,r,pk})=>SHARE.push(shareLine(e,mk,{desc:r.s.desc,name:r.s.name,point:r.point},pk.price,pk.book)));
   if(!out.length) return o.empty||'';
   const rows=out.slice(0,limit).map(({e,mk,r,pk,edge})=>`<tr>
     <td class="c-edge"><span class="evp">+${edge.toFixed(1)}%</span></td>
@@ -569,6 +596,7 @@ function ppHTML(evs,q){
       });});
   });
   out.sort((a,b)=>b.gap-a.gap);
+  out.slice(0,5).forEach(({e,mk,r,pk})=>{const l=shareLine(e,mk,{desc:r.s.desc,name:r.s.name,point:r.point},pk.price,pk.book); if(!SHARE.includes(l)) SHARE.push(l);});
   if(!out.length) return `<div class="empty"><h3>No standout prop prices right now</h3>No over/under at $${maxOdds.toFixed(2)} or less${myName()} is ${gapMin}%+ above the other bookies. Try a lower min gap, or check after the next update.</div>`;
   const rows=out.slice(0,60).map(({e,mk,r,pk,med,gap,n})=>`<tr>
     <td class="c-edge"><span class="evp">+${gap.toFixed(1)}%</span><small style="display:block;color:var(--muted);font-size:12px">vs others</small></td>
@@ -616,6 +644,7 @@ function renderArbs(){
 function arbsHTML(evs,q){
   const T=Math.max(1,parseFloat($('bstake').value)||100);
   const arbs=findArbs(evs).filter(a=>myBook==='all'||a.legs.some(l=>l.book.key===myBook)).filter(a=>!q||(a.desc+' '+a.ev.home_team+' '+a.ev.away_team).toLowerCase().includes(q)).slice(0,30);
+  arbs.slice(0,3).forEach(a=>SHARE.push(`ARB +${a.margin.toFixed(1)}%: `+a.legs.map(l=>`${a.desc?a.desc+' ':''}${l.name}${l.point!=null?' '+fmtPt(a.mk,l.point):''} @ $${l.price.toFixed(2)} (${bkName(l.book)})`).join(' + ')+`\n   ${a.ev.sport_title} · ${shortTeam(a.ev.home_team)} v ${shortTeam(a.ev.away_team)}`));
   if(!arbs.length) return '<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">⚖️ No arbs right now.</b> They pop up most on player props, so check again after the next update.</div>';
   const rows=arbs.map(a=>{
     const ret=T/a.sum;
