@@ -109,6 +109,8 @@
   .bb .bk{color:var(--muted);font-size:12px}
   .bb a.calc{color:var(--mint);font-size:13px;white-space:nowrap}
   .bb th:first-child,.bb td:first-child{position:static}
+  td.fair{color:var(--text)}
+  td.fair .ev{color:var(--mint);font-size:12px;font-weight:700}
   [hidden]{display:none!important}
 </style>
 </head>
@@ -237,6 +239,20 @@ function eventRows(ev, mk){
     if(ser&&ser.length>1){const a=ser[0],z=ser[ser.length-1];mv={from:a[1],to:z[1],fp:a[3],tp:z[3],pct:(z[1]-a[1])/a[1]*100};}
     return {s,cells,best,point:main[s.key],mv};
   });
+  // fair price: strip each bookie's margin (no-vig) across the sides of a market, take the median across bookies
+  const groups={}; rows.forEach(r=>(groups[r.s.desc||'']=groups[r.s.desc||'']||[]).push(r));
+  Object.values(groups).forEach(g=>{
+    if(g.length<2) return;
+    const probs=g.map(()=>[]);
+    books.forEach((b,i)=>{
+      if(!g.every(r=>r.cells[i]&&r.cells[i].ok)) return;
+      const inv=g.map(r=>1/r.cells[i].price), tot=inv.reduce((a,c)=>a+c,0);
+      inv.forEach((v,k)=>probs[k].push(v/tot));
+    });
+    if(probs[0].length<3) return;
+    const med=a=>{a=[...a].sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+    g.forEach((r,k)=>{const p=med(probs[k]); r.fair=1/p; r.edge=isFinite(r.best)?(r.best*p-1)*100:null; r.nfair=probs[k].length;});
+  });
   const pct=rows.reduce((t,r)=>t+(isFinite(r.best)?100/r.best:0),0);
   return {books,rows,pct};
 }
@@ -272,8 +288,8 @@ function render(){
   $('movers').checked=movers;
   $('q').placeholder=view==='games'?'Search team':'Search team or player';
   $('legend').textContent=view==='games'
-    ?'Mint cell = best price at the main line. Open → now tracks the best price since the tracker first saw the game. Market % under 100 = arb across bookies.'
-    :'Props are pulled for games starting in the next 24 hours, refreshed every ~6 hours. Mint = best price at the most common line.';
+    ?'Fair = the true price with the bookie margin taken out (from all bookies). Any bookie paying more than Fair is +EV, e.g. check bet365 against it. Mint cell = best price at the main line. Open → now tracks the best price since the tracker first saw the game. Market % under 100 = arb across bookies.'
+    :'Fair = the true price with the bookie margin taken out. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best price at the most common line. Props refresh 3× a day.';
 
   if(view==='props' && !P.events.length){
     $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
@@ -298,7 +314,7 @@ function render(){
       ${view==='games'?`<span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>`:''}
       <span class="badge">${t.books.length} books</span></div></div>`;
     const first=view==='props'?'Player':market==='h2h'?'Team':market==='spreads'?'Line':'Total';
-    const th=`<tr><th>${first}</th><th>Best</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
+    const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed">Fair</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
     let prev=null;
     const trs=t.rows.map(r=>{
       const nm=r.s.desc?`${esc(r.s.desc)} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
@@ -311,7 +327,7 @@ function render(){
       const cells=r.cells.map(c=>{if(!c)return'<td class="off">–</td>';
         const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
         return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
-      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="fair">${r.fair?r.fair.toFixed(2)+(r.edge>0.5?` <span class="ev">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}<div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
