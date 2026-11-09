@@ -294,6 +294,11 @@ document.querySelectorAll('#typeSeg button').forEach(b=>b.addEventListener('clic
 }));
 ['stake','o1','o2','comm'].forEach(id=>$(id).addEventListener('input',calc));
 setLabels(); calc();
+/* prefill from the odds tracker: calculator.html?mode=bb&stake=50&o1=4.2&o2=1.3 */
+(function(){const q=new URLSearchParams(location.search);
+  const m=q.get('mode'); if(m){const b=document.querySelector('.tabs button[data-mode="'+m+'"]'); if(b) b.click();}
+  let set=false; ['stake','o1','o2'].forEach(k=>{const v=parseFloat(q.get(k)); if(v>0){$(k).value=v; set=true;}});
+  if(set) calc();})();
 </script>
 </body>
 </html>
