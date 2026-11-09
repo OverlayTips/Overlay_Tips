@@ -181,6 +181,7 @@
       <input class="search" id="q" type="search" placeholder="Search team">
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
+      <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
       <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
       <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2">$2.00</option><option value="2.5" selected>$2.50</option><option value="3">$3.00</option></select></label>
       <label class="toggle" id="bpropsBox" hidden><input type="checkbox" id="bprops"> Include player props</label>
@@ -295,7 +296,8 @@ function render(){
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  myBook=view.startsWith('bk:')?view.slice(3):'all';
+  myBook=view.startsWith('bk:')?view.slice(3):(['ev','arb','pp'].includes(view)?bookFilter:'all');
+  $('bookBox').hidden=!['ev','arb','pp'].includes(view); if(!$('bookBox').hidden) fillBooks();
   const isB=view==='bonus', isA=view==='arb';
   $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB; $('gapBox').hidden=true; $('maxBox').hidden=true;
   $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
@@ -394,7 +396,15 @@ function renderEV(){
 }
 
 /* "my bookie": price a row at one chosen bookie instead of the best price */
-let myBook='all';
+let myBook='all', bookFilter=store.get('bookFilter','all');
+function fillBooks(){
+  const O=DATA.odds,P=DATA.props||{events:[]},seen={};
+  O.events.concat(P.events).forEach(e=>e.bookmakers.forEach(b=>{if(b.key!=='betfair_ex_au')seen[b.key]=b;}));
+  $('bookSel').innerHTML='<option value="all">All bookies</option>'+Object.values(seen).sort((a,b)=>bkName(a).localeCompare(bkName(b)))
+    .map(b=>`<option value="${esc(b.key)}">${esc(bkName(b))}</option>`).join('');
+  if(bookFilter!=='all'&&!seen[bookFilter]){ bookFilter='all'; myBook='all'; }
+  $('bookSel').value=bookFilter;
+}
 const BOOK_NAMES={sportsbet:'Sportsbet',tab:'TAB'};
 function pickPrice(t,r){
   if(myBook==='all') return r.bestBook?{price:r.best,book:r.bestBook,idx:t.books.indexOf(r.bestBook)}:null;
@@ -587,6 +597,7 @@ function renderBook(){
       empty:`<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">No +EV bets at ${nm} right now.</b></div>`})
     +ppHTML(P.events.filter(pool),q);
 }
+$('bookSel').onchange=e=>{bookFilter=e.target.value;store.set('bookFilter',bookFilter);render();};
 $('gapSel').onchange=e=>{gapMin=+e.target.value;store.set('gapMin',gapMin);render();};
 $('maxSel').onchange=e=>{maxOdds=+e.target.value;store.set('maxOdds',maxOdds);render();};
 function renderArbs(){
@@ -612,7 +623,7 @@ function arbsHTML(evs,q){
     return `<tr><td class="conv c-edge">+${a.margin.toFixed(2)}%<small>$${(ret-T).toFixed(2)} profit</small></td><td class="c-bet">${legs}</td>
       <td class="c-game"><span class="leg">${esc(a.ev.home_team)} v ${esc(a.ev.away_team)}</span><span class="bk">${esc(a.ev.sport_title)} · ${esc(MKT_LABEL[a.mk]||PROP_LABEL[a.mk]||a.mk)} · ${when(a.ev.commence_time)}</span></td></tr>`;
   }).join('');
-  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">⚖️ Arbitrage plays</div>
+  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">⚖️ Arbitrage plays${myBook==='all'?'':esc(' with a '+(BOOK_NAMES[myBook]||SHORT[myBook]||myBook)+' leg')}</div>
     <div class="ev-meta">Guaranteed profit if every leg is still there. ${arbs.length} found · stakes for $${T.toFixed(0)} total</div></div></div>
     <div class="tbl-wrap"><table class="bb arbt"><tr><th>Profit</th><th>Bets (split your stake)</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
