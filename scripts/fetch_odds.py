@@ -272,6 +272,18 @@ def main():
     }
     with open(os.path.join(OUT, "data.json"), "w") as f:
         json.dump(encrypt(bundle), f)
+
+    # ---- daily picks for the Claude alert (encrypted with a separate key) ----
+    alerts_key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
+    if alerts_key:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import picks
+        summary = picks.compute(events, list(props.values()), hist, NOW)
+        summary.update({"generated": TS, "credits_remaining": api.remaining, "errors": api.errors})
+        with open(os.path.join(OUT, "picks.json"), "w") as f:
+            json.dump(picks.encrypt_with_key(summary, alerts_key), f)
+        print(f"picks: {len(summary['overlays'])} overlays, {len(summary['arbs'])} arbs, "
+              f"{len(summary['steamers'])} steamers")
     print(f"{len(events)} games across {len(wanted)} sports; props for {len(props)} games "
           f"({prop_calls} prop calls this run); credits remaining: {api.remaining}")
     for e in api.errors:
