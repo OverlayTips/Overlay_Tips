@@ -149,6 +149,7 @@
       <button data-v="ev">🔥 Highest EV</button>
       <button data-v="games" class="on">Games</button>
       <button data-v="props">Player props</button>
+      <button data-v="arb">⚖️ Arbs</button>
       <button data-v="bonus">Bonus bets</button>
     </div>
   </header>
@@ -159,7 +160,7 @@
       <div class="seg" id="markets"></div>
       <input class="search" id="q" type="search" placeholder="Search team">
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
-      <label class="stakebox" id="stakeBox" hidden>Bonus bet $<input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
+      <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
       <label class="toggle" id="bpropsBox" hidden><input type="checkbox" id="bprops"> Include player props</label>
     </div>
   </div>
@@ -272,8 +273,10 @@ function render(){
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  const isB=view==='bonus';
-  $('markets').hidden=isB; $('moversBox').hidden=isB; $('stakeBox').hidden=!isB; $('bpropsBox').hidden=!isB;
+  const isB=view==='bonus', isA=view==='arb';
+  $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB;
+  $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
+  if(isA){ renderArbs(); return; }
   if(isB){ renderBonus(); return; }
   const isE=view==='ev';
   $('markets').hidden=isE; $('moversBox').hidden=isE;
@@ -452,8 +455,63 @@ function renderBonus(){
       <td>${calc}</td></tr>`;}).join('');
   $('list').innerHTML=`<div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Hedge (cash)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
 }
-$('bstake').oninput=()=>DATA&&view==='bonus'&&renderBonus();
+$('bstake').oninput=()=>{if(!DATA)return; if(view==='bonus')renderBonus(); else if(view==='arb')renderArbs();};
 $('bprops').onchange=e=>{bprops=e.target.checked;store.set('bprops',bprops);render();};
+
+/* ---------- arbitrage: best prices across bookies that add up to under 100% ---------- */
+function findArbs(evs){
+  const now=new Date(), out=[];
+  evs.forEach(ev=>{
+    if(new Date(ev.commence_time)<=now) return;
+    const groups={};
+    ev.bookmakers.forEach(b=>{ if(b.key==='betfair_ex_au') return;
+      b.markets.forEach(m=>{ if(m.key.endsWith('_lay')) return;
+        m.outcomes.forEach(o=>{
+          let gk, side=o.name;
+          if(m.key==='spreads'){ if(o.point==null) return; gk=(o.name===ev.home_team?o.point:-o.point); }
+          else if(o.point!=null) gk=o.point; else gk='';
+          const key=m.key+'|'+(o.description||'')+'|'+gk;
+          const g=groups[key]=groups[key]||{mk:m.key,desc:o.description||'',sides:{}};
+          const cur=g.sides[side];
+          if(!cur||o.price>cur.price) g.sides[side]={price:o.price,book:b,point:o.point,name:o.name};
+        });});});
+    // how many sides each market should have (h2h: every team/draw name seen; others: 2)
+    const h2hNames={}; ev.bookmakers.forEach(b=>b.markets.forEach(m=>{ if(m.key==='h2h') m.outcomes.forEach(o=>h2hNames[o.name]=1); }));
+    Object.values(groups).forEach(g=>{
+      const legs=Object.values(g.sides);
+      const need=g.mk==='h2h'?Object.keys(h2hNames).length:2;
+      if(legs.length<2||legs.length!==need) return;
+      const sum=legs.reduce((t,l)=>t+1/l.price,0);
+      if(sum<1) out.push({ev,mk:g.mk,desc:g.desc,legs,sum,margin:(1/sum-1)*100});
+    });
+  });
+  return out.sort((a,b)=>b.margin-a.margin);
+}
+function renderArbs(){
+  const O=DATA.odds, P=DATA.props||{events:[]};
+  const evs=O.events.concat(P.events);
+  const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
+  if(sport!=='all'&&!counts[sport]) sport='all';
+  $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
+    `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
+  $('q').placeholder='Search team or player';
+  $('legend').textContent='Arbs: bet every side at the bookies shown and you profit whatever happens. Stakes are split so every outcome pays the same. Prices are from the last update and arbs vanish fast, so confirm every leg is still there (same line) before betting. Watch for different void rules if a player is scratched, and bookies may limit accounts that arb a lot. Betfair left out (commission).';
+  const T=Math.max(1,parseFloat($('bstake').value)||100);
+  const q=$('q').value.trim().toLowerCase();
+  const arbs=findArbs(evs.filter(e=>sport==='all'||e.sport_title===sport))
+    .filter(a=>!q||(a.desc+' '+a.ev.home_team+' '+a.ev.away_team).toLowerCase().includes(q)).slice(0,50);
+  if(!arbs.length){$('list').innerHTML='<div class="empty"><h3>No arbs right now</h3>No combination of bookie prices adds up to under 100% at the moment. They pop up most on player props, so check again after the next update.</div>';return;}
+  const rows=arbs.map(a=>{
+    const ret=T/a.sum;
+    const legs=a.legs.map(l=>`<span class="leg"><b>$${(T*(1/l.price)/a.sum).toFixed(2)}</b> on ${a.desc?esc(a.desc)+' ':''}${esc(l.name)}${l.point!=null?' '+fmtPt(a.mk,l.point):''} @ <b>${l.price.toFixed(2)}</b> <span class="bk">${esc(bkName(l.book))}</span></span>`).join('');
+    return `<tr><td class="conv">+${a.margin.toFixed(2)}%<small>$${(ret-T).toFixed(2)} profit</small></td><td>${legs}</td>
+      <td><span class="leg">${esc(a.ev.home_team)} v ${esc(a.ev.away_team)}</span><span class="bk">${esc(a.ev.sport_title)} · ${esc(MKT_LABEL[a.mk]||PROP_LABEL[a.mk]||a.mk)} · ${when(a.ev.commence_time)}</span></td></tr>`;
+  }).join('');
+  $('list').innerHTML=`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Arbitrage plays</div>
+    <div class="ev-meta">${arbs.length} found · stakes for $${T.toFixed(0)} total</div></div></div>
+    <div class="tbl-wrap"><table class="bb"><tr><th>Profit</th><th>Bets (split your stake)</th><th>Game</th></tr>${rows}</table></div></div>`;
+}
 $('views').querySelectorAll('button').forEach(b=>b.onclick=()=>{view=b.dataset.v;store.set('view',view);sport='all';$('q').value='';render();});
 $('movers').onchange=e=>{movers=e.target.checked;store.set('movers',movers);render();};
 $('q').oninput=render;
