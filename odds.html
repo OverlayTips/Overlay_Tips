@@ -341,7 +341,7 @@ function render(){
   const maxEdge=x=>Math.max(-99,...x.t.rows.map(r=>r.edge??-99));
   if(movers) items.sort((a,b)=>maxMove(b)-maxMove(a));
   else if(view==='props') items.sort((a,b)=>maxEdge(b)-maxEdge(a));
-  const top=view==='props'?topEV(inSport,q,{noBook:true}):'';
+  const top='';
   if(!items.length){$('list').innerHTML=`<div class="empty"><h3>Nothing here</h3>No games with this market${q?' matching “'+esc(q)+'”':''} right now.</div>`;return;}
 
   $('list').innerHTML=items.map(({e,t})=>{
