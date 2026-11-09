@@ -116,6 +116,20 @@
   .topev{border-color:var(--mint-dim)}
   .topev .evp{color:var(--mint2);font-weight:900;font-size:15px}
   .topev td{min-width:90px}
+  @media(max-width:640px){
+    .topev table,.topev tbody{display:block}
+    .topev tr:first-child{display:none}
+    .topev tr{display:grid;grid-template-columns:64px minmax(0,1fr) auto;grid-template-areas:"edge bet price" "edge game fair";gap:4px 12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .topev table.arbt tr{grid-template-areas:"edge bet bet" "edge game game"}
+    .topev tr:last-child{border-bottom:0}
+    .topev td{display:block;padding:0;border:0;min-width:0;white-space:normal;text-align:left}
+    .topev td.c-edge{grid-area:edge}
+    .topev td.c-bet{grid-area:bet}
+    .topev td.c-price{grid-area:price;text-align:right;white-space:nowrap}
+    .topev td.c-fair{grid-area:fair;text-align:right;white-space:nowrap;color:var(--muted);font-size:13px}
+    .topev td.c-fair::before{content:"fair "}
+    .topev td.c-game{grid-area:game;font-size:13px;color:var(--muted)}
+  }
   [hidden]{display:none!important}
 </style>
 </head>
@@ -381,11 +395,11 @@ function topEV(evs,q,o={}){
   out.sort((a,b)=>b.r.edge-a.r.edge);
   if(!out.length) return o.empty||'';
   const rows=out.slice(0,limit).map(({e,mk,r})=>`<tr>
-    <td><span class="evp">+${r.edge.toFixed(1)}%</span></td>
-    <td>${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(r.point!=null?' '+r.point:'')+'</span>':esc(r.s.name)+(r.point!=null?' <span class="pt">'+fmtPt(mk,r.point)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
-    <td><b>${r.best.toFixed(2)}</b> <span class="bk">${esc(bkName(r.bestBook))}</span></td>
-    <td>${r.fair.toFixed(2)}</td>
-    <td>${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
+    <td class="c-edge"><span class="evp">+${r.edge.toFixed(1)}%</span></td>
+    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(r.point!=null?' '+r.point:'')+'</span>':esc(r.s.name)+(r.point!=null?' <span class="pt">'+fmtPt(mk,r.point)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
+    <td class="c-price"><b>${r.best.toFixed(2)}</b> <span class="bk">${esc(bkName(r.bestBook))}</span></td>
+    <td class="c-fair">${r.fair.toFixed(2)}</td>
+    <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
   return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">${o.title||'Top +EV props right now'}</div>
     <div class="ev-meta">${o.meta||'Every prop market, ranked by edge vs the fair price.'} ${out.length>limit?'Top '+limit+' of '+out.length:out.length+' found'}.</div></div></div>
     <div class="tbl-wrap"><table class="bb"><tr><th>Edge</th><th>Bet</th><th>Best price</th><th>Fair</th><th>Game</th></tr>${rows}</table></div></div>`;
@@ -505,12 +519,12 @@ function renderArbs(){
   const rows=arbs.map(a=>{
     const ret=T/a.sum;
     const legs=a.legs.map(l=>`<span class="leg"><b>$${(T*(1/l.price)/a.sum).toFixed(2)}</b> on ${a.desc?esc(a.desc)+' ':''}${esc(l.name)}${l.point!=null?' '+fmtPt(a.mk,l.point):''} @ <b>${l.price.toFixed(2)}</b> <span class="bk">${esc(bkName(l.book))}</span></span>`).join('');
-    return `<tr><td class="conv">+${a.margin.toFixed(2)}%<small>$${(ret-T).toFixed(2)} profit</small></td><td>${legs}</td>
-      <td><span class="leg">${esc(a.ev.home_team)} v ${esc(a.ev.away_team)}</span><span class="bk">${esc(a.ev.sport_title)} · ${esc(MKT_LABEL[a.mk]||PROP_LABEL[a.mk]||a.mk)} · ${when(a.ev.commence_time)}</span></td></tr>`;
+    return `<tr><td class="conv c-edge">+${a.margin.toFixed(2)}%<small>$${(ret-T).toFixed(2)} profit</small></td><td class="c-bet">${legs}</td>
+      <td class="c-game"><span class="leg">${esc(a.ev.home_team)} v ${esc(a.ev.away_team)}</span><span class="bk">${esc(a.ev.sport_title)} · ${esc(MKT_LABEL[a.mk]||PROP_LABEL[a.mk]||a.mk)} · ${when(a.ev.commence_time)}</span></td></tr>`;
   }).join('');
   $('list').innerHTML=`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Arbitrage plays</div>
     <div class="ev-meta">${arbs.length} found · stakes for $${T.toFixed(0)} total</div></div></div>
-    <div class="tbl-wrap"><table class="bb"><tr><th>Profit</th><th>Bets (split your stake)</th><th>Game</th></tr>${rows}</table></div></div>`;
+    <div class="tbl-wrap"><table class="bb arbt"><tr><th>Profit</th><th>Bets (split your stake)</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 $('views').querySelectorAll('button').forEach(b=>b.onclick=()=>{view=b.dataset.v;store.set('view',view);sport='all';$('q').value='';render();});
 $('movers').onchange=e=>{movers=e.target.checked;store.set('movers',movers);render();};
