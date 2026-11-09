@@ -157,7 +157,11 @@ let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
 const SHORT={sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet',picklebet:'Picklebet'};
 const GAME_MKTS=[['h2h','H2H'],['spreads','Line'],['totals','Total']];
-const PROP_LABEL={player_points:'Points',player_rebounds:'Rebounds',player_assists:'Assists',player_threes:'Threes',player_points_rebounds_assists:'PRA',player_disposals:'Disposals',player_goal_scorer_anytime:'Anytime goal',player_try_scorer_anytime:'Anytime try'};
+const PROP_LABEL={player_points:'Points',player_rebounds:'Rebounds',player_assists:'Assists',player_threes:'Threes',player_points_rebounds_assists:'PRA',player_points_rebounds:'Pts+Reb',player_points_assists:'Pts+Ast',player_rebounds_assists:'Reb+Ast',player_blocks:'Blocks',player_steals:'Steals',player_turnovers:'Turnovers',player_double_double:'Double-double',player_first_basket:'First basket',
+  player_disposals:'Disposals',player_goal_scorer_anytime:'Anytime goal',player_goal_scorer_first:'First goal',player_goals_scored_over:'Goals',player_marks_over:'Marks',player_tackles_over:'Tackles',player_afl_fantasy_points:'Fantasy pts',
+  player_try_scorer_anytime:'Anytime try',player_try_scorer_first:'First try',player_try_scorer_over:'Tries',
+  player_pass_yds:'Pass yds',player_pass_tds:'Pass TDs',player_pass_completions:'Completions',player_pass_attempts:'Pass att',player_pass_interceptions:'INTs',player_rush_yds:'Rush yds',player_rush_attempts:'Rush att',player_receptions:'Receptions',player_reception_yds:'Rec yds',player_anytime_td:'Anytime TD',player_1st_td:'First TD',
+  player_first_goal_scorer:'First goal',player_shots_on_target:'Shots on target',player_shots:'Shots',player_to_receive_card:'Carded'};
 const bkName=b=>SHORT[b.key]||b.title.replace(/\s*\(AU\)$/,'');
 const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<1?'just now':m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
 const when=iso=>new Date(iso).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
@@ -253,7 +257,7 @@ function render(){
     :'Props are pulled for games starting in the next 24 hours, refreshed every ~6 hours. Mint = best price at the most common line.';
 
   if(view==='props' && !P.events.length){
-    $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for NBA, AFL and NRL games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
+    $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
   }
   const q=$('q').value.trim().toLowerCase();
   let items=inSport.map(e=>({e,t:market&&eventRows(e,market)})).filter(x=>x.t);

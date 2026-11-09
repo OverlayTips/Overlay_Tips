@@ -27,11 +27,22 @@ SPORTS = [s.strip() for s in os.environ.get("SPORTS",
           "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,soccer_epl,americanfootball_nfl").split(",") if s.strip()]
 MARKETS = os.environ.get("MARKETS", "h2h,spreads,totals")
 PROP_SPORTS = [s.strip() for s in os.environ.get("PROP_SPORTS",
-               "basketball_nba,aussierules_afl,rugbyleague_nrl").split(",") if s.strip()]
+               "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,americanfootball_nfl,soccer_epl").split(",") if s.strip()]
+_BBALL = ("player_points,player_rebounds,player_assists,player_threes,player_points_rebounds_assists,"
+          "player_points_rebounds,player_points_assists,player_rebounds_assists,player_blocks,player_steals,"
+          "player_turnovers,player_double_double,player_first_basket")
+# Only markets that actually come back are charged, so asking for extras costs nothing when a bookie doesn't offer them.
 PROP_MARKETS = {
-    "basketball_nba": "player_points,player_rebounds,player_assists,player_threes,player_points_rebounds_assists",
-    "aussierules_afl": "player_disposals,player_goal_scorer_anytime",
-    "rugbyleague_nrl": "player_try_scorer_anytime",
+    "basketball_nba": _BBALL,
+    "basketball_nbl": _BBALL,
+    "aussierules_afl": ("player_disposals,player_goal_scorer_anytime,player_goal_scorer_first,player_goals_scored_over,"
+                        "player_marks_over,player_tackles_over,player_afl_fantasy_points"),
+    "rugbyleague_nrl": "player_try_scorer_anytime,player_try_scorer_first,player_try_scorer_over",
+    "americanfootball_nfl": ("player_pass_yds,player_pass_tds,player_pass_completions,player_pass_attempts,"
+                             "player_pass_interceptions,player_rush_yds,player_rush_attempts,player_receptions,"
+                             "player_reception_yds,player_anytime_td,player_1st_td"),
+    "soccer_epl": ("player_goal_scorer_anytime,player_first_goal_scorer,player_shots_on_target,player_shots,"
+                   "player_assists,player_to_receive_card"),
 }
 PROPS_EVERY = timedelta(hours=float(os.environ.get("PROPS_EVERY_HOURS", "6")))
 PROPS_WINDOW = timedelta(hours=float(os.environ.get("PROPS_WINDOW_HOURS", "24")))
@@ -146,6 +157,41 @@ def record(hist, ev):
         ser[:] = ser[:1] + ser[1:][-47:]   # opener + last 47 changes
 
 
+def fetch_props(api, sk, ev):
+    """One call for all prop markets; if the API rejects the list (e.g. a market not offered
+    for that sport), fall back to one market per call and merge. Returns (data, calls)."""
+    path = f"/sports/{sk}/events/{ev['id']}/odds"
+    label = f"props {ev['home_team']} v {ev['away_team']}"
+    kw = dict(regions="au", oddsFormat="decimal", dateFormat="iso")
+    if api.low():
+        api.errors.append(f"skipped {label}: only {api.remaining} credits left")
+        return None, 0
+    try:
+        return api.get(path, markets=PROP_MARKETS[sk], **kw), 1
+    except urllib.error.HTTPError as e:
+        if e.code != 422:
+            api.errors.append(f"{label}: HTTP {e.code} {e.read()[:200].decode(errors='ignore')}")
+            return None, 1
+    merged, calls = None, 1
+    books = {}
+    for m in PROP_MARKETS[sk].split(","):
+        if api.low():
+            break
+        calls += 1
+        try:
+            d = api.get(path, markets=m, **kw)
+        except urllib.error.HTTPError:
+            continue
+        merged = merged or {k: v for k, v in d.items() if k != "bookmakers"}
+        for bk in d.get("bookmakers", []):
+            books.setdefault(bk["key"], {**bk, "markets": []})["markets"].extend(bk.get("markets", []))
+    if merged is None:
+        api.errors.append(f"{label}: no prop markets accepted")
+        return None, calls
+    merged["bookmakers"] = list(books.values())
+    return merged, calls
+
+
 def main():
     if not KEY:
         sys.exit("ODDS_API_KEY not set")
@@ -186,10 +232,8 @@ def main():
         if last and NOW - parse(last) < PROPS_EVERY and ev["id"] in old_props:
             props[ev["id"]] = old_props[ev["id"]]
             continue
-        data = api.try_get(f"props {ev['home_team']} v {ev['away_team']}",
-                           f"/sports/{sk}/events/{ev['id']}/odds", regions="au",
-                           markets=PROP_MARKETS[sk], oddsFormat="decimal", dateFormat="iso")
-        prop_calls += 1
+        data, n = fetch_props(api, sk, ev)
+        prop_calls += n
         if data is None:
             if ev["id"] in old_props:
                 props[ev["id"]] = old_props[ev["id"]]
