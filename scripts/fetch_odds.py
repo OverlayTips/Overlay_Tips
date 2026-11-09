@@ -150,7 +150,10 @@ def record(hist, ev):
                     best[k] = (o["price"], bk["key"], o.get("point"))
     he = hist.setdefault(ev["id"], {"commence_time": ev["commence_time"], "series": {}})
     he["commence_time"] = ev["commence_time"]
-    for k, (price, book, point) in best.items():
+    items = list(best.items())
+    # props: also keep one series per player+side that follows the main line, so line moves show up
+    items += [(k.rsplit("|", 1)[0] + "|main", v) for k, v in best.items() if k.count("|") == 3]
+    for k, (price, book, point) in items:
         ser = he["series"].setdefault(k, [])
         if not ser or ser[-1][1] != price or ser[-1][3] != point:
             ser.append([TS, price, book, point])
