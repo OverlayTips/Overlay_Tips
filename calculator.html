@@ -37,7 +37,7 @@
   nav{position:sticky;top:0;z-index:20;background:rgba(6,8,7,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px;max-width:1080px}
   .brand{display:flex;align-items:center;gap:10px;font-family:"Space Mono",monospace;font-weight:700;letter-spacing:.32em;font-size:14px;white-space:nowrap}
-  .brand img{height:38px;margin-top:-6px}
+  .brand img{height:32px}
   .back{font-size:14px;color:var(--muted);white-space:nowrap}
   .back:hover{color:var(--text)}
   @media(max-width:380px){.brand{letter-spacing:.18em;font-size:13px}}
@@ -101,14 +101,14 @@
   nav{position:sticky;top:0;z-index:20;background:rgba(6,8,7,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   nav .navrow{display:flex;align-items:center;justify-content:space-between;height:62px;gap:16px}
   .brand{display:flex;align-items:center;gap:10px;font-family:"Space Mono",monospace;font-weight:700;letter-spacing:.32em;font-size:14px;white-space:nowrap}
-  .brand-mark{height:38px;width:auto;display:block;margin-top:-6px}
+  .brand-mark{height:32px;width:auto;display:block}
   .navlinks{display:flex;gap:4px;font-size:14px;color:var(--muted);align-items:center}
-  .navlinks a:not(.btn){padding:8px 12px;border-radius:999px;transition:color .2s,background .2s}
+  .navlinks a:not(.btn){padding:8px 12px;border-radius:999px;white-space:nowrap;transition:color .2s,background .2s}
   .navlinks a:not(.btn):hover{color:var(--text);background:var(--panel)}
   .navlinks a.on{color:#04140c;background:var(--mint2);font-weight:800;font-style:italic}
   .navlinks .btn{padding:9px 16px;font-size:14px;color:#04140c;margin-left:8px;white-space:nowrap}
   .tabbar{display:none}
-  @media(max-width:860px){
+  @media(max-width:1040px){
     .navlinks a:not(.btn){display:none}
     .tabbar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 20px 10px;max-width:1080px;margin:0 auto}
     .tabbar::-webkit-scrollbar{display:none}
@@ -134,10 +134,10 @@
       <a href="membership.html">Membership</a>
       <a href="index.html#results">Results</a>
       <a href="calculator.html" class="on" aria-current="page">Bonus bet calc</a>
+      <a href="odds.html">Odds 🔒</a>
       <a href="giveaway.html">Giveaway</a>
       <a href="merch.html">Merch</a>
-      <a href="membership.html">Membership</a>
-    <a href="about.html">About</a>
+      <a href="about.html">About</a>
       <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
     </div>
   </div>
@@ -146,6 +146,7 @@
     <a href="membership.html">Membership</a>
     <a href="index.html#results">Results</a>
     <a href="calculator.html" class="on" aria-current="page">Bonus bet calc</a>
+    <a href="odds.html">Odds 🔒</a>
     <a href="giveaway.html">Giveaway</a>
     <a href="merch.html">Merch</a>
     <a href="about.html">About</a>
