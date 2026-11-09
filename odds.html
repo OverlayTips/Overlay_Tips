@@ -131,6 +131,7 @@
     .topev td.c-fair::before{content:"fair "}
     .topev td.c-fair.others::before{content:"others "}
     .topev td.c-fair .bk{display:none}
+    .topev .mvt td.c-fair::before{content:"best "}
     .topev td.c-game{grid-area:game;font-size:13px;color:var(--muted)}
   }
   .sharebar{display:inline-flex;gap:6px}
@@ -169,6 +170,7 @@
       <button data-v="ev">🔥 Highest EV</button>
       <button data-v="arb">⚖️ Arbs</button>
       <button data-v="pp">🎯 Prop picks</button>
+      <button data-v="mv">📈 Movers</button>
       <button data-v="bk:sportsbet">Sportsbet</button>
       <button data-v="bk:tab">TAB</button>
       <button data-v="games" class="on">Games</button>
@@ -185,6 +187,7 @@
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
       <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button">📲 Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
+      <label class="stakebox" id="mvBox" hidden>Show<select id="mvSel"><option value="all">Steamers + drifters</option><option value="steam">Steamers (shortening)</option><option value="drift">Drifters (lengthening)</option></select></label>
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
       <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
       <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2">$2.00</option><option value="2.5" selected>$2.50</option><option value="3">$3.00</option></select></label>
@@ -301,6 +304,7 @@ function render(){
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   SHARE=[]; $('shareBar').hidden=!(['ev','arb','pp'].includes(view)||view.startsWith('bk:'));
+  $('mvBox').hidden=view!=='mv';
   myBook=view.startsWith('bk:')?view.slice(3):(['ev','arb','pp'].includes(view)?bookFilter:'all');
   $('bookBox').hidden=!['ev','arb','pp'].includes(view); if(!$('bookBox').hidden) fillBooks();
   const isB=view==='bonus', isA=view==='arb';
@@ -308,6 +312,7 @@ function render(){
   $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
   if(isA){ renderArbs(); return; }
   if(isB){ renderBonus(); return; }
+  if(view==='mv'){ $('markets').hidden=true; $('moversBox').hidden=true; $('gapBox').hidden=true; $('maxBox').hidden=true; renderMovers(); return; }
   const isE=view==='ev', isK=view.startsWith('bk:'), isP=view==='pp'||isK;
   $('markets').hidden=isE||isP; $('moversBox').hidden=isE||isP; $('gapBox').hidden=!isP; $('maxBox').hidden=!isP;
   if(isK){ renderBook(); return; }
@@ -628,6 +633,52 @@ function renderBook(){
 $('bookSel').onchange=e=>{bookFilter=e.target.value;store.set('bookFilter',bookFilter);render();};
 $('gapSel').onchange=e=>{gapMin=+e.target.value;store.set('gapMin',gapMin);render();};
 $('maxSel').onchange=e=>{maxOdds=+e.target.value;store.set('maxOdds',maxOdds);render();};
+
+/* ---------- market movers: biggest price moves since the tracker first saw each price ---------- */
+let mvMode=store.get('mvMode','all');
+function renderMovers(){
+  const O=DATA.odds, P=DATA.props||{events:[]};
+  $('mvSel').value=mvMode;
+  const evs=O.events.concat(P.events);
+  const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
+  if(sport!=='all'&&!counts[sport]) sport='all';
+  $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
+    `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
+  $('q').placeholder='Search team or player';
+  $('legend').textContent='Biggest price moves since the tracker first saw each market (best price across bookies, updated 3× a day). Steamer = price shortening, usually money or news coming in. Drifter = price lengthening. Line moves (e.g. -4.5 → -6.5) count too.';
+  const q=$('q').value.trim().toLowerCase(), now=new Date(), out=[];
+  evs.filter(e=>(sport==='all'||e.sport_title===sport)&&new Date(e.commence_time)>now).forEach(e=>{
+    const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
+    mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
+      t.rows.forEach(r=>{ if(!r.mv) return;
+        const ptMove=r.mv.fp!=null&&r.mv.tp!=null&&r.mv.fp!==r.mv.tp;
+        // a line move toward this side counts as steam: for spreads/totals use the point change as well
+        const pct=r.mv.pct;
+        if(Math.abs(pct)<3&&!ptMove) return;
+        const steam=pct<0||(ptMove&&Math.abs(pct)<3&&(r.s.name==='Over'?r.mv.tp>r.mv.fp:r.mv.tp<r.mv.fp));
+        if(mvMode==='steam'&&!steam) return; if(mvMode==='drift'&&steam) return;
+        if(q&&!((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q)) return;
+        out.push({e,mk,r,pct,steam,ptMove});
+      });});
+  });
+  out.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct)||(b.ptMove-a.ptMove));
+  if(!out.length){$('list').innerHTML='<div class="empty"><h3>No big moves yet</h3>Moves show up once the tracker has seen a market more than once (it updates about 7am, 9:30am and 5:45pm). Check back after the next update.</div>';return;}
+  const rows=out.slice(0,60).map(({e,mk,r,pct,steam,ptMove})=>{
+    const lbl=MKT_LABEL[mk]||PROP_LABEL[mk]||mk;
+    const sel=r.s.desc?`${esc(r.s.desc)} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`:`${esc(r.s.name)}${r.point!=null?' <span class="pt">'+fmtPt(mk,r.point)+'</span>':''}`;
+    const line=ptMove?`<span class="bk">line ${fmtPt(mk,r.mv.fp)} → ${fmtPt(mk,r.mv.tp)}</span><br>`:'';
+    return `<tr>
+      <td class="c-edge"><span class="evp" style="color:${steam?'var(--mint2)':'var(--red)'}">${steam?'▼':'▲'} ${Math.abs(pct)<0.5&&ptMove?'line':Math.abs(pct).toFixed(0)+'%'}</span><small style="display:block;color:var(--muted);font-size:12px">${steam?'steamer':'drifter'}</small></td>
+      <td class="c-bet">${sel}<br><span class="bk">${esc(lbl)}</span></td>
+      <td class="c-price">${line}<span class="bk">${r.mv.from.toFixed(2)} →</span> <b>${r.mv.to.toFixed(2)}</b></td>
+      <td class="c-fair">${isFinite(r.best)?r.best.toFixed(2)+' <span class="bk">'+esc(r.bestBook?bkName(r.bestBook):'')+'</span>':'–'}</td>
+      <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');
+  $('list').innerHTML=`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">📈 Market movers</div>
+    <div class="ev-meta">Biggest moves first. ${out.length>60?'Top 60 of '+out.length:out.length+' found'}.</div></div></div>
+    <div class="tbl-wrap"><table class="bb mvt"><tr><th>Move</th><th>Bet</th><th>Opened → now</th><th>Best now</th><th>Game</th></tr>${rows}</table></div></div>`;
+}
+$('mvSel').onchange=e=>{mvMode=e.target.value;store.set('mvMode',mvMode);render();};
 function renderArbs(){
   const O=DATA.odds, P=DATA.props||{events:[]};
   const evs=O.events.concat(P.events);
