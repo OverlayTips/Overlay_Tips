@@ -34,6 +34,8 @@ def _groups(ev):
     raw = {}
     for bk in ev.get("bookmakers", []):
         for m in bk.get("markets", []):
+            if m["key"].endswith("_lay"):
+                continue   # Betfair lay prices aren't backable, so they'd create fake arbs
             for o in m.get("outcomes", []):
                 g = (m["key"], o.get("description") or "")
                 raw.setdefault(g, {}).setdefault(o["name"], {})[bk["key"]] = (o["price"], o.get("point"))
@@ -96,7 +98,7 @@ def compute(events, props, hist, now):
                                  "market": _mlabel(mk), "margin_pct": round((1 - pct) * 100, 2),
                                  "legs": [{"pick": sel(s), "price": p, "book": SHORT.get(b, b)} for s, (p, b) in best.items()]})
         for key, ser in (hist.get(ev["id"], {}).get("series") or {}).items():
-            if len(ser) < 2:
+            if len(ser) < 2 or key.split("|")[0].endswith("_lay"):
                 continue
             a, z = ser[0], ser[-1]
             pct = (z[1] - a[1]) / a[1] * 100
