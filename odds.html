@@ -110,7 +110,10 @@
   .bb a.calc{color:var(--mint);font-size:13px;white-space:nowrap}
   .bb th:first-child,.bb td:first-child{position:static}
   td.fair{color:var(--text)}
-  td.fair .ev{color:var(--mint);font-size:12px;font-weight:700}
+  td.fair .evp{color:var(--mint);font-size:12px;font-weight:700}
+  .topev{border-color:var(--mint-dim)}
+  .topev .evp{color:var(--mint2);font-weight:900;font-size:15px}
+  .topev td{min-width:90px}
   [hidden]{display:none!important}
 </style>
 </head>
@@ -237,7 +240,8 @@ function eventRows(ev, mk){
     const best=ok.length?Math.max(...ok):NaN;
     const ser=hist[mk+'|'+s.key]; let mv=null;
     if(ser&&ser.length>1){const a=ser[0],z=ser[ser.length-1];mv={from:a[1],to:z[1],fp:a[3],tp:z[3],pct:(z[1]-a[1])/a[1]*100};}
-    return {s,cells,best,point:main[s.key],mv};
+    const bi=cells.findIndex(c=>c&&c.ok&&c.price===best);
+    return {s,cells,best,bestBook:bi>=0?books[bi]:null,point:main[s.key],mv};
   });
   // fair price: strip each bookie's margin (no-vig) across the sides of a market, take the median across bookies
   const groups={}; rows.forEach(r=>(groups[r.s.desc||'']=groups[r.s.desc||'']||[]).push(r));
@@ -303,7 +307,10 @@ function render(){
     return null;
   }).filter(Boolean);
   const maxMove=x=>Math.max(0,...x.t.rows.map(r=>r.mv?Math.abs(r.mv.pct):0));
+  const maxEdge=x=>Math.max(-99,...x.t.rows.map(r=>r.edge??-99));
   if(movers) items.sort((a,b)=>maxMove(b)-maxMove(a));
+  else if(view==='props') items.sort((a,b)=>maxEdge(b)-maxEdge(a));
+  const top=view==='props'?topEV(inSport,q):'';
   if(!items.length){$('list').innerHTML=`<div class="empty"><h3>Nothing here</h3>No games with this market${q?' matching “'+esc(q)+'”':''} right now.</div>`;return;}
 
   $('list').innerHTML=items.map(({e,t})=>{
@@ -327,10 +334,34 @@ function render(){
       const cells=r.cells.map(c=>{if(!c)return'<td class="off">–</td>';
         const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
         return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
-      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="fair">${r.fair?r.fair.toFixed(2)+(r.edge>0.5?` <span class="ev">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="fair">${r.fair?r.fair.toFixed(2)+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}<div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
+  if(top) $('list').insertAdjacentHTML('afterbegin',top);
+}
+
+/* highest +EV props across every market, best first */
+function topEV(evs,q){
+  const now=new Date(), out=[];
+  evs.forEach(e=>{
+    if(new Date(e.commence_time)<=now) return;
+    const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
+    mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
+      t.rows.forEach(r=>{ if(r.edge>0.5&&r.nfair>=3&&r.bestBook&&(!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q)))
+        out.push({e,mk,r}); });});
+  });
+  out.sort((a,b)=>b.r.edge-a.r.edge);
+  if(!out.length) return '';
+  const rows=out.slice(0,25).map(({e,mk,r})=>`<tr>
+    <td><span class="evp">+${r.edge.toFixed(1)}%</span></td>
+    <td>${esc(r.s.desc||'')} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span><br><span class="bk">${esc(PROP_LABEL[mk]||mk)}</span></td>
+    <td><b>${r.best.toFixed(2)}</b> <span class="bk">${esc(bkName(r.bestBook))}</span></td>
+    <td>${r.fair.toFixed(2)}</td>
+    <td>${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
+  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Top +EV props right now</div>
+    <div class="ev-meta">Every prop market, ranked by edge vs the fair price. ${out.length>25?'Top 25 of '+out.length:out.length+' found'}.</div></div></div>
+    <div class="tbl-wrap"><table class="bb"><tr><th>Edge</th><th>Bet</th><th>Best price</th><th>Fair</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 
 /* ---------- bonus bet conversions (stake not returned) ---------- */
