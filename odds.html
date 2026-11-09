@@ -77,35 +77,69 @@
   .empty ol{margin:10px 0 0 20px;display:flex;flex-direction:column;gap:6px}
   .empty code{font-family:"Space Mono",monospace;font-size:12px;color:var(--mint2);background:var(--panel2);padding:1px 6px;border-radius:4px}
   .legend{color:var(--muted);font-size:13px;padding:0 0 10px}
+  .gate{min-height:calc(100vh - 58px);display:flex;align-items:center;justify-content:center;padding:40px 0}
+  .gate form{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:28px;display:flex;flex-direction:column;gap:14px}
+  .gate h2{font-size:30px;font-weight:900;font-style:italic;letter-spacing:-.03em;line-height:1}
+  .gate p{color:var(--muted);font-size:14px}
+  .gate input[type=password]{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--text);font:inherit;font-size:16px}
+  .gate input[type=password]:focus{outline:none;border-color:var(--mint-dim)}
+  .gate .err{color:var(--red);font-size:14px;min-height:1.2em}
+  .gbtn{background:var(--mint2);color:#04140c;border-radius:999px;padding:12px 18px;font-weight:900;font-style:italic;font-size:16px}
+  .gbtn:disabled{opacity:.6}
+  .lock{font-size:14px;color:var(--muted);padding:6px 0}
+  .lock:hover{color:var(--text)}
+  .navr{display:flex;gap:18px;align-items:center}
+  .viewtabs{display:flex;gap:6px;margin-top:18px}
+  .viewtabs button{padding:9px 16px;border-radius:12px;font-weight:900;font-style:italic;font-size:15px;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
+  .viewtabs button.on{color:var(--text);border-color:var(--mint-dim);background:var(--panel2)}
+  .seg{overflow-x:auto;max-width:100%;scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{white-space:nowrap}
+  tr.grp td{border-top:1px solid #26332f}
+  [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <nav>
   <div class="wrap">
     <a href="index.html" class="brand"><img src="logo-mark.png" alt="">OVERLAY TIPS</a>
-    <a href="index.html" class="back">← Back to site</a>
+    <div class="navr"><button class="lock" id="lockBtn" hidden>Lock</button><a href="index.html" class="back">← Site</a></div>
   </div>
 </nav>
-<main class="wrap">
+
+<section class="gate wrap" id="gate">
+  <form id="gateForm" autocomplete="on">
+    <div class="mono">Members only</div>
+    <h2>Odds tracker</h2>
+    <p>Enter the password to unlock.</p>
+    <input type="text" name="username" value="overlay-odds" autocomplete="username" hidden>
+    <input type="password" id="pw" autocomplete="current-password" placeholder="Password" required>
+    <label class="toggle"><input type="checkbox" id="remember" checked> Remember on this device</label>
+    <div class="err" id="gateErr"></div>
+    <button class="gbtn" id="gateBtn" type="submit">Unlock</button>
+  </form>
+</section>
+
+<main class="wrap" id="app" hidden>
   <header>
-    <div class="mono">Private · not linked in the nav</div>
+    <div class="mono">Password protected</div>
     <h1>Odds <span class="g">tracker</span></h1>
-    <div class="status" id="status">Loading…</div>
+    <div class="status" id="status"></div>
+    <div class="viewtabs" id="views">
+      <button data-v="games" class="on">Games</button>
+      <button data-v="props">Player props</button>
+    </div>
   </header>
 
   <div class="controls">
     <div class="chips" id="sports"></div>
     <div class="row">
-      <div class="seg" id="markets">
-        <button data-m="h2h" class="on">H2H</button>
-        <button data-m="spreads">Line</button>
-        <button data-m="totals">Total</button>
-      </div>
+      <div class="seg" id="markets"></div>
       <input class="search" id="q" type="search" placeholder="Search team">
       <label class="toggle"><input type="checkbox" id="movers"> Movers first</label>
     </div>
   </div>
-  <div class="legend">Mint cell = best price at the main line. Open → now tracks the best price since the tracker first saw the game. Market % under 100 = arb across bookies.</div>
+  <div class="legend" id="legend"></div>
   <div class="list" id="list"></div>
 </main>
 
@@ -114,116 +148,154 @@ const REPO = 'overlaytips/Overlay_Tips';
 const qs = new URLSearchParams(location.search);
 const BASE = qs.get('data') || `https://raw.githubusercontent.com/${REPO}/odds-data/`;
 const $ = id => document.getElementById(id);
-const store = {get(k,d){try{return JSON.parse(localStorage.getItem('odds.'+k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v))}catch(e){}}};
+const store = {get(k,d){try{const v=localStorage.getItem('odds.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+               set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v))}catch(e){}},
+               del(k){try{localStorage.removeItem('odds.'+k)}catch(e){}}};
 
-let ODDS=null, HIST={events:{}};
-let sport = store.get('sport','all'), market = store.get('market','h2h'), movers = store.get('movers',false);
+let DATA=null, view=store.get('view','games'), sport=store.get('sport','all'), movers=store.get('movers',false);
+let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
-const SHORT = {sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet'};
-const bkName = b => SHORT[b.key] || b.title;
-const ago = iso => { const m=Math.round((Date.now()-new Date(iso))/60000); return m<1?'just now':m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'; };
-const when = iso => new Date(iso).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
-const fmtPt = (m,p) => p==null?'':(m==='spreads'&&p>0?'+':'')+p;
-const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SHORT={sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet',picklebet:'Picklebet'};
+const GAME_MKTS=[['h2h','H2H'],['spreads','Line'],['totals','Total']];
+const PROP_LABEL={player_points:'Points',player_rebounds:'Rebounds',player_assists:'Assists',player_threes:'Threes',player_points_rebounds_assists:'PRA',player_disposals:'Disposals',player_goal_scorer_anytime:'Anytime goal',player_try_scorer_anytime:'Anytime try'};
+const bkName=b=>SHORT[b.key]||b.title.replace(/\s*\(AU\)$/,'');
+const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<1?'just now':m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
+const when=iso=>new Date(iso).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+const fmtPt=(m,p)=>p==null?'':(m==='spreads'&&p>0?'+':'')+p;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 
-async function load(){
-  try{
-    const t='?t='+Math.floor(Date.now()/60000);
-    const [o,h] = await Promise.all([
-      fetch(BASE+'odds.json'+t).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}),
-      fetch(BASE+'history.json'+t).then(r=>r.ok?r.json():{events:{}}).catch(()=>({events:{}}))
-    ]);
-    ODDS=o; HIST=h; render();
-  }catch(e){
-    $('status').innerHTML='<span class="warn">No odds data yet.</span>';
-    $('list').innerHTML=`<div class="empty"><h3>Waiting for the first odds pull</h3>
-      The page reads from the <code>odds-data</code> branch, which a GitHub Action fills every 2 hours. To switch it on:
-      <ol><li>Get an API key at the-odds-api.com.</li>
-      <li>In the GitHub repo: Settings → Secrets and variables → Actions → New secret, name <code>ODDS_API_KEY</code>.</li>
-      <li>Actions tab → “Update odds” → Run workflow.</li></ol></div>`;
-  }
+/* ---------- unlock ---------- */
+async function decrypt(bundle,pw){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(bundle.salt),iterations:bundle.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  const gz=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(bundle.iv)},key,b64(bundle.ct));
+  const txt=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  return JSON.parse(txt);
 }
+async function fetchBundle(){
+  const r=await fetch(BASE+'data.json?t='+Math.floor(Date.now()/60000));
+  if(!r.ok) throw new Error('nodata');
+  return r.json();
+}
+async function unlock(pw,quiet){
+  let bundle;
+  try{ bundle=await fetchBundle(); }catch(e){ if(!quiet) $('gateErr').textContent='No odds data published yet.'; return false; }
+  if(!bundle.v){ if(!quiet) $('gateErr').textContent='Odds are paused: the page password hasn\'t been set up in GitHub yet.'; return false; }
+  try{ DATA=await decrypt(bundle,pw); }catch(e){ if(!quiet) $('gateErr').textContent='Wrong password.'; return false; }
+  $('gate').hidden=true; $('app').hidden=false; $('lockBtn').hidden=false;
+  render(); return true;
+}
+$('gateForm').onsubmit=async e=>{
+  e.preventDefault(); $('gateErr').textContent=''; $('gateBtn').disabled=true; $('gateBtn').textContent='Unlocking…';
+  const pw=$('pw').value;
+  if(await unlock(pw)){ if($('remember').checked) store.set('pw',pw); else store.del('pw'); }
+  $('gateBtn').disabled=false; $('gateBtn').textContent='Unlock';
+};
+$('lockBtn').onclick=()=>{store.del('pw');DATA=null;$('app').hidden=true;$('gate').hidden=false;$('lockBtn').hidden=true;$('pw').value='';$('list').innerHTML='';};
+(async()=>{const pw=store.get('pw',null); if(pw && !(await unlock(pw,true))) store.del('pw');})();
+setInterval(async()=>{const pw=store.get('pw',null); if(DATA&&pw) unlock(pw,true);},10*60*1000);
 
+/* ---------- tables ---------- */
+function sideOf(o){return {key:(o.description?o.description+'|':'')+o.name, desc:o.description||null, name:o.name}}
 function eventRows(ev, mk){
-  // collect per-bookie outcome for this market
-  const books = ev.bookmakers.filter(b=>b.markets.some(m=>m.key===mk));
+  const books=ev.bookmakers.filter(b=>b.markets.some(m=>m.key===mk));
   if(!books.length) return null;
-  const sides = [];
-  books.forEach(b=>b.markets.find(m=>m.key===mk).outcomes.forEach(o=>{ if(!sides.includes(o.name)) sides.push(o.name); }));
-  // main point per side = most common
-  const main = {};
-  sides.forEach(s=>{
-    const c={}; books.forEach(b=>{const o=b.markets.find(m=>m.key===mk).outcomes.find(x=>x.name===s); if(o&&o.point!=null) c[o.point]=(c[o.point]||0)+1;});
-    const ks=Object.keys(c); if(ks.length) main[s]=+ks.sort((a,b)=>c[b]-c[a]||Math.abs(a)-Math.abs(b))[0];
+  const sides=[], seen={};
+  books.forEach(b=>b.markets.find(m=>m.key===mk).outcomes.forEach(o=>{const s=sideOf(o); if(!seen[s.key]){seen[s.key]=1;sides.push(s);}}));
+  if(sides.some(s=>s.desc)) sides.sort((a,b)=>a.desc.localeCompare(b.desc)||(a.name==='Over'?-1:b.name==='Over'?1:0));
+  const pick=(b,s)=>b.markets.find(m=>m.key===mk).outcomes.find(o=>sideOf(o).key===s.key);
+  const main={};
+  sides.forEach(s=>{const c={};books.forEach(b=>{const o=pick(b,s);if(o&&o.point!=null)c[o.point]=(c[o.point]||0)+1;});
+    const ks=Object.keys(c); if(ks.length) main[s.key]=+ks.sort((a,b)=>c[b]-c[a]||Math.abs(a)-Math.abs(b))[0];});
+  const hist=DATA.history?.events?.[ev.id]?.series||{};
+  const rows=sides.map(s=>{
+    const cells=books.map(b=>{const o=pick(b,s);return o?{price:o.price,point:o.point,ok:o.point==null||o.point===main[s.key]}:null;});
+    const ok=cells.filter(c=>c&&c.ok).map(c=>c.price);
+    const best=ok.length?Math.max(...ok):NaN;
+    const ser=hist[mk+'|'+s.key]; let mv=null;
+    if(ser&&ser.length>1){const a=ser[0],z=ser[ser.length-1];mv={from:a[1],to:z[1],fp:a[3],tp:z[3],pct:(z[1]-a[1])/a[1]*100};}
+    return {s,cells,best,point:main[s.key],mv};
   });
-  const rows = sides.map(s=>{
-    const cells = books.map(b=>{const o=b.markets.find(m=>m.key===mk).outcomes.find(x=>x.name===s); return o?{price:o.price,point:o.point,ok:o.point==null||o.point===main[s]}:null;});
-    const best = Math.max(...cells.filter(c=>c&&c.ok).map(c=>c.price));
-    const ser = HIST.events?.[ev.id]?.series?.[mk+'|'+s];
-    let mv=null;
-    if(ser && ser.length>1){ const a=ser[0], z=ser[ser.length-1]; mv={from:a[1],to:z[1],fp:a[3],tp:z[3],pct:(z[1]-a[1])/a[1]*100}; }
-    return {side:s, cells, best, point:main[s], mv};
-  });
-  const pct = rows.reduce((t,r)=>t+(isFinite(r.best)?100/r.best:0),0);
-  return {books, rows, pct};
+  const pct=rows.reduce((t,r)=>t+(isFinite(r.best)?100/r.best:0),0);
+  return {books,rows,pct};
 }
 
 function render(){
-  const evs = ODDS.events||[];
-  const c = ODDS.credits_remaining;
-  $('status').innerHTML = `<span>Updated <b>${ago(ODDS.updated)}</b></span><span><b>${evs.length}</b> games</span>`+
+  if(!DATA) return;
+  const O=DATA.odds, P=DATA.props||{events:[]};
+  const c=O.credits_remaining;
+  $('status').innerHTML=`<span>Updated <b>${ago(O.updated)}</b></span><span><b>${O.events.length}</b> games</span><span><b>${P.events.length}</b> with props</span>`+
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
-    (ODDS.errors?.length?`<span class="warn" title="${esc(ODDS.errors.join('\n'))}">${ODDS.errors.length} fetch warning${ODDS.errors.length>1?'s':''}</span>`:'');
+    (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
+  $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
 
+  const evs = view==='games'?O.events:P.events;
   const counts={}; evs.forEach(e=>counts[e.sport_title]=(counts[e.sport_title]||0)+1);
-  if(sport!=='all' && !counts[sport]) sport='all';
-  $('sports').innerHTML = [['all',evs.length],...Object.entries(counts)].map(([s,n])=>
+  if(sport!=='all'&&!counts[sport]) sport='all';
+  $('sports').innerHTML=[['all',evs.length],...Object.entries(counts)].map(([s,n])=>
     `<button class="chip ${s===sport?'on':''}" data-s="${esc(s)}">${s==='all'?'All':esc(s)}<span class="n">${n}</span></button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
-  $('markets').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===market));
-  $('movers').checked = movers;
 
-  const q = $('q').value.trim().toLowerCase();
-  let items = evs.filter(e=>(sport==='all'||e.sport_title===sport) && (!q || (e.home_team+' '+e.away_team).toLowerCase().includes(q)))
-    .map(e=>({e, t:eventRows(e,market)})).filter(x=>x.t);
-  const maxMove = x => Math.max(0,...x.t.rows.map(r=>r.mv?Math.abs(r.mv.pct):0));
+  const inSport=evs.filter(e=>sport==='all'||e.sport_title===sport);
+  let markets;
+  if(view==='games') markets=GAME_MKTS;
+  else{ const ks=[]; inSport.forEach(e=>e.bookmakers.forEach(b=>b.markets.forEach(m=>{if(!ks.includes(m.key))ks.push(m.key);})));
+        markets=ks.map(k=>[k,PROP_LABEL[k]||k.replace(/^player_/,'').replace(/_/g,' ')]); }
+  let market=mkt[view];
+  if(!markets.some(m=>m[0]===market)) market=mkt[view]=markets[0]?.[0]||null;
+  $('markets').innerHTML=markets.map(([k,l])=>`<button data-m="${k}" class="${k===market?'on':''}">${esc(l)}</button>`).join('');
+  $('markets').querySelectorAll('button').forEach(b=>b.onclick=()=>{mkt[view]=b.dataset.m;store.set(view==='games'?'market':'pmarket',b.dataset.m);render();});
+  $('movers').checked=movers;
+  $('q').placeholder=view==='games'?'Search team':'Search team or player';
+  $('legend').textContent=view==='games'
+    ?'Mint cell = best price at the main line. Open → now tracks the best price since the tracker first saw the game. Market % under 100 = arb across bookies.'
+    :'Props are pulled for games starting in the next 24 hours, refreshed every ~6 hours. Mint = best price at the most common line.';
+
+  if(view==='props' && !P.events.length){
+    $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for NBA, AFL and NRL games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
+  }
+  const q=$('q').value.trim().toLowerCase();
+  let items=inSport.map(e=>({e,t:market&&eventRows(e,market)})).filter(x=>x.t);
+  if(q) items=items.map(x=>{
+    const teamHit=(x.e.home_team+' '+x.e.away_team).toLowerCase().includes(q);
+    if(teamHit) return x;
+    if(view==='props'){const rows=x.t.rows.filter(r=>(r.s.desc||'').toLowerCase().includes(q)); return rows.length?{e:x.e,t:{...x.t,rows}}:null;}
+    return null;
+  }).filter(Boolean);
+  const maxMove=x=>Math.max(0,...x.t.rows.map(r=>r.mv?Math.abs(r.mv.pct):0));
   if(movers) items.sort((a,b)=>maxMove(b)-maxMove(a));
+  if(!items.length){$('list').innerHTML=`<div class="empty"><h3>Nothing here</h3>No games with this market${q?' matching “'+esc(q)+'”':''} right now.</div>`;return;}
 
-  if(!items.length){ $('list').innerHTML=`<div class="empty"><h3>Nothing here</h3>No games with this market${q?' matching “'+esc(q)+'”':''} right now. Try another sport or market.</div>`; return; }
-
-  $('list').innerHTML = items.map(({e,t})=>{
-    const started = new Date(e.commence_time) < new Date();
-    const head = `<div class="ev-head"><div><div class="ev-title">${esc(e.home_team)} v ${esc(e.away_team)}</div>
-      <div class="ev-meta">${esc(e.sport_title)} · ${when(e.commence_time)}</div></div>
+  $('list').innerHTML=items.map(({e,t})=>{
+    const started=new Date(e.commence_time)<new Date();
+    const head=`<div class="ev-head"><div><div class="ev-title">${esc(e.home_team)} v ${esc(e.away_team)}</div>
+      <div class="ev-meta">${esc(e.sport_title)} · ${when(e.commence_time)}${e.fetched?' · props '+ago(e.fetched):''}</div></div>
       <div class="badges">${started?'<span class="badge live">STARTED</span>':''}
-      <span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>
+      ${view==='games'?`<span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>`:''}
       <span class="badge">${t.books.length} books</span></div></div>`;
-    const th = `<tr><th>${market==='h2h'?'Team':market==='spreads'?'Line':'Total'}</th><th>Best</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
-    const trs = t.rows.map(r=>{
-      const label = esc(r.side)+(r.point!=null?` <span class="pt">${fmtPt(market,r.point)}</span>`:'');
+    const first=view==='props'?'Player':market==='h2h'?'Team':market==='spreads'?'Line':'Total';
+    const th=`<tr><th>${first}</th><th>Best</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
+    let prev=null;
+    const trs=t.rows.map(r=>{
+      const nm=r.s.desc?`${esc(r.s.desc)} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
+                       :esc(r.s.name)+(r.point!=null?` <span class="pt">${fmtPt(market,r.point)}</span>`:'');
+      const grp=r.s.desc&&prev!==null&&prev!==r.s.desc; prev=r.s.desc;
       let mv='<span class="flat">–</span>';
-      if(r.mv){
-        const cls = r.mv.pct<-0.5?'down':r.mv.pct>0.5?'up':'flat';
-        const arrow = r.mv.pct<-0.5?'▼':r.mv.pct>0.5?'▲':'•';
-        const ptMove = (r.mv.fp!=null && r.mv.fp!==r.mv.tp)?`${fmtPt(market,r.mv.fp)}→${fmtPt(market,r.mv.tp)} `:'';
-        mv = `<span class="${cls}">${ptMove}${r.mv.from.toFixed(2)} → ${r.mv.to.toFixed(2)} ${arrow}${Math.abs(r.mv.pct).toFixed(0)}%</span>`;
-      }
-      const cells = r.cells.map(c=>{
-        if(!c) return '<td class="off">–</td>';
-        const pt = (c.point!=null && !c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
-        return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;
-      }).join('');
-      return `<tr><td>${label}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+      if(r.mv){const cls=r.mv.pct<-0.5?'down':r.mv.pct>0.5?'up':'flat',ar=r.mv.pct<-0.5?'▼':r.mv.pct>0.5?'▲':'•';
+        const pm=(r.mv.fp!=null&&r.mv.fp!==r.mv.tp)?`${fmtPt(market,r.mv.fp)}→${fmtPt(market,r.mv.tp)} `:'';
+        mv=`<span class="${cls}">${pm}${r.mv.from.toFixed(2)} → ${r.mv.to.toFixed(2)} ${ar}${Math.abs(r.mv.pct).toFixed(0)}%</span>`;}
+      const cells=r.cells.map(c=>{if(!c)return'<td class="off">–</td>';
+        const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
+        return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}<div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
 }
-
-$('markets').querySelectorAll('button').forEach(b=>b.onclick=()=>{market=b.dataset.m;store.set('market',market);ODDS&&render();});
-$('movers').onchange=e=>{movers=e.target.checked;store.set('movers',movers);ODDS&&render();};
-$('q').oninput=()=>ODDS&&render();
-load();
-setInterval(load, 10*60*1000);
+$('views').querySelectorAll('button').forEach(b=>b.onclick=()=>{view=b.dataset.v;store.set('view',view);sport='all';$('q').value='';render();});
+$('movers').onchange=e=>{movers=e.target.checked;store.set('movers',movers);render();};
+$('q').oninput=render;
 </script>
 </body>
 </html>

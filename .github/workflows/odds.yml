@@ -2,7 +2,7 @@ name: Update odds
 
 on:
   schedule:
-    - cron: "17 */2 * * *"   # every 2 hours (UTC). Each run costs ~3 credits per in-season sport.
+    - cron: "17 */2 * * *"   # every 2 hours (UTC). Game markets: ~3 credits per in-season sport. Props: see scripts/fetch_odds.py
   workflow_dispatch: {}       # "Run workflow" button for a manual refresh
 
 permissions:
@@ -15,6 +15,8 @@ concurrency:
 jobs:
   odds:
     runs-on: ubuntu-latest
+    env:
+      PW_SET: ${{ secrets.ODDS_PAGE_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,18 +29,29 @@ jobs:
           python-version: "3.12"
 
       - name: Fetch odds
+        if: env.PW_SET == 'true'
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-        run: python scripts/fetch_odds.py
+          ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
+        run: |
+          pip install -q cryptography
+          python scripts/fetch_odds.py
+
+      - name: Wipe unprotected data (no ODDS_PAGE_PASSWORD secret yet)
+        if: env.PW_SET != 'true'
+        run: |
+          rm -f odds-data/*.json
+          echo '{"v":0,"locked":"no-password"}' > odds-data/data.json
+          echo "::warning::Add the ODDS_PAGE_PASSWORD secret to start publishing odds"
 
       - name: Publish to odds-data branch
         run: |
           cd odds-data
           rm -rf .git-tmp && git init -q -b odds-data .git-tmp
-          cp odds.json history.json .git-tmp/
+          cp data.json .git-tmp/
           cd .git-tmp
           git config user.name "odds-bot"
           git config user.email "odds-bot@users.noreply.github.com"
-          git add odds.json history.json
+          git add data.json
           git commit -qm "Odds snapshot $(date -u +%FT%TZ)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" odds-data:odds-data
