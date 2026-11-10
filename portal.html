@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Members | Overlay Tips</title>
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#060807">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=20261110a">
+<link rel="stylesheet" href="plain.css?v=5">
+</head>
+<body>
+<nav>
+  <div class="wrap navrow">
+    <a href="index.html" class="brand" aria-label="Overlay Tips home">
+      <img src="logo-mark.png" alt="" class="brand-mark">
+      <span class="wm-o">OVERLAY</span> <span class="wm-t">TIPS</span>
+    </a>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="odds.html" class="hot">Odds</a>
+      <a href="membership.html">Membership</a>
+      <a href="portal.html" class="on" aria-current="page">Members</a>
+      <a href="index.html#results">Results</a>
+      <a href="calculator.html">Bonus bet calc</a>
+      <a href="giveaway.html">Giveaway</a>
+      <a href="merch.html">Merch</a>
+      <a href="about.html">About</a>
+      <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
+    </div>
+  </div>
+  <div class="tabbar" aria-label="Site sections">
+    <a href="index.html">Home</a>
+    <a href="odds.html" class="hot">Odds</a>
+    <a href="membership.html">Membership</a>
+    <a href="portal.html" class="on" aria-current="page">Members</a>
+    <a href="index.html#results">Results</a>
+    <a href="calculator.html">Bonus bet calc</a>
+    <a href="giveaway.html">Giveaway</a>
+    <a href="merch.html">Merch</a>
+    <a href="about.html">About</a>
+  </div>
+</nav>
+<style>
+  .pt-wrap{max-width:900px;margin:0 auto;padding:28px 20px 80px}
+  .pt-card{background:var(--panel,#0e1312);border:1px solid var(--line,#1b2523);border-radius:18px;padding:22px}
+  .pt-auth{max-width:420px;margin:20px auto}
+  .pt-auth h2{font-size:24px;margin-bottom:4px}
+  .pt-sub{color:var(--muted,#87978f);font-size:14px;margin-bottom:14px}
+  .pt-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:13px;color:var(--muted,#87978f)}
+  .pt-field input,.pt-field select,.pt-field textarea{background:#060807;border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1);border-radius:10px;padding:11px 12px;font:15px Archivo,system-ui,sans-serif}
+  .pt-field textarea{min-height:80px;resize:vertical}
+  .pt-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  .pt-btn{width:100%;border:0;border-radius:10px;padding:12px;font:700 15px Archivo,system-ui,sans-serif;background:var(--mint,#24c17b);color:#04140c;cursor:pointer}
+  .pt-btn.ghost{background:none;border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1)}
+  .pt-btn.sm{width:auto;padding:7px 12px;font-size:13px}
+  .pt-btn:disabled{opacity:.6;cursor:default}
+  .pt-msg{font-size:14px;margin-top:10px;min-height:20px}
+  .pt-msg.err{color:var(--red,#ff6b6b)} .pt-msg.ok{color:var(--mint,#24c17b)}
+  .pt-switch{background:none;border:0;color:var(--mint,#24c17b);cursor:pointer;font:600 14px Archivo,system-ui,sans-serif;padding:0}
+  .pt-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .pt-top h1{font-size:30px}
+  .pt-tier{display:inline-block;border:1px solid var(--mint-dim,#17573a);color:var(--mint,#24c17b);border-radius:999px;padding:3px 10px;font:700 12px "Space Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
+  .pt-tier.vip{border-color:var(--gold,#d6a43c);color:var(--gold,#d6a43c)}
+  .pt-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px;scrollbar-width:none}
+  .pt-tabs button{flex:0 0 auto;background:var(--panel,#0e1312);border:1px solid var(--line,#1b2523);color:var(--muted,#87978f);border-radius:999px;padding:8px 15px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
+  .pt-tabs button.on{color:#04140c;background:var(--mint,#24c17b);border-color:var(--mint,#24c17b)}
+  .tip{border:1px solid var(--line,#1b2523);border-radius:14px;padding:14px 16px;margin-bottom:10px;background:var(--panel,#0e1312)}
+  .tip-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .tip-sel{font-weight:800;font-size:17px}
+  .tip-meta{color:var(--muted,#87978f);font-size:13px;margin-top:2px}
+  .tip-odds{text-align:right;white-space:nowrap;font-weight:800;font-size:18px}
+  .tip-odds small{display:block;color:var(--muted,#87978f);font-weight:500;font-size:12px}
+  .tip-why{margin-top:10px;font-size:14.5px;line-height:1.55;white-space:pre-wrap}
+  .res{display:inline-block;border-radius:6px;padding:1px 7px;font:700 11px "Space Mono",monospace;text-transform:uppercase;margin-left:6px;vertical-align:2px}
+  .res.won{background:#123a28;color:#62f0a8} .res.lost{background:#3a1616;color:#ff8a8a} .res.void{background:#222;color:#aaa} .res.pending{background:#2b2612;color:#efd38f}
+  .res.vipt{background:#2b2612;color:var(--gold,#d6a43c)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  .stat{background:var(--panel,#0e1312);border:1px solid var(--line,#1b2523);border-radius:14px;padding:14px}
+  .stat b{display:block;font-size:24px;font-weight:900} .stat span{color:var(--muted,#87978f);font-size:13px}
+  .pos{color:var(--mint,#24c17b)} .neg{color:var(--red,#ff6b6b)}
+  table.pt-t{width:100%;border-collapse:collapse;font-size:14px}
+  .pt-t th,.pt-t td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line,#1b2523)}
+  .pt-t th{color:var(--muted,#87978f);font-weight:600;font-size:12.5px}
+  .pt-t td.n,.pt-t th.n{text-align:right}
+  .pt-scroll{overflow-x:auto}
+  .pt-empty{color:var(--muted,#87978f);text-align:center;padding:30px 10px}
+  .pt-h3{font-size:17px;margin:4px 0 10px}
+  .pt-sec{margin-bottom:18px}
+  .pt-copy{display:flex;gap:8px}
+  .pt-copy input{flex:1;min-width:0;background:#060807;border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1);border-radius:10px;padding:10px 12px;font:14px "Space Mono",monospace}
+  .pt-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .pt-filter select{background:var(--panel,#0e1312);border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1);border-radius:999px;padding:7px 12px;font:14px Archivo,system-ui,sans-serif}
+  [hidden]{display:none!important}
+</style>
+
+<main class="pt-wrap">
+  <!-- not set up yet -->
+  <div id="vSetup" class="pt-card pt-auth" hidden>
+    <h2>Members portal</h2>
+    <p class="pt-sub">The portal isn't switched on yet. Check back soon.</p>
+  </div>
+
+  <!-- log in / sign up -->
+  <div id="vAuth" class="pt-card pt-auth" hidden>
+    <div class="mono">Members</div>
+    <h2 id="authTitle">Log in</h2>
+    <p class="pt-sub" id="authSub">Welcome back.</p>
+    <form id="authForm">
+      <label class="pt-field" id="nameRow" hidden>Name<input id="aName" autocomplete="name" maxlength="60"></label>
+      <label class="pt-field">Email<input id="aEmail" type="email" autocomplete="email" required></label>
+      <label class="pt-field" id="pwRow">Password<input id="aPw" type="password" autocomplete="current-password" minlength="8"></label>
+      <button class="pt-btn" id="authBtn" type="submit">Log in</button>
+    </form>
+    <div class="pt-msg" id="authMsg"></div>
+    <p class="pt-sub" style="margin-top:8px"><span id="switchTxt">New here?</span> <button class="pt-switch" id="switchBtn" type="button">Create an account</button>
+      · <button class="pt-switch" id="forgotBtn" type="button">Forgot password</button></p>
+  </div>
+
+  <!-- signed in -->
+  <div id="vApp" hidden>
+    <div class="pt-top">
+      <div><div class="mono">Members</div><h1>G'day, <span class="g" id="hiName"></span></h1></div>
+      <div><span class="pt-tier" id="tierBadge"></span> <button class="pt-btn ghost sm" id="logoutBtn" type="button">Log out</button></div>
+    </div>
+
+    <!-- waiting for activation -->
+    <div id="vPending" class="pt-card pt-sec" hidden>
+      <h3 class="pt-h3">You're signed up 👋</h3>
+      <p class="pt-sub" style="margin:0">Your account isn't active yet. DM <b>"OVERLAY"</b> to <a href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">@overlay_tips</a> with the email you signed up with (<b id="pendEmail"></b>) and we'll switch you on.</p>
+    </div>
+
+    <div class="pt-tabs" id="tabs"></div>
+
+    <section id="tTips" hidden>
+      <div class="pt-filter"><select id="tipDay"><option value="today">Today</option><option value="pending">All open bets</option><option value="7">Last 7 days</option></select></div>
+      <div id="tipList"></div>
+    </section>
+
+    <section id="tStats" hidden>
+      <div class="pt-filter"><select id="stRange"><option value="30">Last 30 days</option><option value="7">Last 7 days</option><option value="all">All time</option></select></div>
+      <div class="stats" id="statBoxes"></div>
+      <div class="pt-card pt-sec"><h3 class="pt-h3">By sport</h3><div class="pt-scroll"><table class="pt-t" id="sportTbl"></table></div></div>
+      <div class="pt-card pt-sec"><h3 class="pt-h3">Settled bets</h3><div class="pt-scroll"><table class="pt-t" id="histTbl"></table></div></div>
+    </section>
+
+    <section id="tGroup" hidden>
+      <div class="pt-card pt-sec">
+        <h3 class="pt-h3">WhatsApp group</h3>
+        <p class="pt-sub" id="waTxt">Every play lands in the group first.</p>
+        <a class="pt-btn" id="waBtn" style="display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener">Join the group</a>
+      </div>
+      <div class="pt-card pt-sec">
+        <h3 class="pt-h3">Ticket giveaway 🎟️</h3>
+        <div class="stats" style="margin-bottom:8px"><div class="stat"><b id="gEntries">0</b><span>entries this month</span></div></div>
+        <p class="pt-sub" id="gTxt" style="margin:0"></p>
+      </div>
+      <div class="pt-card pt-sec">
+        <h3 class="pt-h3">Refer a mate</h3>
+        <p class="pt-sub">Send your link. You get a week free for every mate who joins.</p>
+        <div class="pt-copy"><input id="refLink" readonly><button class="pt-btn sm" id="refCopy" type="button">Copy</button></div>
+        <p class="pt-sub" style="margin:10px 0 0" id="refCount"></p>
+      </div>
+    </section>
+
+    <section id="tAdmin" hidden>
+      <div class="pt-card pt-sec">
+        <h3 class="pt-h3">Post a tip</h3>
+        <form id="tipForm">
+          <div class="pt-row">
+            <label class="pt-field">Date<input id="fDate" type="date" required></label>
+            <label class="pt-field">Sport<input id="fSport" list="sportList" required placeholder="NBA"></label>
+            <label class="pt-field">Bookie<input id="fBook" placeholder="Sportsbet"></label>
+          </div>
+          <label class="pt-field">Selection<input id="fSel" required placeholder="Jalen Brunson over 26.5 points"></label>
+          <label class="pt-field">Game<input id="fEvent" placeholder="Knicks v Celtics"></label>
+          <div class="pt-row">
+            <label class="pt-field">Odds<input id="fOdds" type="number" step="0.01" min="1.01" required></label>
+            <label class="pt-field">Units<input id="fUnits" type="number" step="0.25" min="0.25" value="1" required></label>
+            <label class="pt-field">Who sees it<select id="fVip"><option value="0">All members</option><option value="1">VIP only</option></select></label>
+          </div>
+          <label class="pt-field">Reasoning<textarea id="fWhy" placeholder="Why it's an overlay"></textarea></label>
+          <button class="pt-btn" type="submit">Post tip</button>
+          <div class="pt-msg" id="tipMsg"></div>
+        </form>
+        <datalist id="sportList"><option>NBA</option><option>NBL</option><option>Racing</option><option>AFL</option><option>NRL</option><option>NFL</option><option>EPL</option><option>Soccer</option><option>Tennis</option><option>MLB</option></datalist>
+      </div>
+      <div class="pt-card pt-sec">
+        <h3 class="pt-h3">Settle bets</h3>
+        <div class="pt-scroll"><table class="pt-t" id="settleTbl"></table></div>
+      </div>
+      <div class="pt-card pt-sec">
+        <h3 class="pt-h3">Members</h3>
+        <div class="pt-filter"><input id="memQ" placeholder="Search name or email" style="background:#060807;border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1);border-radius:999px;padding:8px 14px;font:14px Archivo,system-ui,sans-serif;flex:1;min-width:180px"></div>
+        <div class="pt-scroll"><table class="pt-t" id="memTbl"></table></div>
+      </div>
+      <div class="pt-card pt-sec">
+        <h3 class="pt-h3">Group &amp; giveaway settings</h3>
+        <label class="pt-field">WhatsApp invite link<input id="sWa" placeholder="https://chat.whatsapp.com/..."></label>
+        <label class="pt-field">Giveaway note<textarea id="sGive"></textarea></label>
+        <button class="pt-btn" id="saveSet" type="button">Save</button>
+        <div class="pt-msg" id="setMsg"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="rg">
+      <b>18+ only. Gamble responsibly.</b> Analysed tips, not guaranteed wins. Only bet what you can afford to lose.
+      Need help? Call Gambling Help Online on <b>1800 858 858</b> or visit <a href="https://www.gamblinghelponline.org.au" target="_blank" rel="noopener">gamblinghelponline.org.au</a>.
+      You can self-exclude from all Australian bookmakers at <a href="https://www.betstop.gov.au" target="_blank" rel="noopener">betstop.gov.au</a>.
+    </div>
+    <div class="foot">
+      <span>© 2026 Overlay Tips · 1U = $10 in examples</span>
+      <span>Past results don't guarantee future profit. · <a href="terms.html">Giveaway T&amp;Cs</a></span>
+    </div>
+  </div>
+</footer>
+<script type="module">
+/* ---- Supabase project (Settings → API). The anon key is meant to be public; the database rules keep tips members-only. ---- */
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const show = (id, on=true) => { $(id).hidden = !on; };
+const PORTAL = location.origin + location.pathname;
+const melDate = (d=new Date()) => d.toLocaleDateString('en-CA', {timeZone:'Australia/Melbourne'});
+const fmtDay = s => new Date(s+'T00:00:00').toLocaleDateString('en-AU', {weekday:'short', day:'numeric', month:'short'});
+const u = n => (n>0?'+':'') + n.toFixed(2) + 'U';
+const TIER_NAME = {pending:'Not active', founder:'Founding member', core:'Core', vip:'VIP'};
+const ENTRIES = {founder:1, core:1, vip:3};
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { show('vSetup'); throw new Error('portal not configured'); }
+const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------- auth ---------- */
+let mode = 'login';
+const ref = new URLSearchParams(location.search).get('ref');
+function setMode(m){
+  mode = m; $('authMsg').textContent = ''; $('authMsg').className = 'pt-msg';
+  const T = {login:['Log in','Welcome back.','Log in','New here?','Create an account'],
+             signup:['Create your account','Sign up, then DM us to get switched on.','Sign up','Already a member?','Log in'],
+             reset:['Reset password',"We'll email you a link to set a new one.",'Send reset link','Remembered it?','Log in'],
+             newpw:['Set a new password','Pick a new password for your account.','Save password','','']}[m];
+  [$('authTitle').textContent, $('authSub').textContent, $('authBtn').textContent, $('switchTxt').textContent, $('switchBtn').textContent] = T;
+  show('nameRow', m==='signup'); show('pwRow', m!=='reset'); $('aEmail').closest('label').hidden = m==='newpw';
+  $('aPw').autocomplete = m==='login' ? 'current-password' : 'new-password';
+  $('switchBtn').parentElement.hidden = m==='newpw'; $('forgotBtn').hidden = m!=='login';
+}
+$('switchBtn').onclick = () => setMode(mode==='login' ? 'signup' : 'login');
+$('forgotBtn').onclick = () => setMode('reset');
+if (ref) setMode('signup');
+
+$('authForm').onsubmit = async e => {
+  e.preventDefault();
+  const email = $('aEmail').value.trim(), pw = $('aPw').value, msg = $('authMsg');
+  msg.className = 'pt-msg'; msg.textContent = '';
+  if (mode!=='reset' && pw.length < 8) { msg.className='pt-msg err'; msg.textContent='Password needs at least 8 characters.'; return; }
+  $('authBtn').disabled = true;
+  let r;
+  if (mode==='login') r = await sb.auth.signInWithPassword({email, password:pw});
+  else if (mode==='signup') r = await sb.auth.signUp({email, password:pw, options:{emailRedirectTo:PORTAL, data:{name:$('aName').value.trim(), ref:ref||''}}});
+  else if (mode==='reset') r = await sb.auth.resetPasswordForEmail(email, {redirectTo:PORTAL});
+  else r = await sb.auth.updateUser({password:pw});
+  $('authBtn').disabled = false;
+  if (r.error) { msg.className='pt-msg err'; msg.textContent = r.error.message; return; }
+  if (mode==='signup' && !r.data.session) { msg.className='pt-msg ok'; msg.textContent='Check your email to confirm your account, then log in.'; return; }
+  if (mode==='reset') { msg.className='pt-msg ok'; msg.textContent='Sent. Check your email.'; return; }
+  if (mode==='newpw') { history.replaceState(null,'',location.pathname); setMode('login'); }
+  boot();
+};
+$('logoutBtn').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+sb.auth.onAuthStateChange(ev => { if (ev==='PASSWORD_RECOVERY') { show('vApp',false); show('vAuth'); setMode('newpw'); } });
+
+/* ---------- app ---------- */
+let ME = null, TIPS = [];
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session) { show('vApp',false); show('vAuth'); return; }
+  if (mode==='newpw') return;
+  const { data:prof, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  if (error || !prof) { show('vAuth'); $('authMsg').className='pt-msg err'; $('authMsg').textContent='Couldn\'t load your account. Try again shortly.'; return; }
+  ME = prof;
+  const tier = prof.is_admin ? 'vip' : prof.tier, member = tier!=='pending';
+  show('vAuth',false); show('vApp');
+  $('hiName').textContent = prof.name || prof.email.split('@')[0];
+  $('tierBadge').textContent = prof.is_admin ? 'Admin' : TIER_NAME[tier];
+  $('tierBadge').className = 'pt-tier' + (tier==='vip' ? ' vip' : '');
+  $('pendEmail').textContent = prof.email; show('vPending', !member);
+  const tabs = member ? [['tTips',"Today's tips"],['tStats','Results & stats'],['tGroup','Group & giveaway']] : [['tGroup','Refer a mate']];
+  if (prof.is_admin) tabs.push(['tAdmin','Admin']);
+  $('tabs').innerHTML = tabs.map(([id,l]) => `<button type="button" data-t="${id}">${l}</button>`).join('');
+  $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => openTab(b.dataset.t));
+  if (member) await loadTips();
+  await loadGroup(member, tier);
+  if (prof.is_admin) initAdmin();
+  openTab(tabs[0][0]);
+}
+function openTab(id){
+  ['tTips','tStats','tGroup','tAdmin'].forEach(t => show(t, t===id));
+  $('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t===id));
+  if (id==='tAdmin') { renderSettle(); loadMembers(); }
+}
+
+async function loadTips(){
+  const { data, error } = await sb.from('tips').select('*').order('tip_date',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
+  TIPS = error ? [] : data;
+  renderTips(); renderStats();
+}
+const profit = t => t.result==='won' ? (t.odds-1)*t.units : t.result==='lost' ? -t.units : 0;
+
+function renderTips(){
+  const v = $('tipDay').value, today = melDate();
+  let rows = TIPS;
+  if (v==='today') rows = TIPS.filter(t => t.tip_date===today);
+  else if (v==='pending') rows = TIPS.filter(t => t.result==='pending');
+  else { const from = melDate(new Date(Date.now()-6*864e5)); rows = TIPS.filter(t => t.tip_date>=from); }
+  if (!rows.length) { $('tipList').innerHTML = `<div class="pt-empty">${v==='today' ? "No tips posted yet today. They'll land here and in the group." : 'Nothing here.'}</div>`; return; }
+  $('tipList').innerHTML = rows.map(t => `<div class="tip">
+    <div class="tip-h"><div><div class="tip-sel">${esc(t.selection)}${t.vip_only?'<span class="res vipt">VIP</span>':''}<span class="res ${t.result}">${t.result}</span></div>
+      <div class="tip-meta">${esc(t.sport)}${t.event?' · '+esc(t.event):''} · ${fmtDay(t.tip_date)}${t.bookie?' · '+esc(t.bookie):''}</div></div>
+      <div class="tip-odds">$${(+t.odds).toFixed(2)}<small>${(+t.units).toFixed(2).replace(/\.00$/,'')}U</small></div></div>
+    ${t.reasoning?`<div class="tip-why">${esc(t.reasoning)}</div>`:''}</div>`).join('');
+}
+$('tipDay').onchange = renderTips;
+
+function renderStats(){
+  const r = $('stRange').value;
+  let set = TIPS.filter(t => t.result==='won' || t.result==='lost');
+  if (r!=='all') { const from = melDate(new Date(Date.now()-(+r-1)*864e5)); set = set.filter(t => t.tip_date>=from); }
+  const agg = arr => { const st=arr.reduce((a,t)=>a+ +t.units,0), pl=arr.reduce((a,t)=>a+profit(t),0), w=arr.filter(t=>t.result==='won').length;
+    return {n:arr.length, w, st, pl, sr: arr.length ? w/arr.length*100 : 0, roi: st ? pl/st*100 : 0}; };
+  const A = agg(set), cls = n => n>0?'pos':n<0?'neg':'';
+  $('statBoxes').innerHTML = [
+    [`<span class="${cls(A.pl)}">${u(A.pl)}</span>`,'profit'],
+    [`<span class="${cls(A.roi)}">${A.roi>0?'+':''}${A.roi.toFixed(1)}%</span>`,'ROI'],
+    [`${A.sr.toFixed(0)}%`,`strike rate (${A.w} from ${A.n})`],
+    [`${A.st.toFixed(1)}U`,'staked']].map(([b,s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+  const sp = {}; set.forEach(t => (sp[t.sport]=sp[t.sport]||[]).push(t));
+  const sr = Object.entries(sp).map(([k,v]) => [k, agg(v)]).sort((a,b) => b[1].pl-a[1].pl);
+  $('sportTbl').innerHTML = sr.length ? `<tr><th>Sport</th><th class="n">Bets</th><th class="n">Strike</th><th class="n">Profit</th><th class="n">ROI</th></tr>` +
+    sr.map(([k,a]) => `<tr><td>${esc(k)}</td><td class="n">${a.n}</td><td class="n">${a.sr.toFixed(0)}%</td><td class="n ${cls(a.pl)}">${u(a.pl)}</td><td class="n ${cls(a.roi)}">${a.roi.toFixed(1)}%</td></tr>`).join('')
+    : '<tr><td class="pt-empty">No settled bets in this range yet.</td></tr>';
+  $('histTbl').innerHTML = set.length ? `<tr><th>Date</th><th>Bet</th><th class="n">Odds</th><th class="n">Units</th><th class="n">P/L</th></tr>` +
+    set.slice(0,100).map(t => `<tr><td>${fmtDay(t.tip_date)}</td><td>${esc(t.selection)}<div class="tip-meta">${esc(t.sport)}</div></td><td class="n">${(+t.odds).toFixed(2)}</td><td class="n">${+t.units}</td><td class="n ${cls(profit(t))}">${u(profit(t))}</td></tr>`).join('')
+    : '<tr><td class="pt-empty">No settled bets yet.</td></tr>';
+}
+$('stRange').onchange = renderStats;
+
+async function loadGroup(member, tier){
+  const link = PORTAL + '?ref=' + encodeURIComponent(ME.ref_code||'');
+  $('refLink').value = link;
+  $('refCopy').onclick = async () => { try { await navigator.clipboard.writeText(link); $('refCopy').textContent='Copied'; } catch(e) { $('refLink').select(); } };
+  const { data:rc } = await sb.rpc('my_referrals');
+  const c = rc && rc[0]; $('refCount').textContent = c ? `${c.total} mate${c.total===1?'':'s'} signed up with your link, ${c.active} active.` : '';
+  $('waBtn').parentElement.hidden = !member; $('gEntries').closest('.pt-card').hidden = !member;
+  if (!member) return;
+  const { data:s } = await sb.from('settings').select('*');
+  const S = Object.fromEntries((s||[]).map(r => [r.key, r.value]));
+  if (S.whatsapp) { $('waBtn').href = S.whatsapp; $('waBtn').hidden = false; } else { $('waBtn').hidden = true; $('waTxt').textContent = 'The group link is coming. DM @overlay_tips if you need it now.'; }
+  $('gEntries').textContent = ENTRIES[tier] || 0;
+  $('gTxt').textContent = S.giveaway || '';
+  $('sWa').value = S.whatsapp || ''; $('sGive').value = S.giveaway || '';
+}
+
+/* ---------- admin ---------- */
+let adminReady = false, MEMBERS = [];
+function initAdmin(){
+  if (adminReady) return; adminReady = true;
+  $('fDate').value = melDate();
+  $('tipForm').onsubmit = async e => {
+    e.preventDefault();
+    const row = {tip_date:$('fDate').value, sport:$('fSport').value.trim(), event:$('fEvent').value.trim()||null, selection:$('fSel').value.trim(),
+      odds:+$('fOdds').value, units:+$('fUnits').value, bookie:$('fBook').value.trim()||null, reasoning:$('fWhy').value.trim()||null, vip_only:$('fVip').value==='1'};
+    const { error } = await sb.from('tips').insert(row);
+    $('tipMsg').className = 'pt-msg ' + (error?'err':'ok'); $('tipMsg').textContent = error ? error.message : 'Posted.';
+    if (!error) { ['fSel','fEvent','fOdds','fWhy'].forEach(i => $(i).value=''); await loadTips(); renderSettle(); }
+  };
+  $('saveSet').onclick = async () => {
+    const { error } = await sb.from('settings').upsert([{key:'whatsapp', value:$('sWa').value.trim()}, {key:'giveaway', value:$('sGive').value.trim()}]);
+    $('setMsg').className = 'pt-msg ' + (error?'err':'ok'); $('setMsg').textContent = error ? error.message : 'Saved.';
+  };
+  $('memQ').oninput = renderMembers;
+}
+function renderSettle(){
+  const open = TIPS.filter(t => t.result==='pending');
+  $('settleTbl').innerHTML = open.length ? `<tr><th>Bet</th><th class="n">Odds</th><th>Result</th><th></th></tr>` + open.map(t => `<tr>
+    <td>${esc(t.selection)}<div class="tip-meta">${esc(t.sport)} · ${fmtDay(t.tip_date)} · ${+t.units}U</div></td><td class="n">${(+t.odds).toFixed(2)}</td>
+    <td style="white-space:nowrap">${['won','lost','void'].map(r => `<button class="pt-btn ghost sm" type="button" data-id="${t.id}" data-r="${r}">${r}</button>`).join(' ')}</td>
+    <td><button class="pt-btn ghost sm" type="button" data-del="${t.id}">Delete</button></td></tr>`).join('')
+    : '<tr><td class="pt-empty">No open bets.</td></tr>';
+  $('settleTbl').querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {
+    b.disabled = true; const { error } = await sb.from('tips').update({result:b.dataset.r}).eq('id', b.dataset.id);
+    if (error) alert(error.message); await loadTips(); renderSettle(); });
+  $('settleTbl').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if (!confirm('Delete this tip?')) return;
+    const { error } = await sb.from('tips').delete().eq('id', b.dataset.del); if (error) alert(error.message); await loadTips(); renderSettle(); });
+}
+async function loadMembers(){
+  const { data } = await sb.from('profiles').select('id,email,name,tier,is_admin,created_at,ref_code,referred_by').order('created_at',{ascending:false});
+  MEMBERS = data || []; renderMembers();
+}
+function renderMembers(){
+  const q = $('memQ').value.trim().toLowerCase();
+  const rows = MEMBERS.filter(m => !q || (m.email+' '+(m.name||'')).toLowerCase().includes(q));
+  const byRef = {}; MEMBERS.forEach(m => { if (m.referred_by) byRef[m.referred_by] = (byRef[m.referred_by]||0)+1; });
+  $('memTbl').innerHTML = `<tr><th>Member</th><th>Joined</th><th class="n">Referred</th><th>Tier</th></tr>` + rows.map(m => `<tr>
+    <td>${esc(m.name||'–')}${m.is_admin?' <span class="res vipt">admin</span>':''}<div class="tip-meta">${esc(m.email)}</div></td>
+    <td>${new Date(m.created_at).toLocaleDateString('en-AU')}</td><td class="n">${byRef[m.ref_code]||0}</td>
+    <td><select data-id="${m.id}" class="pt-field" style="margin:0;padding:6px 8px;background:#060807;border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1);border-radius:8px">
+      ${['pending','founder','core','vip'].map(t => `<option value="${t}"${t===m.tier?' selected':''}>${TIER_NAME[t]}</option>`).join('')}</select></td></tr>`).join('');
+  $('memTbl').querySelectorAll('select').forEach(s => s.onchange = async () => {
+    const { error } = await sb.from('profiles').update({tier:s.value}).eq('id', s.dataset.id);
+    if (error) { alert(error.message); } else { const m = MEMBERS.find(x => x.id===s.dataset.id); if (m) m.tier = s.value; }
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
