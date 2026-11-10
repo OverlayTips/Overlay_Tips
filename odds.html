@@ -557,21 +557,17 @@ function conversions(evs,c){
     const bf=ev.bookmakers.find(b=>b.key==='betfair_ex_au'); if(!bf) return;
     const lays={};
     bf.markets.forEach(m=>{ if(m.key.endsWith('_lay')) lays[m.key.slice(0,-4)]=m.outcomes; });
-    const best={};
     ev.bookmakers.forEach(b=>{ if(b.key==='betfair_ex_au') return;
       b.markets.forEach(m=>{ const lo=lays[m.key]; if(!lo) return;
         m.outcomes.forEach(o=>{
-          if(o.price<1.5) return;
+          if(!(o.price>1)) return;
           const l=lo.find(x=>x.name===o.name&&(x.description||'')===(o.description||'')&&(o.point==null||x.point===o.point));
           if(!l||!(l.price>1)) return;
           const conv=(o.price-1)*(1-c)/(l.price-c);
-          const k=b.key+'|'+m.key;
-          const row={ev,mk:m.key,c:{book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price},lay:{name:l.name,desc:l.description||'',point:l.point,price:l.price},conv};
-          if(!best[k]||conv>best[k].conv) best[k]=row;
+          out.push({ev,mk:m.key,c:{book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price},lay:{name:l.name,desc:l.description||'',point:l.point,price:l.price},conv});
         });
       });
     });
-    Object.values(best).forEach(x=>out.push(x));
   });
   return out.sort((a,b)=>b.conv-a.conv);
 }
@@ -590,7 +586,6 @@ function renderBonus(){
   const q=$('q').value.trim().toLowerCase();
   let rows=all.filter(x=>(bbook==='all'||x.c.book.key===bbook)&&
     (!q||(x.ev.home_team+' '+x.ev.away_team+' '+x.c.desc).toLowerCase().includes(q)));
-  rows=rows.slice(0,40);
   if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No Betfair lay conversions found for this bookie right now.</div>';return;}
   const pt=(mk,p)=>p==null?'':' '+fmtPt(mk,p);
   const lbl=(mk)=>mk==='h2h'?'H2H':mk==='spreads'?'Line':mk==='totals'?'Total':(PROP_LABEL[mk]||mk);
@@ -603,7 +598,7 @@ function renderBonus(){
       <td><span class="leg">Lay <b>$${L.toFixed(2)}</b> on ${sel(x,x.lay)} @ <b>${LO.toFixed(2)}</b> <span class="bk">Betfair · liability $${(L*(LO-1)).toFixed(2)}</span></span></td>
       <td><span class="leg">${esc(x.ev.home_team)} v ${esc(x.ev.away_team)}</span><span class="bk">${esc(x.ev.sport_title)} · ${lbl(x.mk)} · ${when(x.ev.commence_time)}</span></td>
       <td>${calc}</td></tr>`;}).join('');
-  $('list').innerHTML=`<div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Lay (Betfair)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
+  $('list').innerHTML=`<div class="ev-meta" style="padding:0 4px 8px">${rows.length} markets, best conversion first</div><div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Lay (Betfair)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
 }
 $('bstake').oninput=()=>{if(!DATA)return; if(view==='bonus')renderBonus(); else if(view==='arb')renderArbs();};
 $('bcomm').oninput=()=>{const v=parseFloat($('bcomm').value); if(!(v>=0))return; bcomm=v; store.set('bcomm',bcomm); if(DATA&&view==='bonus')renderBonus();};
