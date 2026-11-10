@@ -70,7 +70,28 @@ def main_points(ev):
                 names.setdefault((m["key"], d), set()).add(o["name"])
                 per.setdefault((m["key"], d, o["name"]), {}).setdefault(o["point"], {})[bk["key"]] = o["price"]
     main = {}
+    # two-sided markets: pick ONE line for the pair, so Over/Under (or Team -x / Team +x) always
+    # sit on the same number. Choosing each side separately could give Under 7.5 vs Over 8.5,
+    # which made fake arbs and bad no-vig prices.
+    for (mk, d), nm in names.items():
+        if len(nm) != 2:
+            continue
+        a, b = sorted(nm)
+        pa, pb = per.get((mk, d, a), {}), per.get((mk, d, b), {})
+        flip = (lambda p: -p) if mk.endswith("spreads") else (lambda p: p)
+
+        def pair_score(p):
+            ba, bb = pa.get(p, {}), pb.get(flip(p), {})
+            near = sum(-abs(sorted(x.values())[len(x) // 2] - 1.91) for x in (ba, bb) if x)
+            return (len(set(ba) & set(bb)), len(ba) + len(bb), near, -abs(p))
+
+        cands = sorted(set(pa) | {flip(p) for p in pb})
+        p = max(cands, key=pair_score) if cands else None
+        if p is not None and pair_score(p)[0] > 0:
+            main[(mk, d, a)], main[(mk, d, b)] = p, flip(p)
     for (mk, d, name), pts in per.items():
+        if (mk, d, name) in main:
+            continue
         opps = _opp_names(names.get((mk, d), ()), name)
         def score(p):
             books = pts[p]
@@ -83,6 +104,16 @@ def main_points(ev):
             return (paired, len(books), -abs(med - 1.91))
         main[(mk, d, name)] = max(pts, key=score)
     return main
+
+
+def _same_line(mk, main, sides):
+    """True if every side of the group is priced at the same line (spreads: mirrored)."""
+    pts = [main.get(s) for s in sides]
+    if all(p is None for p in pts):
+        return True            # h2h etc.
+    if any(p is None for p in pts) or len(pts) != 2:
+        return False
+    return pts[0] == (-pts[1] if mk.endswith("spreads") else pts[1])
 
 
 def _game(ev):
@@ -111,10 +142,13 @@ def sharp_fair(ev, mk, desc, sides, main):
 def compute(events, props, hist, now):
     overlays, arbs, steamers = [], [], []
     pool = [e for e in list(events) + list(props) if now < _parse(e["commence_time"]) <= now + WINDOW]
+    seen_steam = set()   # game lines and props share an event id, so the same history would be read twice
     for ev in pool:
         for mk, desc, sides, main in _groups(ev):
             if len(sides) < 2:
                 continue   # yes-only markets (anytime scorer etc.) can't be de-vigged
+            if not _same_line(mk, main, sides):
+                continue   # sides on different lines can't be de-vigged or arbed against each other
             # books that price every side of this group -> no-vig probabilities per book
             books = set.intersection(*(set(b) for b in sides.values()))
             fair = sharp_fair(ev, mk, desc, sides, main)
@@ -154,9 +188,14 @@ def compute(events, props, hist, now):
                                  "market": _mlabel(mk), "margin_pct": round((1 - pct) * 100, 2),
                                  "legs": [{"pick": sel(s), "price": p, "book": SHORT.get(b, b)} for s, (p, b) in best.items()]})
         for key, ser in (hist.get(ev["id"], {}).get("series") or {}).items():
-            if len(ser) < 2 or key.split("|")[0].endswith("_lay"):
+            if len(ser) < 2 or key.split("|")[0].endswith("_lay") or (ev["id"], key) in seen_steam:
                 continue
+            seen_steam.add((ev["id"], key))
             a, z = ser[0], ser[-1]
+            if key.endswith("|main") and (len(a) < 4 or len(z) < 4 or a[3] != z[3]):
+                continue   # the main line moved (e.g. Over 1.5 -> Over 0.5): price % isn't a like-for-like move
+            if key.endswith("|main") and f"{key[:-5]}|{z[3]}" in hist[ev["id"]]["series"]:
+                continue   # same move is already covered by that line's own series
             pct = (z[1] - a[1]) / a[1] * 100
             if pct <= -8:
                 mk, *rest = key.split("|")
