@@ -165,6 +165,7 @@ def page(title, desc, canon, body, active="previews/"):
 <link rel="stylesheet" href="{pre}site.css?v=20261111a">
 <link rel="stylesheet" href="{pre}plain.css?v=6">
 <style>{CSS}</style>
+<script src="{pre}nav.js?v=1"></script>
 </head>
 <body>
 
