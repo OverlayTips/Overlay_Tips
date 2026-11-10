@@ -8,18 +8,18 @@
 <link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="description" content="Free hot stats: NBA player props the player keeps clearing, with his last 10 games, hit rates and the best Aussie bookie price. Updated 3x a day.">
+<meta name="description" content="Free hot stats: NBA player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated 3x a day.">
 <link rel="canonical" href="https://overlay.tips/hot.html">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overlay Tips">
 <meta property="og:title" content="Hot Stats | Free NBA player prop hit rates | Overlay Tips">
-<meta property="og:description" content="Free hot stats: NBA player props the player keeps clearing, with his last 10 games, hit rates and the best Aussie bookie price. Updated 3x a day.">
+<meta property="og:description" content="Free hot stats: NBA player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated 3x a day.">
 <meta property="og:url" content="https://overlay.tips/hot.html">
 <meta property="og:image" content="https://overlay.tips/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Hot Stats | Free NBA player prop hit rates | Overlay Tips">
-<meta name="twitter:description" content="Free hot stats: NBA player props the player keeps clearing, with his last 10 games, hit rates and the best Aussie bookie price. Updated 3x a day.">
+<meta name="twitter:description" content="Free hot stats: NBA player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated 3x a day.">
 <meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
 <meta name="theme-color" content="#060807">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,7 +100,7 @@
   <div class="wrap">
     <div class="mono">Free · NBA player props</div>
     <h1>Hot stats</h1>
-    <p>Props the player keeps clearing. Each card shows his last 10 games against the line, how often he's hit it, and the best price at the Aussie bookies. Updated 3× a day.</p>
+    <p>Props the player keeps clearing. Each card shows the player's last 10 games against the line, the hit rate, and the best price at the Aussie bookies. Updated 3× a day.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0">
@@ -108,17 +108,17 @@
     <div class="hs-meta" id="meta">Loading…</div>
     <div id="valWrap" hidden>
       <h2 class="hs-h">💰 Best value picks</h2>
-      <p class="hs-sub">His form plus the bookies' consensus, against the best price. Biggest expected return first.</p>
+      <p class="hs-sub">Player form plus the bookies' consensus, against the best price. Biggest expected return first.</p>
       <div class="hs-grid" id="vgrid"></div>
       <h2 class="hs-h" style="margin-top:34px">🔥 Hot props</h2>
-      <p class="hs-sub">Lines he's cleared in 8+ of his last 10 games.</p>
+      <p class="hs-sub">Lines cleared in 8+ of the player's last 10 games.</p>
     </div>
     <div class="hs-bar">
       <div class="hs-chips" id="chips"></div>
       <label class="hs-sort">Sort <select id="sort"><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label>
     </div>
     <div class="hs-grid" id="grid"></div>
-    <p class="hs-note">Hit rate = games he went over the line, out of his last 10 (5, and vs tonight's opponent this season). Value picks blend his form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
+    <p class="hs-note">Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks blend player form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
   </div>
 </section>
 </main>
@@ -167,7 +167,7 @@ function card(it,val){
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
     <div class="hs-pills">${val?`<span class="hs-pill val">+${it.value.toFixed(0)}% value</span>`:''}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
-    ${val?`<div class="hs-why">His form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b>. $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
+    ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b>. $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)}</div>
   </article>`;
 }
@@ -179,7 +179,7 @@ function draw(){
   $('valWrap').hidden=!VALUE.length; $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):'<div class="hs-empty">No value picks for this stat right now.</div>';
   let xs=ITEMS.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
   if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
-  $('grid').innerHTML=xs.length?xs.map(card).join(''):`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player's been clearing his line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
+  $('grid').innerHTML=xs.length?xs.map(card).join(''):`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player has been clearing the line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
