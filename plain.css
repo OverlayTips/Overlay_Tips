@@ -53,3 +53,8 @@ h3,.ev-title,.about-card h3,.contact-card h3,.tool-card h3{font-style:normal!imp
 /* richer gold */
 :root{--gold:#f4bd2f;--gold2:#f4bd2f}
 .tier.vip .btn-mint:hover{background:#ffcd4d!important}
+
+/* deeper metallic gold (less yellow, so it doesn't read as Subway) */
+:root{--gold:#d6a43c;--gold2:#d6a43c}
+.tier.vip .btn-mint{background:linear-gradient(180deg,#e2b452,#c4902c)!important;color:#1a1305!important}
+.tier.vip .btn-mint:hover{background:linear-gradient(180deg,#ebc062,#cf9a34)!important}
