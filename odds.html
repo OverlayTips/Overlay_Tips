@@ -743,9 +743,9 @@ function topEV(evs,q,o={}){
         if(o.type==='props'&&!(r.s.desc&&(r.point!=null||r.ladder))) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r);
         const hit=!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q);
         // an off-line price (e.g. Over 31.5 when the main line is 32.5) that beats the main line
-        const a=r.alt; if(a&&a.edge>0.5&&hit&&(myBook==='all'||o.noBook||a.book.key===myBook)){
+        const a=r.alt; if(a&&a.edge>0.5&&hit&&!(o.maxOdds&&a.price>o.maxOdds)&&(myBook==='all'||o.noBook||a.book.key===myBook)){
           out.push({e,mk,r,pk:{price:a.price,book:a.book},edge:a.edge,pt:a.point,fair:a.price/(1+a.edge/100)}); return; }
-        if(!pk) return;
+        if(!pk||(o.maxOdds&&pk.price>o.maxOdds)) return;
         const edge=(pk.price/r.fair-1)*100;
         if(edge>0.5&&hit) out.push({e,mk,r,pk,edge}); });});
   });
@@ -904,11 +904,11 @@ function renderBook(){
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
   $('q').placeholder='Search team or player';
-  $('legend').textContent=`Best bets at ${nm} only. +EV = ${nm}'s price beats the fair price (all bookies, margins removed). Prop picks = overs/unders at $${maxOdds.toFixed(2)} or less where ${nm} pays ${gapMin}%+ more than the other bookies. Check prices before betting. Price signals, not sure things.`;
+  $('legend').textContent=`Best bets at ${nm} only. +EV = ${nm}'s price at $${maxOdds.toFixed(2)} or less beats the fair price (all bookies, margins removed). Prop picks = overs/unders at $${maxOdds.toFixed(2)} or less where ${nm} pays ${gapMin}%+ more than the other bookies. Check prices before betting. Price signals, not sure things.`;
   const q=$('q').value.trim().toLowerCase();
   const pool=e=>sport==='all'||e.sport_title===sport;
-  $('list').innerHTML=topEV(evs.filter(pool),q,{limit:40,title:'+EV',meta:`Games and player props where ${nm} beats the fair price, best edge first.`,
-      empty:`<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">No +EV bets at ${nm} right now.</b></div>`})
+  $('list').innerHTML=topEV(evs.filter(pool),q,{limit:40,maxOdds,title:`+EV under $${maxOdds.toFixed(2)}`,meta:`Games and player props at $${maxOdds.toFixed(2)} or less where ${nm} beats the fair price, best edge first.`,
+      empty:`<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">No +EV bets at ${nm} under $${maxOdds.toFixed(2)} right now.</b></div>`})
     +ppHTML(P.events.filter(pool),q);
 }
 $('bookSel').onchange=e=>{bookFilter=e.target.value;store.set('bookFilter',bookFilter);render();};
