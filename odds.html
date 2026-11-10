@@ -238,7 +238,6 @@
     <div class="row">
       <div class="seg" id="markets"></div>
       <input class="search" id="q" type="search" placeholder="Search team">
-      <label class="stakebox" id="statBox">Stats<select id="statSel"><option value="all">All props</option><option value="core">Points, rebounds, assists</option><option value="combo">+ PRA combos</option></select></label>
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
       <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:18px;height:18px"><path d="M4 19l1.4-3.6A7.5 7.5 0 1 1 8 18.2z"/></svg>Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
@@ -268,7 +267,7 @@ let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
 const SHORT={sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet',picklebet:'Picklebet'};
 const GAME_MKTS=[['h2h','H2H'],['spreads','Line'],['totals','Total']];
-const PROP_LABEL={player_points:'Points',player_rebounds:'Rebounds',player_assists:'Assists',player_threes:'Threes',player_points_rebounds_assists:'PRA',player_points_rebounds:'Pts+Reb',player_points_assists:'Pts+Ast',player_rebounds_assists:'Reb+Ast',player_blocks:'Blocks',player_steals:'Steals',player_turnovers:'Turnovers',player_double_double:'Double-double',player_first_basket:'First basket',
+const PROP_LABEL={player_points_alternate:'Points ladder',player_rebounds_alternate:'Rebounds ladder',player_assists_alternate:'Assists ladder',player_threes_alternate:'Threes ladder',player_points:'Points',player_rebounds:'Rebounds',player_assists:'Assists',player_threes:'Threes',player_points_rebounds_assists:'PRA',player_points_rebounds:'Pts+Reb',player_points_assists:'Pts+Ast',player_rebounds_assists:'Reb+Ast',player_blocks:'Blocks',player_steals:'Steals',player_turnovers:'Turnovers',player_double_double:'Double-double',player_first_basket:'First basket',
   player_disposals:'Disposals',player_goal_scorer_anytime:'Anytime goal',player_goal_scorer_first:'First goal',player_goals_scored_over:'Goals',player_marks_over:'Marks',player_tackles_over:'Tackles',player_afl_fantasy_points:'Fantasy pts',
   player_try_scorer_anytime:'Anytime try',player_try_scorer_first:'First try',player_try_scorer_over:'Tries',
   player_pass_yds:'Pass yds',player_pass_tds:'Pass TDs',player_pass_completions:'Completions',player_pass_attempts:'Pass att',player_pass_interceptions:'INTs',player_rush_yds:'Rush yds',player_rush_attempts:'Rush att',player_receptions:'Receptions',player_reception_yds:'Rec yds',player_anytime_td:'Anytime TD',player_1st_td:'First TD',
@@ -311,26 +310,34 @@ $('lockBtn').onclick=()=>{store.del('pw');DATA=null;$('app').hidden=true;$('gate
 (async()=>{const pw=store.get('pw',null); if(pw && !(await unlock(pw,true))) store.del('pw');})();
 setInterval(async()=>{const pw=store.get('pw',null); if(DATA&&pw) unlock(pw,true);},10*60*1000);
 
-/* ---------- props filter: just points / rebounds / assists ---------- */
-const CORE_STATS=['player_points','player_rebounds','player_assists'];
-const COMBO_STATS=CORE_STATS.concat(['player_points_rebounds_assists','player_points_rebounds','player_points_assists','player_rebounds_assists']);
-let statMode=store.get('statMode','all'), PROPS_CACHE=null;
-function propsData(){
-  const P=DATA.props||{events:[]};
-  if(statMode==='all') return P;
-  if(PROPS_CACHE&&PROPS_CACHE.src===P&&PROPS_CACHE.mode===statMode) return PROPS_CACHE.v;
-  const keep=statMode==='core'?CORE_STATS:COMBO_STATS;
-  const v={...P,events:P.events.map(e=>({...e,bookmakers:e.bookmakers.map(b=>({...b,markets:b.markets.filter(m=>keep.includes(m.key.replace(/_lay$/,'')))})).filter(b=>b.markets.length)})).filter(e=>e.bookmakers.length)};
-  PROPS_CACHE={src:P,mode:statMode,v}; return v;
-}
-$('statSel').value=statMode;
-$('statSel').onchange=e=>{statMode=e.target.value;store.set('statMode',statMode);CHK_IDX=null;render();};
-
 /* ---------- tables ---------- */
+/* ladder (alternate) markets: every line is its own row, e.g. Klay 10+, 15+, 20+ points */
+function ladderRows(ev,mk,books){
+  const R={};
+  books.forEach((b,i)=>b.markets.find(m=>m.key===mk).outcomes.forEach(o=>{
+    if(o.point==null) return;
+    const k=(o.description||'')+'|'+o.name+'|'+o.point;
+    const r=R[k]=R[k]||{s:{key:k,desc:o.description||null,name:o.name==='Over'?`${Math.ceil(o.point)}+`:o.name},point:null,pt:o.point,over:o.name==='Over',cells:books.map(()=>null)};
+    r.cells[i]={price:o.price,point:o.point,ok:true};
+  }));
+  const rows=Object.values(R).sort((a,b)=>(a.s.desc||'').localeCompare(b.s.desc||'')||(b.over-a.over)||a.pt-b.pt);
+  rows.forEach(r=>{
+    const ps=r.cells.filter(Boolean).map(c=>c.price);
+    r.best=Math.max(...ps);
+    const bi=r.cells.findIndex(c=>c&&c.price===r.best); r.bestBook=bi>=0?books[bi]:null;
+    const others=ps.filter((p,j)=>j!==ps.indexOf(r.best)).sort((a,b)=>a-b);
+    r.med=others.length?others[others.length>>1]:null;
+    r.gap=r.med?(r.best/r.med-1)*100:null;
+    r.mv=null; r.ladder=true;
+  });
+  return {books,rows,pct:0,ladder:true};
+}
+
 function sideOf(o){return {key:(o.description?o.description+'|':'')+o.name, desc:o.description||null, name:o.name}}
 function eventRows(ev, mk){
   const books=ev.bookmakers.filter(b=>b.markets.some(m=>m.key===mk));
   if(!books.length) return null;
+  if(mk.endsWith('_alternate')) return ladderRows(ev,mk,books);
   const sides=[], seen={};
   books.forEach(b=>b.markets.find(m=>m.key===mk).outcomes.forEach(o=>{const s=sideOf(o); if(!seen[s.key]){seen[s.key]=1;sides.push(s);}}));
   if(sides.some(s=>s.desc)) sides.sort((a,b)=>a.desc.localeCompare(b.desc)||(a.name==='Over'?-1:b.name==='Over'?1:0));
@@ -396,7 +403,7 @@ function eventRows(ev, mk){
 
 function render(){
   if(!DATA) return;
-  const O=DATA.odds, P=propsData();
+  const O=DATA.odds, P=DATA.props||{events:[]};
   const c=O.credits_remaining;
   $('status').innerHTML=`<span>Updated <b>${ago(O.updated)}</b></span><span><b>${O.events.length}</b> games</span><span><b>${P.events.length}</b> with props</span>`+
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
@@ -406,7 +413,6 @@ function render(){
   $('mvBox').hidden=view!=='mv'; $('evtBox').hidden=view!=='ev';
   myBook=view.startsWith('bk:')?view.slice(3):(['ev','arb','pp'].includes(view)?bookFilter:'all');
   $('bookBox').hidden=!['ev','arb','pp'].includes(view); if(!$('bookBox').hidden) fillBooks();
-  $('statBox').hidden=['race','chk','bonus','games'].includes(view);
   const isB=view==='bonus', isA=view==='arb';
   $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB; $('gapBox').hidden=true; $('maxBox').hidden=true;
   $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
@@ -469,12 +475,13 @@ function render(){
       <div class="badges">${started?'<span class="badge live">STARTED</span>':''}
       ${view==='games'?`<span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>`:''}
       <span class="badge">${t.books.length} books</span></div></div>`;
-    const first=view==='props'?'Player':market==='h2h'?'Team':market==='spreads'?'Line':'Total';
-    const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed">Fair</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
+    const first=view==='props'?(t.ladder?'Player · line':'Player'):market==='h2h'?'Team':market==='spreads'?'Line':'Total';
+    const th=`<tr><th>${first}</th><th>Best</th>${t.ladder?'<th title="Chance implied by the best price">Chance</th>':'<th title="True price with the bookie margin removed">Fair</th>'}<th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
     let prev=null;
     const trs=t.rows.map(r=>{
-      const gb=(r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}">View graph</button>`:'';
-      const nm=r.s.desc?`${esc(r.s.desc)}${gb} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
+      const gb=(!r.ladder&&r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}">View graph</button>`:'';
+      const nm=r.ladder?`${esc(r.s.desc||'')} <span class="pt" style="color:var(--text);font-weight:700">${esc(r.s.name)}</span>`
+              :r.s.desc?`${esc(r.s.desc)}${gb} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
                        :esc(r.s.name)+(r.point!=null?` <span class="pt">${fmtPt(market,r.point)}</span>`:'');
       const grp=r.s.desc&&prev!==null&&prev!==r.s.desc; prev=r.s.desc;
       let mv='<span class="flat">–</span>';
@@ -484,7 +491,7 @@ function render(){
       const cells=r.cells.map(c=>{if(!c)return'<td class="off">–</td>';
         const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
         return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
-      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–'}</td><td class="fair">${r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–'}</td><td class="fair">${r.ladder?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}<div class="swipe">Swipe for every bookie →</div><div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
@@ -493,7 +500,7 @@ function render(){
 
 /* ---------- per-player probability graph (implied % from the best price, main line) ---------- */
 function showGraph(evId,mk,player){
-  const P=propsData(), ev=P.events.concat(DATA.odds.events).find(e=>e.id===evId); if(!ev) return;
+  const P=DATA.props||{events:[]}, ev=P.events.concat(DATA.odds.events).find(e=>e.id===evId); if(!ev) return;
   const H=DATA.history?.events?.[evId]?.series||{};
   const pre=mk+'|'+player+'|';
   let sers=Object.entries(H).filter(([k])=>k.startsWith(pre)&&k.endsWith('|main')).map(([k,v])=>({name:k.slice(pre.length,-5),pts:v}));
@@ -594,7 +601,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('gmodal')) $('gmo
 
 const MKT_LABEL={h2h:'H2H',spreads:'Line',totals:'Total'};
 function renderEV(){
-  const O=DATA.odds, P=propsData();
+  const O=DATA.odds, P=DATA.props||{events:[]};
   const evs=O.events.concat(P.events);
   const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
@@ -636,7 +643,7 @@ $('copyBtn').onclick=async()=>{const t=shareText(); if(!t){alert('No bets to cop
 let evType=store.get('evType','all');
 let myBook='all', bookFilter=store.get('bookFilter','all');
 function fillBooks(){
-  const O=DATA.odds,P=propsData(),seen={};
+  const O=DATA.odds,P=DATA.props||{events:[]},seen={};
   O.events.concat(P.events).forEach(e=>e.bookmakers.forEach(b=>{if(b.key!=='betfair_ex_au')seen[b.key]=b;}));
   $('bookSel').innerHTML='<option value="all">All bookies</option>'+Object.values(seen).sort((a,b)=>bkName(a).localeCompare(bkName(b)))
     .map(b=>`<option value="${esc(b.key)}">${esc(bkName(b))}</option>`).join('');
@@ -767,7 +774,7 @@ function findArbs(evs){
 /* ---------- prop picks: overs/unders under a max price where one bookie is well above the rest ---------- */
 let gapMin=+store.get('gapMin',5), maxOdds=+store.get('maxOdds',2.5);
 function renderPropPicks(){
-  const P=propsData();
+  const P=DATA.props||{events:[]};
   $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
   const counts={}; P.events.forEach(e=>counts[e.sport_title]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
@@ -810,7 +817,7 @@ function ppHTML(evs,q){
     <div class="tbl-wrap"><table class="bb ppt"><tr><th>Gap</th><th>Bet</th><th>Best price</th><th>Others pay</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 function renderBook(){
-  const O=DATA.odds, P=propsData(), nm=BOOK_NAMES[myBook]||myBook;
+  const O=DATA.odds, P=DATA.props||{events:[]}, nm=BOOK_NAMES[myBook]||myBook;
   $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
   const evs=O.events.concat(P.events);
   const counts={}; evs.forEach(e=>{ if(e.bookmakers.some(b=>b.key===myBook)) counts[e.sport_title]=1; });
@@ -833,7 +840,7 @@ $('maxSel').onchange=e=>{maxOdds=+e.target.value;store.set('maxOdds',maxOdds);re
 /* ---------- market movers: biggest price moves since the tracker first saw each price ---------- */
 let mvMode=store.get('mvMode','all');
 function renderMovers(){
-  const O=DATA.odds, P=propsData();
+  const O=DATA.odds, P=DATA.props||{events:[]};
   $('mvSel').value=mvMode;
   const evs=P.events;
   const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
@@ -883,7 +890,7 @@ $('mvSel').onchange=e=>{mvMode=e.target.value;store.set('mvMode',mvMode);render(
 /* ---------- check a price: type a bet you've found (e.g. on bet365) and see the edge vs fair ---------- */
 let CHK={q:'',sel:null,price:''}, CHK_IDX=null;
 function chkIndex(){
-  const O=DATA.odds,P=propsData(),now=new Date(),out=[];
+  const O=DATA.odds,P=DATA.props||{events:[]},now=new Date(),out=[];
   O.events.concat(P.events).forEach(e=>{
     if(new Date(e.commence_time)<=now) return;
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
@@ -975,7 +982,7 @@ function renderRacing(){
       <div class="tbl-wrap"><table class="rct"><tr><th>Runner</th><th>Fair</th><th>Back</th><th>Lay</th><th>Move</th></tr>${rows}</table></div></div>`;}).join('');
 }
 function renderArbs(){
-  const O=DATA.odds, P=propsData();
+  const O=DATA.odds, P=DATA.props||{events:[]};
   const evs=O.events.concat(P.events);
   const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';

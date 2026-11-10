@@ -30,7 +30,9 @@ PROP_SPORTS = [s.strip() for s in os.environ.get("PROP_SPORTS",
                "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,americanfootball_nfl,soccer_epl").split(",") if s.strip()]
 _BBALL = ("player_points,player_rebounds,player_assists,player_threes,player_points_rebounds_assists,"
           "player_points_rebounds,player_points_assists,player_rebounds_assists,player_blocks,player_steals,"
-          "player_turnovers,player_double_double,player_first_basket")
+          "player_turnovers,player_double_double,player_first_basket,"
+          # ladders: every line a bookie offers (10+, 15+, 20+ points; 1+, 2+ assists ...)
+          "player_points_alternate,player_rebounds_alternate,player_assists_alternate,player_threes_alternate")
 # Only markets that actually come back are charged, so asking for extras costs nothing when a bookie doesn't offer them.
 PROP_MARKETS = {
     "basketball_nba": _BBALL,
@@ -141,8 +143,8 @@ def record(hist, ev):
     best = {}
     for bk in ev.get("bookmakers", []):
         for m in bk.get("markets", []):
-            if m["key"].endswith("_lay"):
-                continue
+            if m["key"].endswith("_lay") or m["key"].endswith("_alternate"):
+                continue   # ladders (10+, 15+ ...) aren't tracked over time
             for o in m.get("outcomes", []):
                 mp = main.get((m["key"], o.get("description") or "", o["name"]))
                 if mp is not None and o.get("point") != mp:
