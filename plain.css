@@ -37,3 +37,7 @@ h3,.ev-title,.about-card h3,.contact-card h3,.tool-card h3{font-style:normal!imp
 .hero h1{color:var(--text)!important}
 .hero h1 .g{color:var(--gold)!important}
 .live{font-family:Archivo,system-ui,sans-serif!important;font-size:13px!important;letter-spacing:0!important;font-weight:600!important;border-radius:8px!important}
+
+/* greens matched to the logo (#19ac6a mid, #24c17b light) */
+:root{--mint:#24c17b;--mint2:#2fcb85;--mint-dim:#17573a}
+.btn-mint:hover{background:#3bd690!important}
