@@ -3,6 +3,7 @@
 Output (goes into the encrypted bundle as bundle["stats"]["nba"]):
   {"updated": TS,
    "teams": {"Los Angeles Lakers": "LAL", ...},
+   "by": {bookie name as written: player key},
    "players": {norm(bookie name): {"n": ESPN name, "id": ESPN id, "team": "LAL", "f": TS fetched,
                                    "g": [[date, opp, "@"|"vs", min, pts, reb, ast, 3pm, blk, stl, tov], ...]}}}
 Games are newest first, this season's regular season + playoffs only (no preseason).
@@ -21,7 +22,8 @@ COLS = ["minutes", "totalRebounds", "assists", "blocks", "steals", "turnovers", 
 
 def norm(name):
     s = unicodedata.normalize("NFD", name or "").encode("ascii", "ignore").decode().lower()
-    s = re.sub(r"[.'’`-]", " ", s)
+    s = re.sub(r"[.'’`]", "", s)
+    s = re.sub(r"[-]", " ", s)
     toks = [t for t in s.split() if t not in ("jr", "sr", "ii", "iii", "iv", "v")]
     return " ".join(toks)
 
@@ -73,9 +75,6 @@ def _match(desc, roster):
         hits = [a for k, a in roster.items() if k.split()[-1] == parts[-1] and k[:1] == parts[0][:1]]
         if len(hits) == 1:
             return hits[0]
-        hits = [a for k, a in roster.items() if k.split()[-1] == parts[-1]]
-        if len(hits) == 1:
-            return hits[0]
     return None
 
 
@@ -93,25 +92,29 @@ def update(prev, prop_events, now, ts):
         t = t["team"]
         out["teams"][t["displayName"]] = t["abbreviation"]
         tid[t["displayName"]] = t["id"]
-    rosters = {}
-    for ev in nba:
-        for side in (ev["home_team"], ev["away_team"]):
-            if side in rosters or side not in tid:
-                continue
+    # every roster, so traded players still match; cached for a day
+    ids = (prev or {}).get("ids") or {}
+    if not ids.get("map") or now - datetime.fromisoformat(ids["f"].replace("Z", "+00:00")) > timedelta(hours=20):
+        m = {}
+        for name, i in tid.items():
             try:
-                ro = _get(f"{SITE}/teams/{tid[side]}/roster")
+                ro = _get(f"{SITE}/teams/{i}/roster")
                 calls += 1
-                rosters[side] = {norm(a.get("displayName") or a.get("fullName")): {**a, "_team": out["teams"][side]}
-                                 for a in ro.get("athletes", [])}
+                for a in ro.get("athletes", []):
+                    m[norm(a.get("displayName") or a.get("fullName"))] = [a["id"], out["teams"][name], a.get("displayName")]
             except Exception:
                 fails += 1
-    seen, unmatched = set(), []
+        if len(m) > 300:
+            ids = {"f": ts, "map": m}
+    out["ids"] = ids
+    roster = {k: {"id": v[0], "_team": v[1], "displayName": v[2]} for k, v in (ids.get("map") or {}).items()}
+    seen, unmatched, by = set(), [], {}
     for ev in nba:
-        roster = {**rosters.get(ev["home_team"], {}), **rosters.get(ev["away_team"], {})}
         descs = {o.get("description") for b in ev.get("bookmakers", []) for m in b.get("markets", [])
                  for o in m.get("outcomes", []) if o.get("description")}
         for d in sorted(descs):
             key = norm(d)
+            by[d] = key
             if key in seen:
                 continue
             seen.add(key)
@@ -139,6 +142,8 @@ def update(prev, prop_events, now, ts):
     cut = now - KEEP
     out["players"] = {k: v for k, v in out["players"].items()
                       if datetime.fromisoformat(v.get("s", v["f"]).replace("Z", "+00:00")) > cut}
+    out["by"] = {d: k for d, k in by.items() if k in out["players"]}
+    out["by"].update({d: k for d, k in ((prev or {}).get("by") or {}).items() if k in out["players"] and d not in out["by"]})
     note = f"{len(seen)} NBA prop players, {calls} ESPN calls, {fails} failed"
     if unmatched:
         note += f", unmatched: {', '.join(unmatched[:12])}"

@@ -13,11 +13,11 @@ jobs:
           from datetime import datetime, timezone
           import player_stats as ps
           now = datetime.now(timezone.utc); ts = now.replace(microsecond=0).isoformat().replace("+00:00","Z")
-          names = ["Luka Doncic","LeBron James","Austin Reaves","Trae Young","Jalen Johnson","Kristaps Porzingis","Nobody Fake"]
+          names = ["Luka Dončić","LeBron James","C.J. McCollum","Shai Gilgeous-Alexander","Austin Reaves","Trae Young","Jalen Johnson","Kristaps Porzingis","Nobody Fake"]
           ev = {"sport_key":"basketball_nba","home_team":"Atlanta Hawks","away_team":"Los Angeles Lakers",
                 "bookmakers":[{"key":"x","markets":[{"key":"player_points","outcomes":[{"name":"Over","description":n,"point":20.5,"price":1.9} for n in names]}]}]}
           out, note = ps.update(None, [ev], now, ts)
-          print("NOTE", note)
+          print("NOTE", note); print("BY", out["by"]); print("IDS", len(out["ids"].get("map",{})))
           for k, v in out["players"].items():
               print(k, "->", v["n"], v["team"], len(v["g"]), "games; latest", v["g"][:3])
           print("BYTES", len(json.dumps(out)))
