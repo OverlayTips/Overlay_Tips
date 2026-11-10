@@ -162,6 +162,34 @@ def record(hist, ev):
         ser[:] = ser[:1] + ser[1:][-47:]   # opener + last 47 changes
 
 
+def record_bookies(hist, ev):
+    """Player props: every bookie's price at the main line plus the fair price, one snapshot per change.
+    hist[id]["px"]["market|player"] = [[TS, {side: [point, fair_price, {book: price}]}], ...]"""
+    import picks
+    he = hist.setdefault(ev["id"], {"commence_time": ev["commence_time"], "series": {}})
+    px = he.setdefault("px", {})
+    for mk, desc, sides, main in picks._groups(ev):
+        if not desc or len(sides) < 2:
+            continue
+        books = set.intersection(*(set(b) for b in sides.values()))
+        fair = picks.sharp_fair(ev, mk, desc, sides, main)
+        if not fair and len(books) >= picks.MIN_BOOKS:
+            per = {s: [] for s in sides}
+            for b in books:
+                inv = {s: 1 / sides[s][b][0] for s in sides}
+                tot = sum(inv.values())
+                for s in sides:
+                    per[s].append(inv[s] / tot)
+            fair = {s: picks.median(v) for s, v in per.items()}
+        snap = {s: [main.get(s), round(1 / fair[s], 3) if fair.get(s) else None,
+                    {b: p for b, (p, _) in bk.items()}] for s, bk in sides.items()}
+        ser = px.setdefault(f"{mk}|{desc}", [])
+        if ser and ser[-1][1] == snap:
+            continue
+        ser.append([TS, snap])
+        ser[:] = ser[:1] + ser[1:][-23:]   # opener + last 23 changes
+
+
 def fetch_props(api, sk, ev):
     """One call for all prop markets; if the API rejects the list (e.g. a market not offered
     for that sport), fall back to one market per call and merge. Returns (data, calls)."""
@@ -280,6 +308,7 @@ def main():
     for ev in props.values():
         if ev.get("fetched") == TS:
             record(hist, ev)
+            record_bookies(hist, ev)
     cutoff = NOW - KEEP_AFTER_START
     hist = {i: e for i, e in hist.items() if parse(e["commence_time"]) > cutoff}
 

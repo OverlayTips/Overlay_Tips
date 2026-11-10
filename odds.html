@@ -515,36 +515,59 @@ function showGraph(evId,mk,player){
   }
   const leg=sers.map((s,i)=>{const r=rows.find(r=>r.s.name===s.name), last=s.pts[s.pts.length-1];
     return `<span><i style="background:${COL[i%COL.length]}"></i>${esc(s.name)}${last&&last[3]!=null?' '+last[3]:''}: <b>${last?(100/last[1]).toFixed(1)+'%':'–'}</b> now${s.pts.length>1?` (opened ${(100/s.pts[0][1]).toFixed(1)}%)`:''}${r&&r.fair?` · fair ${(100/r.fair).toFixed(1)}%`:''}</span>`;}).join('');
-  // ---- graph 2: every bookie's price right now ----
-  let body2='';
-  if(t&&rows.length){
-    const bks=t.books.map((b,i)=>({b,c:rows.map(r=>r.cells[i])})).filter(x=>x.c.some(Boolean));
-    const ps=bks.flatMap(x=>x.c.filter(Boolean).map(c=>c.price)).concat(rows.filter(r=>r.fair).map(r=>r.fair));
-    let p0=Math.min(...ps), p1=Math.max(...ps); const pd=Math.max(0.05,(p1-p0)*0.12); p0=Math.max(1,Math.floor((p0-pd)*20)/20); p1=Math.ceil((p1+pd)*20)/20;
-    const W2=600,L2=96,R2=46,T2=22,RH=36,H2=T2+bks.length*RH+26;
-    const X=p=>L2+(p-p0)/(p1-p0)*(W2-L2-R2);
-    let g='';
-    const st=(p1-p0)>1.5?0.5:(p1-p0)>0.6?0.2:0.1;
-    for(let v=Math.ceil(p0/st)*st;v<=p1+1e-9;v+=st) g+=`<line x1="${X(v)}" x2="${X(v)}" y1="${T2-6}" y2="${H2-22}" stroke="#1b2523"/><text x="${X(v)}" y="${H2-6}" fill="#87978f" font-size="11" text-anchor="middle">$${v.toFixed(2)}</text>`;
-    rows.forEach((r,k)=>{ if(r.fair) g+=`<line x1="${X(r.fair)}" x2="${X(r.fair)}" y1="${T2-10}" y2="${H2-22}" stroke="${COL[k%COL.length]}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".8"><title>${esc(r.s.name)} fair $${r.fair.toFixed(2)}</title></line>`; });
-    bks.forEach((x,i)=>{
-      const y=T2+i*RH+RH/2;
-      g+=`<text x="${L2-10}" y="${y+4}" fill="#ecf5f1" font-size="12" text-anchor="end">${esc(bkName(x.b))}</text><line x1="${L2}" x2="${W2-R2}" y1="${y}" y2="${y}" stroke="#1b2523" stroke-width="2"/>`;
-      x.c.forEach((c,k)=>{ if(!c) return; const col=COL[k%COL.length], cx=X(c.price), best=c.ok&&c.price===rows[k].best;
-        const lbl=`${c.price.toFixed(2)}${c.ok?'':' ('+c.point+')'}`;
-        g+=`<circle cx="${cx}" cy="${y}" r="${best?6.5:5}" fill="${c.ok?col:'none'}" stroke="${col}" stroke-width="2"><title>${esc(bkName(x.b))} ${esc(rows[k].s.name)} ${c.point??''} @ $${c.price.toFixed(2)}${best?' (best)':''}</title></circle>`+
-             `<text x="${cx}" y="${k%2?y+19:y-9}" fill="${col}" font-size="10.5" font-weight="${best?700:400}" text-anchor="middle">${lbl}</text>`;});
-    });
-    body2=`<h4>Bookie prices <small>· right now at the main line${rows[0]&&rows[0].point!=null?' ('+rows[0].point+')':''}</small></h4>
-      <svg class="gchart" viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Price at each bookie">${g}</svg>
-      <div class="gleg">${rows.map((r,k)=>`<span><i style="background:${COL[k%COL.length]}"></i>${esc(r.s.name)} best <b>$${isFinite(r.best)?r.best.toFixed(2):'–'}</b>${r.bestBook?' '+esc(bkName(r.bestBook)):''}</span>`).join('')}<span>big dot = best · hollow = different line · dashed = fair</span></div>`;
-  }
+  // ---- graph 2: each bookie's price over time, with the fair price ----
+  const sides2=rows.map(r=>r.s.name);
+  const body2=t&&rows.length?`<h4>Bookie prices <small>· over time, with the fair price</small></h4>
+    <div class="seg gside" style="margin:2px 0 8px">${sides2.map((n,k)=>`<button type="button" data-k="${k}" class="${k?'':'on'}">${esc(n)}</button>`).join('')}</div><div id="gbk"></div>`:'';
   $('gmodal').innerHTML=`<div class="gbox" role="dialog" aria-modal="true"><button class="gclose" type="button" aria-label="Close">×</button>
     <h3>${esc(player)}</h3><div class="gsub">${esc(PROP_LABEL[mk]||mk)} · ${esc(ev.home_team)} v ${esc(ev.away_team)}</div>
     <h4>Probability <small>· implied from the best price over time</small></h4>
     ${body}<div class="gleg">${leg}${rows.some(r=>r.fair)?'<span>dashed = fair</span>':''}</div>${body2}</div>`;
+  if(body2){
+    const draw=k=>{ $('gmodal').querySelectorAll('.gside button').forEach(b=>b.classList.toggle('on',+b.dataset.k===k)); $('gbk').innerHTML=bookieLines(ev,mk,player,t,rows[k]); };
+    $('gmodal').querySelectorAll('.gside button').forEach(b=>b.onclick=()=>draw(+b.dataset.k)); draw(0);
+  }
   $('gmodal').hidden=false;
   $('gmodal').querySelector('.gclose').onclick=()=>$('gmodal').hidden=true;
+}
+const BK_COL=['#62f0a8','#ff6b6b','#efd38f','#87b7ff','#d59bff','#ff9f5a','#5ee0e0','#f27fc0','#b6e36b','#c4953f','#9aa8ff','#e8e8e8'];
+function bookieLines(ev,mk,player,t,r){
+  const side=r.s.name, px=DATA.history?.events?.[ev.id]?.px?.[mk+'|'+player]||[];
+  // snapshots: [time, {book: price}, fair, point]
+  const snaps=px.filter(p=>p[1][side]).map(p=>[Date.parse(p[0]),p[1][side][2],p[1][side][1],p[1][side][0]]);
+  const live={}; t.books.forEach((b,i)=>{const c=r.cells[i]; if(c&&c.ok) live[b.key]=c.price;});
+  const tNow=Math.min(Date.now(),Date.parse(ev.commence_time)), tLive=ev.fetched?Date.parse(ev.fetched):tNow;
+  if(!snaps.length||snaps[snaps.length-1][0]<tLive) snaps.push([tLive,live,r.fair||null,r.point]);
+  const books=[...new Set(snaps.flatMap(s=>Object.keys(s[1])))];
+  const W=600,Hh=280,L=48,R=96,T=14,B=30;
+  const ps=snaps.flatMap(s=>Object.values(s[1]).concat(s[2]?[s[2]]:[]));
+  if(!ps.length) return '<div class="empty" style="padding:24px 10px">No prices for this side.</div>';
+  let y0=Math.min(...ps), y1=Math.max(...ps); const pd=Math.max(0.03,(y1-y0)*0.12); y0=Math.max(1,y0-pd); y1=y1+pd;
+  let x0=snaps[0][0], x1=Math.max(tNow,snaps[snaps.length-1][0]); if(x1-x0<3*3600e3) x0=x1-3*3600e3;
+  const X=v=>L+(v-x0)/(x1-x0)*(W-L-R), Y=v=>T+(1-(v-y0)/(y1-y0))*(Hh-T-B);
+  let g='';
+  const st=(y1-y0)>1.5?0.5:(y1-y0)>0.6?0.2:(y1-y0)>0.25?0.1:0.05;
+  for(let v=Math.ceil(y0/st)*st;v<=y1+1e-9;v+=st) g+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1b2523"/><text x="${L-6}" y="${Y(v)+4}" fill="#87978f" font-size="11" text-anchor="end">$${v.toFixed(2)}</text>`;
+  const fmtT=ms=>new Date(ms).toLocaleString('en-AU',{weekday:'short',hour:'numeric'});
+  [x0,(x0+x1)/2,x1].forEach((tt,i)=>g+=`<text x="${X(tt)}" y="${Hh-8}" fill="#87978f" font-size="11" text-anchor="${['start','middle','end'][i]}">${fmtT(tt)}</text>`);
+  const line=(vals,col,w,dash,title)=>{ let d='',last=null,dots='';
+    vals.forEach(([tm,v])=>{ if(v==null){last=null;return;} const x=X(tm).toFixed(1),y=Y(v).toFixed(1);
+      d+=last==null?`M${x} ${y}`:`H${x}V${y}`; last=v; dots+=`<circle cx="${x}" cy="${y}" r="${w>2.5?3.2:2.6}" fill="${col}"><title>${title} $${v.toFixed(2)} · ${new Date(tm).toLocaleString('en-AU')}</title></circle>`;});
+    if(last!=null) d+=`H${X(x1).toFixed(1)}`;
+    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}"${dash?' stroke-dasharray="6 4"':''} stroke-linejoin="round"/>${dots}`; };
+  const ends=[];
+  books.forEach((bk,i)=>{ const col=BK_COL[i%BK_COL.length], nm=SHORT[bk]||bk;
+    g+=line(snaps.map(s=>[s[0],s[1][bk]??null]),col,1.8,false,esc(nm));
+    const lv=[...snaps].reverse().find(s=>s[1][bk]!=null); if(lv) ends.push({y:Y(lv[1][bk]),col,txt:`${esc(nm)} ${lv[1][bk].toFixed(2)}`});});
+  if(snaps.some(s=>s[2])){ g+=line(snaps.map(s=>[s[0],s[2]]),'#ffffff',2.8,true,'Fair');
+    const lf=[...snaps].reverse().find(s=>s[2]); ends.push({y:Y(lf[2]),col:'#ffffff',txt:`Fair ${lf[2].toFixed(2)}`,b:1}); }
+  // end labels, nudged apart so they don't overlap
+  ends.sort((a,b)=>a.y-b.y); for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<11) ends[i].y=ends[i-1].y+11;
+  ends.forEach(e=>g+=`<text x="${W-R+5}" y="${e.y+4}" fill="${e.col}" font-size="10" font-weight="${e.b?700:400}">${e.txt}</text>`);
+  const pt=r.point!=null?' '+r.point:'';
+  const note=snaps.length<2?'<div class="gsub" style="margin-top:6px">Bookie price history starts from now and fills in with each update.</div>':'';
+  return `<svg class="gchart" viewBox="0 0 ${W} ${Math.max(Hh,ends.length?ends[ends.length-1].y+20:0)}" role="img" aria-label="${esc(side)} price at each bookie over time">${g}</svg>
+    <div class="gleg"><span>${esc(side)}${pt} · white dashed = fair price · above it = value</span></div>${note}`;
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('.gbtn'); if(b){e.preventDefault(); showGraph(b.dataset.ev,b.dataset.mk,b.dataset.p); return;}
