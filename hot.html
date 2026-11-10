@@ -34,6 +34,7 @@
 .hs-chips button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
 .hs-sort{color:#87978f;font-size:14px;display:flex;gap:8px;align-items:center}
 .hs-sort select{background:#0e1312;color:#ecf5f1;border:1px solid #1b2523;border-radius:8px;padding:6px 8px;font:inherit}
+.hs-ctl{display:flex;flex-wrap:wrap;gap:10px 16px}
 .hs-meta{color:#87978f;font-size:13px;margin-bottom:14px}
 .hs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
 .hs-card{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:18px;padding:16px 16px 14px}
@@ -115,7 +116,8 @@
     </div>
     <div class="hs-bar">
       <div class="hs-chips" id="chips"></div>
-      <label class="hs-sort">Sort <select id="sort"><option value="value">Value</option><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label>
+      <div class="hs-ctl"><label class="hs-sort">Bookie <select id="book"><option value="all">All bookies (best price)</option></select></label>
+      <label class="hs-sort">Sort <select id="sort"><option value="value">Value</option><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label></div>
     </div>
     <div class="hs-grid" id="grid"></div>
     <p class="hs-note">Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks blend player form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
@@ -142,7 +144,14 @@ document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SRC=new URLSearchParams(location.search).get('data')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json';
-let ITEMS=[], VALUE=[], stat='All', sort='value';
+let ITEMS=[], VALUE=[], stat='All', sort='value', book='all';
+try{book=localStorage.getItem('hs-book')||'all';}catch(e){}
+// price/value at the chosen bookie (value = our chance x their price - 1); null if they don't price it
+function atBook(i){
+  if(book==='all') return i;
+  const p=i.prices&&i.prices[book]; if(!p) return null;
+  return {...i, price:p, book, value:typeof i.prob==='number'?Math.round((i.prob*p-1)*1000)/10:i.value};
+}
 const val=i=>typeof i.value==='number'?i.value:-1e9;
 const pct=a=>a[1]?Math.round(a[0]/a[1]*100):0;
 const when=iso=>new Date(iso).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'});
@@ -176,13 +185,18 @@ function draw(){
   const stats=['All',...new Set(ITEMS.concat(VALUE).map(i=>i.stat))];
   $('chips').innerHTML=stats.map(s=>`<button type="button" class="${s===stat?'on':''}" data-s="${esc(s)}">${esc(s)}</button>`).join('');
   $('chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{stat=b.dataset.s;draw();});
-  const vs=VALUE.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()).sort((a,b)=>val(b)-val(a));
-  $('valWrap').hidden=!VALUE.length; $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):'<div class="hs-empty">No value picks for this stat right now.</div>';
-  let xs=ITEMS.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
+  const books=[...new Set(ITEMS.concat(VALUE).flatMap(i=>Object.keys(i.prices||{})))].sort((a,b)=>a.localeCompare(b));
+  if(book!=='all'&&!books.includes(book)) book='all';
+  $('book').innerHTML='<option value="all">All bookies (best price)</option>'+books.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  $('book').value=book;
+  const vs=VALUE.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()).sort((a,b)=>val(b)-val(a));
+  $('valWrap').hidden=!VALUE.length; $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):`<div class="hs-empty">No value picks for this ${book==='all'?'stat':'stat at '+esc(book)} right now.</div>`;
+  let xs=ITEMS.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
   if(sort==='value') xs.sort((a,b)=>val(b)-val(a)); else if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
-  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player has been clearing the line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
+  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player has been clearing the line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
+$('book').onchange=e=>{book=e.target.value;try{localStorage.setItem('hs-book',book);}catch(_){}draw();};
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
   ITEMS=d.items||[]; VALUE=d.value||[]; $('meta').textContent=`${ITEMS.length} hot props · updated ${ago(d.updated)}`; draw();
 }).catch(()=>{ $('meta').textContent=''; $('grid').innerHTML='<div class="hs-empty"><h3>Hot stats are loading soon</h3>The first batch lands with the next odds update.</div>'; });

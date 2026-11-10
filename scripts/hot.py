@@ -56,7 +56,8 @@ def build(prop_events, stats, now, ts):
                     if o.get("name") != "Over" or o.get("point") is None or not o.get("description"):
                         continue
                     k = (mk, o["description"], float(o["point"]))
-                    allp.setdefault(k, []).append(o["price"])
+                    bp = allp.setdefault(k, {})
+                    bp[_book(b)] = max(bp.get(_book(b), 0), o["price"])
                     if k not in best or o["price"] > best[k][0]:
                         best[k] = (o["price"], _book(b), m["key"].endswith("_alternate"))
         h, a = teams.get(ev["home_team"]), teams.get(ev["away_team"])
@@ -83,7 +84,7 @@ def build(prop_events, stats, now, ts):
             p_hit = (h10 + hs + 1) / (len(l10) + len(gs) + 2)
             # then blended with what the bookies as a group think (median price, margin taken off),
             # because a hit rate over ~10 games misses a lot (minutes, matchups, injuries)
-            ps = sorted(allp[(mk, desc, pt)])
+            ps = sorted(allp[(mk, desc, pt)].values())
             med = ps[len(ps) // 2] if len(ps) % 2 else (ps[len(ps) // 2 - 1] + ps[len(ps) // 2]) / 2
             p_mkt = min(0.97, MARGIN / med)
             prob = HIT_WEIGHT * p_hit + (1 - HIT_WEIGHT) * p_mkt
@@ -94,6 +95,7 @@ def build(prop_events, stats, now, ts):
                 "l10": [h10, len(l10)], "l5": [h5, len(l5)], "vs": [hit(vs), len(vs)], "season": [hs, len(gs)],
                 "avg": round(sum(f(g) for g in l10) / len(l10), 1),
                 "prob": round(prob, 3), "hit": round(p_hit, 3), "mkt": round(p_mkt, 3), "books": len(ps), "value": round((prob * price - 1) * 100, 1),
+                "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
                 "games": [[g[0], g[1], g[2], f(g)] for g in l10],
             }
             key = (desc, mk)
