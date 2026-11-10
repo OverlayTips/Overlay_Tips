@@ -122,6 +122,7 @@
   .bb a.calc{color:var(--mint);font-size:13px;white-space:nowrap}
   .bb th:first-child,.bb td:first-child{position:static}
   td.fair{color:var(--text)}
+  td.bestcol .bbk{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:1px}
   .pin{font-size:9.5px;font-weight:800;letter-spacing:.04em;color:var(--gold,#d6a43c);border:1px solid currentColor;border-radius:4px;padding:0 3px;margin-left:3px;vertical-align:1px}
   td.fair .evp{color:var(--mint);font-size:12px;font-weight:700}
   .topev{border-color:var(--mint-dim)}
@@ -447,7 +448,7 @@ function render(){
       const cells=r.cells.map(c=>{if(!c)return'<td class="off">–</td>';
         const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
         return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
-      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2):'–'}</td><td class="fair">${r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–'}</td><td class="fair">${r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}<div class="swipe">Swipe for every bookie →</div><div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
