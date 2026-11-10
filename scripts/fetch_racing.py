@@ -16,7 +16,8 @@ UA = "overlay-tips-racing/1.0"
 
 
 def enabled():
-    return bool(APP_KEY and USER and PW)
+    # paused: Betfair refuses logins from GitHub's overseas servers (HTTP 403); avoid repeated failed logins
+    return os.environ.get("RACING_ENABLED") == "1" and bool(APP_KEY and USER and PW)
 
 
 def _post(url, data, headers):
