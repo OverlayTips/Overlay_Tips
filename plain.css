@@ -1,0 +1,39 @@
+/* "less AI" pass: flat colours, no glows/gradient text, calmer type, squarer shapes */
+:root{--gold:#d9b25f;--gold2:#d9b25f}
+body::before{display:none!important}
+.today::after,.yday::after,.join::before,.freetip::after{display:none!important}
+
+/* headings: solid gold, upright, a little lighter */
+h1,h2,.page-head h1,.hero h1,.gate h2{background:none!important;-webkit-background-clip:border-box!important;background-clip:border-box!important;color:var(--gold)!important;font-style:normal!important;font-weight:800!important;letter-spacing:-.025em!important}
+h1 .g,h2 .g,.hero h1 .g,.page-head h1 .g{background:none!important;-webkit-background-clip:border-box!important;background-clip:border-box!important;color:var(--mint)!important}
+h3,.ev-title,.about-card h3,.contact-card h3,.tool-card h3{font-style:normal!important}
+.brand .wm-t{background:none!important;color:var(--gold)!important;-webkit-background-clip:border-box!important;background-clip:border-box!important}
+.brand .wm-o{color:var(--text)!important}
+.brand{letter-spacing:.14em!important}
+
+/* eyebrow labels: quieter */
+.mono{letter-spacing:.08em!important;color:var(--muted)!important;font-size:11.5px!important}
+.live{letter-spacing:.06em!important}
+
+/* no glows */
+*{text-shadow:none!important}
+.btn-mint,.btn-mint:hover,.tool-card:hover,.chart-card,.members-img,.spots-bar i,.navlinks a.hot:not(.on),.viewtabs button.on{box-shadow:none!important}
+#curve .line,.join-logo{filter:none!important}
+.live .dot,.live i{animation:none!important}
+
+/* flat cards instead of green gradients */
+.chart-card,.yday,.give,.tool-card,.contact-card,.tier.founder,.mem-tix,.freetip,.row.total,.viewtabs button.on{background:var(--panel)!important}
+.tier.vip{background:var(--panel)!important}
+
+/* buttons + pills: less bubbly, no italics */
+.btn,.navlinks .btn{border-radius:10px!important;font-style:normal!important;font-weight:700!important}
+.navlinks a:not(.btn),.tabbar a,.chip,.seg,.seg button,.sharebtn,.stakebox,.search,.terms-toc a,.steps span{border-radius:8px!important}
+.navlinks a.on,.tabbar a.on{font-style:normal!important}
+.chart-card,.yday,.card,.tool-card,.about-card,.contact-card,.tier,.ev,.empty,.gate form{border-radius:14px!important}
+.chart-card .big,.yday-u,.stat b,.tier .price{font-style:normal!important}
+
+/* OVERLAY in gold: wordmark fully gold; hero headline gets white text with "overlay." in gold */
+.brand .wm-o{color:var(--gold)!important}
+.hero h1{color:var(--text)!important}
+.hero h1 .g{color:var(--gold)!important}
+.live{font-family:Archivo,system-ui,sans-serif!important;font-size:13px!important;letter-spacing:0!important;font-weight:600!important;border-radius:8px!important}
