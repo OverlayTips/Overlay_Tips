@@ -94,7 +94,7 @@
   .lock{font-size:14px;color:var(--muted);padding:6px 0}
   .lock:hover{color:var(--text)}
   .navr{display:flex;gap:18px;align-items:center}
-  .viewtabs{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px;margin-top:20px}
+  .viewtabs{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:8px;margin-top:20px}
   .viewtabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:10px 6px;border-radius:14px;
     border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:800;font-size:13px;line-height:1.1;text-align:center;transition:border-color .15s,background .15s,color .15s}
   .viewtabs button i{font-style:normal;font-size:19px;line-height:1;height:22px;display:flex;align-items:center}
@@ -104,7 +104,7 @@
   .viewtabs button:hover{color:var(--text);border-color:#26332f}
   .viewtabs button.on{color:var(--text);border-color:var(--mint);background:linear-gradient(160deg,#0f2a1e,var(--panel2) 70%);box-shadow:0 0 0 1px rgba(98,240,168,.15) inset}
   .viewtabs button.on span{color:var(--mint2)}
-  @media(max-width:900px){.viewtabs{grid-template-columns:repeat(3,minmax(0,1fr))}.viewtabs button{min-height:60px;font-size:13.5px;white-space:nowrap}.viewtabs button.wide{grid-column:1/-1;flex-direction:row;min-height:48px;gap:8px}}
+  @media(max-width:900px){.viewtabs{grid-template-columns:repeat(3,minmax(0,1fr))}.viewtabs button{min-height:60px;font-size:13.5px;white-space:nowrap}.viewtabs button.wide{grid-column:span 3;flex-direction:row;min-height:48px;gap:8px}.viewtabs{grid-template-columns:repeat(6,minmax(0,1fr))}.viewtabs button:not(.wide){grid-column:span 2}}
   @media(max-width:360px){.viewtabs{gap:6px}.viewtabs button{font-size:12px;padding:9px 4px}}
   .seg{overflow-x:auto;max-width:100%;scrollbar-width:none}
   .seg::-webkit-scrollbar{display:none}
@@ -155,7 +155,7 @@
     .ev table:not(.bb) td:first-child .pt{display:block;margin-top:2px}
     .swipe{display:block;font-size:12px;color:var(--muted);padding:0 16px 8px;text-align:right}
     .controls{position:static;background:none}
-    .ev table:not(.bb) th:nth-child(4),.ev table:not(.bb) td.mv{display:none}
+    .ev table:not(.bb):not(.rct) th:nth-child(4),.ev table:not(.bb):not(.rct) td.mv{display:none}
   }
   .chk{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
   .chk h3{font-size:20px;font-weight:800}
@@ -172,6 +172,10 @@
   .verdict.good{border-color:var(--mint)} .verdict.good b.big{color:var(--mint)}
   .verdict.bad{border-color:#5a2a2a} .verdict.bad b.big{color:var(--red)}
   .verdict p{color:var(--muted);font-size:14px;margin-top:6px}
+  .rc-move{font-size:12px;font-weight:700}
+  .rc-steam{color:var(--mint)} .rc-drift{color:var(--red)}
+  .rc-no{display:inline-block;min-width:22px;color:var(--muted);font-size:12px}
+  @media(max-width:640px){.ev table.rct th,.ev table.rct td{padding:9px 5px;font-size:13px}.ev table.rct th:first-child,.ev table.rct td:first-child{min-width:118px;width:auto}.rct .rc-move .bk{display:none}}
   [hidden]{display:none!important}
 </style>
 <link rel="stylesheet" href="plain.css?v=5">
@@ -204,6 +208,7 @@
     <div class="status" id="status"></div>
     <div class="viewtabs" id="views">
       <button data-v="chk" class="wide"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/><path d="M8.5 11l1.8 1.8 3.4-3.6"/></svg></i><span>Check a price</span></button>
+      <button data-v="race" class="wide"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c2-1 3-4 5-6 1.5-1.5 4-2 5.5-4.5L17 4l2 1-1 3 2 2-1.5 1.5L16 10c-1 2-1 4-3 6l-1 3"/><path d="M4 18h3"/></svg></i><span>Racing</span></button>
       <button data-v="ev"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg></i><span>Top EV</span></button>
       <button data-v="arb"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/></svg></i><span>Arbs</span></button>
       <button data-v="pp"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".9" fill="currentColor"/></svg></i><span>Prop picks</span></button>
@@ -379,6 +384,7 @@ function render(){
   if(isA){ renderArbs(); return; }
   if(isB){ renderBonus(); return; }
   if($('q').hidden&&view!=='chk') $('q').hidden=false;
+  if(view==='race'){ ['markets','moversBox','gapBox','maxBox','evtBox','mvBox','bookBox','stakeBox','bpropsBox','shareBar'].forEach(id=>{const el=$(id); if(el) el.hidden=true;}); renderRacing(); return; }
   if(view==='chk'){ ['markets','moversBox','gapBox','maxBox','evtBox','mvBox','bookBox','stakeBox','bpropsBox','shareBar'].forEach(id=>{const el=$(id); if(el) el.hidden=true;}); renderCheck(); return; }
   if(view==='mv'){ $('markets').hidden=true; $('moversBox').hidden=true; $('gapBox').hidden=true; $('maxBox').hidden=true; renderMovers(); return; }
   const isE=view==='ev', isK=view.startsWith('bk:'), isP=view==='pp'||isK;
@@ -802,6 +808,52 @@ function renderCheck(){
   $('chkP').oninput=e=>{CHK.price=e.target.value;draw();};
   $('chkS').oninput=draw;
   draw();
+}
+
+/* ---------- racing: AU win markets from the Betfair Exchange ---------- */
+let raceVenue=store.get('raceVenue','all'), raceMode=store.get('raceMode','races');
+function renderRacing(){
+  const RC=DATA.racing;
+  $('q').placeholder='Search horse or track';
+  if(!RC||!RC.races){
+    $('sports').innerHTML='';
+    $('legend').textContent='';
+    $('list').innerHTML=`<div class="empty"><h3>Racing not connected yet</h3>${RC&&RC.errors&&RC.errors.length?esc(RC.errors.join(' · ')):'Waiting for the first racing update.'}</div>`;return;
+  }
+  const now=new Date(), races=RC.races.filter(r=>new Date(r.start)>new Date(now-5*60000));
+  const venues=[...new Set(races.map(r=>r.venue))];
+  if(raceVenue!=='all'&&!venues.includes(raceVenue)) raceVenue='all';
+  $('sports').innerHTML=`<button class="chip ${raceMode==='movers'?'on':''}" data-m="movers">Movers</button>`+[['all','All tracks'],...venues.map(v=>[v,v])]
+    .map(([k,l])=>`<button class="chip ${raceMode==='races'&&k===raceVenue?'on':''}" data-s="${esc(k)}">${esc(l)}</button>`).join('');
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ if(b.dataset.m){raceMode='movers';} else {raceMode='races';raceVenue=b.dataset.s;store.set('raceVenue',raceVenue);} store.set('raceMode',raceMode); render(); });
+  $('legend').textContent=`Australian win markets from the Betfair Exchange (updated ${ago(RC.updated)}). Fair = the exchange price with the margin stripped out, the sharpest price in racing. If Sportsbet, TAB etc. pay more than Fair, it's value (use Check a price). Back/Lay = best Betfair prices now.`;
+  const q=$('q').value.trim().toLowerCase(), H=RC.history||{};
+  const mv=(r,x)=>{const s=H[r.id+'|'+x.id]; if(!s||s.length<2) return null; return {from:s[0][1],to:s[s.length-1][1],pct:(s[s.length-1][1]-s[0][1])/s[0][1]*100};};
+  const t=iso=>new Date(iso).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
+  if(raceMode==='movers'){
+    const out=[];
+    races.forEach(r=>r.runners.forEach(x=>{const m=mv(r,x); if(m&&Math.abs(m.pct)>=8&&x.fair<41&&(!q||(x.name+' '+r.venue).toLowerCase().includes(q))) out.push({r,x,m});}));
+    out.sort((a,b)=>Math.abs(b.m.pct)-Math.abs(a.m.pct));
+    if(!out.length){$('list').innerHTML='<div class="empty"><h3>No big moves yet</h3>Moves show once the tracker has seen a race more than once. Check after the next update.</div>';return;}
+    $('list').innerHTML=`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Racing movers</div><div class="ev-meta">Biggest Betfair moves since first seen. ${out.length} found.</div></div></div>
+      <div class="tbl-wrap"><table class="bb mvt"><tr><th>Move</th><th>Runner</th><th>Fair then → now</th><th>Back now</th><th>Race</th></tr>${out.slice(0,50).map(({r,x,m})=>{const st=m.pct<0;return `<tr>
+      <td class="c-edge"><span class="evp" style="color:${st?'var(--mint)':'var(--red)'}">${st?'▼':'▲'} ${Math.abs(m.pct).toFixed(0)}%</span><small style="display:block;color:var(--muted);font-size:12px">${st?'steamer':'drifter'}</small></td>
+      <td class="c-bet">${x.no?x.no+'. ':''}${esc(x.name.replace(/^\d+\.\s*/,''))}</td>
+      <td class="c-price"><span class="bk">${m.from.toFixed(2)} →</span> <b>${m.to.toFixed(2)}</b></td>
+      <td class="c-fair">${x.back?x.back.toFixed(2):'–'}</td>
+      <td class="c-game">${esc(r.venue)} ${esc(r.name.split(' ')[0])}<br><span class="bk">${t(r.start)}</span></td></tr>`;}).join('')}</table></div></div>`;
+    return;
+  }
+  const list=races.filter(r=>(raceVenue==='all'||r.venue===raceVenue)&&(!q||(r.venue+' '+r.runners.map(x=>x.name).join(' ')).toLowerCase().includes(q)));
+  if(!list.length){$('list').innerHTML='<div class="empty"><h3>No races</h3>Nothing upcoming for this filter.</div>';return;}
+  $('list').innerHTML=list.slice(0,40).map(r=>{
+    const rows=r.runners.filter(x=>!q||x.name.toLowerCase().includes(q)||r.venue.toLowerCase().includes(q)).map(x=>{const m=mv(r,x);
+      const mvs=m&&Math.abs(m.pct)>=3?`<span class="rc-move ${m.pct<0?'rc-steam':'rc-drift'}">${m.pct<0?'▼':'▲'}${Math.abs(m.pct).toFixed(0)}% <span class="bk">${m.from.toFixed(2)}→</span></span>`:'<span class="flat">–</span>';
+      return `<tr><td>${x.no?`<span class="rc-no">${x.no}</span>`:''}${esc(x.name.replace(/^\d+\.\s*/,''))}</td><td class="bestcol">${x.fair?x.fair.toFixed(2):'–'}</td><td>${x.back?x.back.toFixed(2):'–'}</td><td>${x.lay?x.lay.toFixed(2):'–'}</td><td class="mv">${mvs}</td></tr>`;}).join('');
+    return `<div class="ev"><div class="ev-head"><div><div class="ev-title">${esc(r.venue)} ${esc(r.name)}</div>
+      <div class="ev-meta">${t(r.start)} · ${when(r.start).split(',')[0]} · $${(r.matched||0).toLocaleString()} matched</div></div>
+      <div class="badges"><span class="badge">${r.runners.length} runners</span></div></div>
+      <div class="tbl-wrap"><table class="rct"><tr><th>Runner</th><th>Fair</th><th>Back</th><th>Lay</th><th>Move</th></tr>${rows}</table></div></div>`;}).join('');
 }
 function renderArbs(){
   const O=DATA.odds, P=DATA.props||{events:[]};

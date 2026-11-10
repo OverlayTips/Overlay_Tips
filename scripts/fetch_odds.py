@@ -276,14 +276,20 @@ def main():
     cutoff = NOW - KEEP_AFTER_START
     hist = {i: e for i, e in hist.items() if parse(e["commence_time"]) > cutoff}
 
-    # ---- horse racing (Betfair Exchange, separate login; never fails the odds update) ----
+    # ---- horse racing: raw Betfair pull uploaded from a computer in Australia (racing/racing.enc.json) ----
     racing = prev.get("racing")
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import fetch_racing
-        if fetch_racing.enabled():
-            racing = fetch_racing.get_racing(prev.get("racing"), TS)
-            print(f"racing: {len(racing['races'])} races; errors: {racing['errors'][:3]}")
+        import fetch_racing, picks as _pk
+        rp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "racing", "racing.enc.json")
+        ak = os.environ.get("ODDS_ALERTS_KEY", "").strip()
+        if os.path.exists(rp) and ak:
+            raw = _pk.decrypt_with_key(json.load(open(rp)), ak)
+            if NOW - parse(raw["fetched"]) < timedelta(hours=6):
+                racing = fetch_racing.process(raw, prev.get("racing"), TS)
+                print(f"racing: {len(racing['races'])} races from {raw['fetched']}")
+            else:
+                print("racing: upload is stale, keeping previous")
     except Exception as e:
         print("racing failed:", type(e).__name__, e)
 

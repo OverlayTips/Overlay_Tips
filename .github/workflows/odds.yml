@@ -50,9 +50,6 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
-          BETFAIR_APP_KEY: ${{ secrets.BETFAIR_APP_KEY }}
-          BETFAIR_USERNAME: ${{ secrets.BETFAIR_USERNAME }}
-          BETFAIR_PASSWORD: ${{ secrets.BETFAIR_PASSWORD }}
         run: |
           pip install -q cryptography
           python scripts/fetch_odds.py

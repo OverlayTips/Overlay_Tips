@@ -54,16 +54,11 @@ def _mid(back, lay):
     return back or lay
 
 
-def get_racing(prev, ts):
-    """Returns {"updated", "errors", "races":[...], "history":{key:[[ts,price],...]}}."""
-    errors = []
-    out = {"updated": ts, "errors": errors, "races": [], "history": (prev or {}).get("history", {})}
-    if not enabled():
-        errors.append("betfair secrets not set")
-        return out
+def fetch_raw(errors):
+    """Login + pull AU win markets. Returns {"cat":[...], "books":{...}} or None. Must run from an Australian IP."""
     token = login(errors)
     if not token:
-        return out
+        return None
     now = datetime.now(timezone.utc)
     flt = {"filter": {"eventTypeIds": ["7"], "marketCountries": ["AU"], "marketTypeCodes": ["WIN"],
                       "marketStartTime": {"from": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -81,7 +76,7 @@ def get_racing(prev, ts):
         except Exception as e:
             errors.append(f"betfair catalogue {h.split('/')[2]}: {type(e).__name__} {e}")
     if not cat:
-        return out
+        return None
     books = {}
     ids = [m["marketId"] for m in cat]
     for i in range(0, len(ids), 40):
@@ -91,8 +86,20 @@ def get_racing(prev, ts):
                 books[b["marketId"]] = b
         except Exception as e:
             errors.append(f"betfair book: {type(e).__name__} {e}")
+    return {"fetched": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "cat": cat, "books": books}
+
+
+def process(raw, prev, ts, errors=None):
+    """Raw Betfair data -> {"updated","errors","races","history"} for the encrypted bundle."""
+    errors = errors if errors is not None else []
+    out = {"updated": (raw or {}).get("fetched", ts), "errors": errors, "races": [],
+           "history": (prev or {}).get("history", {})}
+    if not raw:
+        return out
+    cat, books = raw["cat"], raw["books"]
     hist = out["history"]
     keep = set()
+    hts = raw.get("fetched", ts)
     for m in cat:
         b = books.get(m["marketId"])
         if not b:
@@ -121,7 +128,7 @@ def get_racing(prev, ts):
             if x["fair"]:
                 ser = hist.setdefault(key, [])
                 if not ser or ser[-1][1] != x["fair"]:
-                    ser.append([ts, x["fair"]])
+                    ser.append([hts, x["fair"]])
                 ser[:] = ser[:1] + ser[1:][-23:]
         runners.sort(key=lambda x: x["fair"] or 999)
         out["races"].append({"id": m["marketId"], "start": m.get("marketStartTime"), "name": m.get("marketName", ""),
@@ -129,3 +136,26 @@ def get_racing(prev, ts):
                              "status": b.get("status"), "runners": runners})
     out["history"] = {k: v for k, v in hist.items() if k in keep}
     return out
+
+
+if __name__ == "__main__":
+    # Run on a computer in Australia: python3 fetch_racing.py OUT.json
+    # Reads BETFAIR_* from env (or config.json next to OUT), encrypts the raw pull with ODDS_ALERTS_KEY.
+    import sys, gzip, base64, secrets
+    outp = sys.argv[1]
+    cfgp = os.path.join(os.path.dirname(os.path.abspath(outp)), "config.json")
+    if os.path.exists(cfgp):
+        cfg = json.load(open(cfgp))
+        APP_KEY, USER, PW = cfg["BETFAIR_APP_KEY"].strip(), cfg["BETFAIR_USERNAME"].strip(), cfg["BETFAIR_PASSWORD"]
+        key = cfg["ODDS_ALERTS_KEY"]
+    else:
+        key = os.environ["ODDS_ALERTS_KEY"]
+    errs = []
+    raw = fetch_raw(errs)
+    if not raw:
+        print("FAILED:", errs); sys.exit(1)
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    iv = secrets.token_bytes(12)
+    ct = AESGCM(base64.b64decode(key)).encrypt(iv, gzip.compress(json.dumps(raw).encode()), None)
+    json.dump({"v": 1, "iv": base64.b64encode(iv).decode(), "ct": base64.b64encode(ct).decode()}, open(outp, "w"))
+    print(f"OK {len(raw['cat'])} races -> {outp}")
