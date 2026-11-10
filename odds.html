@@ -94,7 +94,7 @@
   .lock{font-size:14px;color:var(--muted);padding:6px 0}
   .lock:hover{color:var(--text)}
   .navr{display:flex;gap:18px;align-items:center}
-  .viewtabs{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;margin-top:20px}
+  .viewtabs{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px;margin-top:20px}
   .viewtabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:10px 6px;border-radius:14px;
     border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:800;font-size:13px;line-height:1.1;text-align:center;transition:border-color .15s,background .15s,color .15s}
   .viewtabs button i{font-style:normal;font-size:19px;line-height:1;height:22px;display:flex;align-items:center}
@@ -104,7 +104,7 @@
   .viewtabs button:hover{color:var(--text);border-color:#26332f}
   .viewtabs button.on{color:var(--text);border-color:var(--mint);background:linear-gradient(160deg,#0f2a1e,var(--panel2) 70%);box-shadow:0 0 0 1px rgba(98,240,168,.15) inset}
   .viewtabs button.on span{color:var(--mint2)}
-  @media(max-width:900px){.viewtabs{grid-template-columns:repeat(3,minmax(0,1fr))}.viewtabs button{min-height:60px;font-size:13.5px;white-space:nowrap}}
+  @media(max-width:900px){.viewtabs{grid-template-columns:repeat(3,minmax(0,1fr))}.viewtabs button{min-height:60px;font-size:13.5px;white-space:nowrap}.viewtabs button.wide{grid-column:1/-1;flex-direction:row;min-height:48px;gap:8px}}
   @media(max-width:360px){.viewtabs{gap:6px}.viewtabs button{font-size:12px;padding:9px 4px}}
   .seg{overflow-x:auto;max-width:100%;scrollbar-width:none}
   .seg::-webkit-scrollbar{display:none}
@@ -156,6 +156,21 @@
     .controls{position:static;background:none}
     .ev table:not(.bb) th:nth-child(4),.ev table:not(.bb) td.mv{display:none}
   }
+  .chk{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+  .chk h3{font-size:20px;font-weight:800}
+  .chk label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  .chk input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--text);font:inherit;font-size:16px}
+  .chk input:focus{outline:none;border-color:var(--mint-dim)}
+  .chk-res{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}
+  .chk-res button{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+  .chk-res button.on{border-color:var(--mint)}
+  .chk-res .bk{display:block;font-size:12px}
+  .chk-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .verdict{border-radius:12px;padding:16px;border:1px solid var(--line);background:var(--panel2)}
+  .verdict b.big{display:block;font-size:30px;font-weight:900;line-height:1.1}
+  .verdict.good{border-color:var(--mint)} .verdict.good b.big{color:var(--mint)}
+  .verdict.bad{border-color:#5a2a2a} .verdict.bad b.big{color:var(--red)}
+  .verdict p{color:var(--muted);font-size:14px;margin-top:6px}
   [hidden]{display:none!important}
 </style>
 <link rel="stylesheet" href="plain.css?v=5">
@@ -187,6 +202,7 @@
     <h1>Odds <span class="g">tracker</span></h1>
     <div class="status" id="status"></div>
     <div class="viewtabs" id="views">
+      <button data-v="chk" class="wide"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/><path d="M8.5 11l1.8 1.8 3.4-3.6"/></svg></i><span>Check a price</span></button>
       <button data-v="ev"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg></i><span>Top EV</span></button>
       <button data-v="arb"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/></svg></i><span>Arbs</span></button>
       <button data-v="pp"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".9" fill="currentColor"/></svg></i><span>Prop picks</span></button>
@@ -262,7 +278,7 @@ async function unlock(pw,quiet){
   let bundle;
   try{ bundle=await fetchBundle(); }catch(e){ if(!quiet) $('gateErr').textContent='No odds data published yet.'; return false; }
   if(!bundle.v){ if(!quiet) $('gateErr').textContent='Odds are paused: the page password hasn\'t been set up in GitHub yet.'; return false; }
-  try{ DATA=await decrypt(bundle,pw); }catch(e){ if(!quiet) $('gateErr').textContent='Wrong password.'; return false; }
+  try{ DATA=await decrypt(bundle,pw); CHK_IDX=null; }catch(e){ if(!quiet) $('gateErr').textContent='Wrong password.'; return false; }
   $('gate').hidden=true; $('app').hidden=false; $('lockBtn').hidden=false;
   render(); return true;
 }
@@ -361,6 +377,8 @@ function render(){
   $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
   if(isA){ renderArbs(); return; }
   if(isB){ renderBonus(); return; }
+  if($('q').hidden&&view!=='chk') $('q').hidden=false;
+  if(view==='chk'){ ['markets','moversBox','gapBox','maxBox','evtBox','mvBox','bookBox','stakeBox','bpropsBox','shareBar'].forEach(id=>{const el=$(id); if(el) el.hidden=true;}); renderCheck(); return; }
   if(view==='mv'){ $('markets').hidden=true; $('moversBox').hidden=true; $('gapBox').hidden=true; $('maxBox').hidden=true; renderMovers(); return; }
   const isE=view==='ev', isK=view.startsWith('bk:'), isP=view==='pp'||isK;
   $('markets').hidden=isE||isP; $('moversBox').hidden=isE||isP; $('gapBox').hidden=!isP; $('maxBox').hidden=!isP;
@@ -735,6 +753,55 @@ function renderMovers(){
 }
 $('evtSel').onchange=e=>{evType=e.target.value;store.set('evType',evType);render();};
 $('mvSel').onchange=e=>{mvMode=e.target.value;store.set('mvMode',mvMode);render();};
+
+/* ---------- check a price: type a bet you've found (e.g. on bet365) and see the edge vs fair ---------- */
+let CHK={q:'',sel:null,price:''}, CHK_IDX=null;
+function chkIndex(){
+  const O=DATA.odds,P=DATA.props||{events:[]},now=new Date(),out=[];
+  O.events.concat(P.events).forEach(e=>{
+    if(new Date(e.commence_time)<=now) return;
+    const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
+    mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
+      t.rows.forEach(r=>{ if(!r.fair) return;
+        const lbl=MKT_LABEL[mk]||PROP_LABEL[mk]||mk;
+        const name=r.s.desc?`${r.s.desc} ${r.s.name} ${r.point}`:`${r.s.name}${r.point!=null?' '+fmtPt(mk,r.point):''}`;
+        out.push({id:e.id+'|'+mk+'|'+r.s.key, name, lbl, e, r, text:(name+' '+lbl+' '+e.home_team+' '+e.away_team).toLowerCase()});
+      });});
+  });
+  return out;
+}
+function renderCheck(){
+  $('sports').innerHTML=''; $('q').parentElement&&($('q').hidden=true);
+  $('legend').textContent='Found a price at bet365 (or anywhere)? Search the bet, type the price you’re being offered, and see the edge vs the fair price (Pinnacle where available, otherwise the Aussie market). Fair is for the main line only, so make sure the line matches.';
+  if(!CHK_IDX) CHK_IDX=chkIndex();
+  $('list').innerHTML=`<div class="chk">
+    <h3>Check a price</h3>
+    <div><label>1. Find the bet (player or team)</label><input id="chkQ" type="search" placeholder="e.g. Gafford, Jokic rebounds, Lakers" autocomplete="off" value="${esc(CHK.q)}"></div>
+    <div class="chk-res" id="chkRes"></div>
+    <div class="chk-row"><div><label>2. Price you're offered</label><input id="chkP" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="e.g. 1.74" value="${esc(CHK.price)}"></div>
+      <div><label>Stake (optional)</label><input id="chkS" type="number" inputmode="decimal" placeholder="$" value=""></div></div>
+    <div id="chkOut"></div></div>`;
+  const draw=()=>{
+    const q=CHK.q.trim().toLowerCase();
+    const terms=q.split(/\s+/).filter(Boolean);
+    const hits=terms.length?CHK_IDX.filter(x=>terms.every(t=>x.text.includes(t))).slice(0,12):[];
+    $('chkRes').innerHTML=hits.map(x=>`<button data-id="${esc(x.id)}" class="${CHK.sel===x.id?'on':''}">${esc(x.name)} <span class="pt">${esc(x.lbl)}</span><span class="bk">${esc(x.e.home_team)} v ${esc(x.e.away_team)} · ${when(x.e.commence_time)} · fair ${x.r.fair.toFixed(2)}${x.r.fairSrc==='pin'?' (PIN)':''} · best ${isFinite(x.r.best)?x.r.best.toFixed(2)+' '+(x.r.bestBook?bkName(x.r.bestBook):''):'–'}</span></button>`).join('')
+      ||(q?'<div class="bk" style="color:var(--muted)">No match. Try just the surname, or the team.</div>':'');
+    $('chkRes').querySelectorAll('button').forEach(b=>b.onclick=()=>{CHK.sel=b.dataset.id;draw();});
+    const x=CHK_IDX.find(y=>y.id===CHK.sel), p=parseFloat($('chkP').value), st=parseFloat($('chkS').value);
+    if(!x){$('chkOut').innerHTML='';return;}
+    if(!(p>1)){$('chkOut').innerHTML=`<div class="verdict"><b class="big">Fair ${x.r.fair.toFixed(2)}</b><p>${esc(x.name)} (${esc(x.lbl)}). Anything above <b>${x.r.fair.toFixed(2)}</b> is +EV. Enter the price you're offered.</p></div>`;return;}
+    const edge=(p/x.r.fair-1)*100, good=edge>0;
+    const ev=st>0?` Expected ${good?'profit':'loss'} on $${st.toFixed(0)}: <b>$${Math.abs(st*edge/100).toFixed(2)}</b>.`:'';
+    const breakeven=(100/p).toFixed(1);
+    $('chkOut').innerHTML=`<div class="verdict ${good?'good':'bad'}"><b class="big">${good?'+':''}${edge.toFixed(1)}% ${good?'value':'no value'}</b>
+      <p>${esc(x.name)} (${esc(x.lbl)}) @ <b>${p.toFixed(2)}</b> vs fair <b>${x.r.fair.toFixed(2)}</b>${x.r.fairSrc==='pin'?' from Pinnacle':' from the Aussie market'}. Needs to land ${breakeven}% to break even; fair chance is ${(100/x.r.fair).toFixed(1)}%.${ev}${edge>0&&edge<2?' Thin edge, small stake.':''}${edge>15?' Big gap: check the line matches and there’s no injury news.':''}</p></div>`;
+  };
+  $('chkQ').oninput=e=>{CHK.q=e.target.value;CHK.sel=null;draw();};
+  $('chkP').oninput=e=>{CHK.price=e.target.value;draw();};
+  $('chkS').oninput=draw;
+  draw();
+}
 function renderArbs(){
   const O=DATA.odds, P=DATA.props||{events:[]};
   const evs=O.events.concat(P.events);
