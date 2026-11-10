@@ -49,3 +49,7 @@ h3,.ev-title,.about-card h3,.contact-card h3,.tool-card h3{font-style:normal!imp
 .tier.vip li::before{color:var(--gold)!important}
 .tier.vip .btn-mint{background:var(--gold)!important;color:#1a1305!important}
 .tier.vip .btn-mint:hover{background:#e6c272!important}
+
+/* richer gold */
+:root{--gold:#f4bd2f;--gold2:#f4bd2f}
+.tier.vip .btn-mint:hover{background:#ffcd4d!important}
