@@ -5,7 +5,8 @@ For each player + stat we look at every over line the Aussie bookies offer (main
 ladders like 25+), keep the lines he's cleared in 80%+ of his last 10 games, and show the one that
 pays the most. Ranked by last-10 hit rate, then last-5, then price.
 "value" = best value picks: where his hit rate beats the chance the price implies by the most
-(prob x price - 1, with prob from his last 10 + season, nudged toward 50% for small samples).
+(prob x price - 1; prob = 40% his last 10 + season hit rate, nudged toward 50% for small samples,
+ 60% the bookies' consensus at that line with the margin taken off).
 """
 from datetime import datetime, timedelta
 
@@ -24,7 +25,9 @@ STAT = {  # game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, t
 SKIP_BOOKS = {"betfair_ex_au", "pinnacle"}
 MIN_GAMES, MIN_HIT, MIN_PRICE, MAX_PRICE = 6, 0.8, 1.30, 4.0
 LIMIT, PER_PLAYER = 30, 2
-VALUE_MIN_HIT, VALUE_MIN, VALUE_LIMIT = 0.6, 8.0, 8   # value picks: 60%+ last 10, 8%+ expected return, one per player
+VALUE_MIN_HIT, VALUE_MIN, VALUE_LIMIT = 0.6, 4.0, 8   # value picks: 60%+ last 10, 4%+ expected return, one per player
+VALUE_BOOKS, VALUE_MAX_PRICE = 3, 3.0   # need 3+ bookies on the line; skip long shots
+HIT_WEIGHT, MARGIN = 0.4, 0.94           # 40% hit rate, 60% bookie consensus; ~6% margin off the median
 
 
 def _book(b):
@@ -41,7 +44,7 @@ def build(prop_events, stats, now, ts):
         if start <= now:
             continue
         # best over price per (market, player, point)
-        best = {}
+        best, allp = {}, {}
         for b in ev.get("bookmakers", []):
             if b["key"] in SKIP_BOOKS:
                 continue
@@ -53,6 +56,7 @@ def build(prop_events, stats, now, ts):
                     if o.get("name") != "Over" or o.get("point") is None or not o.get("description"):
                         continue
                     k = (mk, o["description"], float(o["point"]))
+                    allp.setdefault(k, []).append(o["price"])
                     if k not in best or o["price"] > best[k][0]:
                         best[k] = (o["price"], _book(b), m["key"].endswith("_alternate"))
         h, a = teams.get(ev["home_team"]), teams.get(ev["away_team"])
@@ -76,20 +80,27 @@ def build(prop_events, stats, now, ts):
             vs = [g for g in gs if opp and g[1] == opp]
             # chance he clears it: last 10 counted twice (once on its own, once in the season), pulled
             # a little toward 50% so a perfect small sample doesn't read as a sure thing
-            prob = (h10 + hs + 1) / (len(l10) + len(gs) + 2)
+            p_hit = (h10 + hs + 1) / (len(l10) + len(gs) + 2)
+            # then blended with what the bookies as a group think (median price, margin taken off),
+            # because a hit rate over ~10 games misses a lot (minutes, matchups, injuries)
+            ps = sorted(allp[(mk, desc, pt)])
+            med = ps[len(ps) // 2] if len(ps) % 2 else (ps[len(ps) // 2 - 1] + ps[len(ps) // 2]) / 2
+            p_mkt = min(0.97, MARGIN / med)
+            prob = HIT_WEIGHT * p_hit + (1 - HIT_WEIGHT) * p_mkt
             item = {
                 "player": p.get("n") or desc, "team": p.get("team"), "opp": opp,
                 "game": f"{ev['away_team']} @ {ev['home_team']}", "start": ev["commence_time"],
                 "stat": label, "line": f"{int(pt + 0.5)}+", "point": pt, "price": price, "book": book,
                 "l10": [h10, len(l10)], "l5": [h5, len(l5)], "vs": [hit(vs), len(vs)], "season": [hs, len(gs)],
                 "avg": round(sum(f(g) for g in l10) / len(l10), 1),
-                "prob": round(prob, 3), "value": round((prob * price - 1) * 100, 1),
+                "prob": round(prob, 3), "hit": round(p_hit, 3), "mkt": round(p_mkt, 3), "books": len(ps), "value": round((prob * price - 1) * 100, 1),
                 "games": [[g[0], g[1], g[2], f(g)] for g in l10],
             }
             key = (desc, mk)
             if h10 / len(l10) >= MIN_HIT and (key not in top or price > top[key]["price"]):
                 top[key] = item
-            if item["value"] >= VALUE_MIN and (key not in vtop or item["value"] > vtop[key]["value"]):
+            if (item["value"] >= VALUE_MIN and len(ps) >= VALUE_BOOKS and price <= VALUE_MAX_PRICE
+                    and price <= med * 1.25) and (key not in vtop or item["value"] > vtop[key]["value"]):
                 vtop[key] = item
         cands += top.values()
         vcands += vtop.values()

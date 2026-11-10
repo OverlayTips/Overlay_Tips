@@ -108,7 +108,7 @@
     <div class="hs-meta" id="meta">Loading…</div>
     <div id="valWrap" hidden>
       <h2 class="hs-h">💰 Best value picks</h2>
-      <p class="hs-sub">Where his hit rate beats the chance the bookie's price gives him by the most.</p>
+      <p class="hs-sub">His form plus the bookies' consensus, against the best price. Biggest expected return first.</p>
       <div class="hs-grid" id="vgrid"></div>
       <h2 class="hs-h" style="margin-top:34px">🔥 Hot props</h2>
       <p class="hs-sub">Lines he's cleared in 8+ of his last 10 games.</p>
@@ -118,7 +118,7 @@
       <label class="hs-sort">Sort <select id="sort"><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label>
     </div>
     <div class="hs-grid" id="grid"></div>
-    <p class="hs-note">Hit rate = games he went over the line, out of his last 10 (5, and vs tonight's opponent this season). Value = how much his hit rate (last 10 + season, nudged toward 50% when there aren't many games) beats the chance the price implies, e.g. hits 75% at $1.60 (63%) = +20%. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
+    <p class="hs-note">Hit rate = games he went over the line, out of his last 10 (5, and vs tonight's opponent this season). Value picks blend his form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
   </div>
 </section>
 </main>
@@ -167,7 +167,7 @@ function card(it,val){
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
     <div class="hs-pills">${val?`<span class="hs-pill val">+${it.value.toFixed(0)}% value</span>`:''}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
-    ${val?`<div class="hs-why">Hits about <b>${Math.round(it.prob*100)}%</b> (season ${it.season[0]}/${it.season[1]}) · ${it.price.toFixed(2)} implies <b>${Math.round(100/it.price)}%</b></div>`:''}
+    ${val?`<div class="hs-why">His form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b>. $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)}</div>
   </article>`;
 }
