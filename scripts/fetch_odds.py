@@ -331,7 +331,19 @@ def main():
     except Exception as e:
         print("racing failed:", type(e).__name__, e)
 
+    # ---- NBA player game logs (ESPN, free) for the players with props ----
+    stats = prev.get("stats") or {}
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import player_stats
+        nba, note = player_stats.update(stats.get("nba"), list(props.values()), NOW, TS)
+        stats = {**stats, "nba": nba}
+        print("player stats:", note)
+    except Exception as e:
+        print("player stats failed:", type(e).__name__, e)
+
     bundle = {
+        "stats": stats,
         "racing": racing,
         "odds": {
             "updated": TS,

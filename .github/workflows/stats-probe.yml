@@ -5,34 +5,19 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe ESPN
+      - uses: actions/checkout@v4
+      - name: Test player_stats
         shell: python
         run: |
-          import json, urllib.request
-          def get(u):
-              r = urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=30)
-              return json.load(r)
-          def show(o, d=0, maxd=4):
-              p = "  " * d
-              if isinstance(o, dict):
-                  for k, v in list(o.items())[:25]:
-                      if isinstance(v, (dict, list)):
-                          print(f"{p}{k}: {type(v).__name__}[{len(v)}]"); 
-                          if d < maxd: show(v, d+1, maxd)
-                      else: print(f"{p}{k}: {str(v)[:80]}")
-              elif isinstance(o, list) and o:
-                  show(o[0], d+1, maxd)
-          teams = get("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams")
-          t = teams["sports"][0]["leagues"][0]["teams"][13]["team"]; print("TEAM", t["id"], t["displayName"], t["abbreviation"])
-          ro = get(f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/{t['id']}/roster")
-          print("== roster keys"); show(ro, 0, 2)
-          a = ro["athletes"][0]; print("ATHLETE", a.get("id"), a.get("displayName"), a.get("fullName"))
-          gl = get(f"https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/{a['id']}/gamelog")
-          print("== gamelog"); show(gl, 0, 5)
-          print("LABELS", gl.get("labels"), gl.get("names"))
-          ev = list(gl.get("events", {}).items())[:2]; print("EVENTS", json.dumps(ev)[:1500])
-          print("ST", json.dumps(gl.get("seasonTypes", [])[:1])[:2500])
-          for name in ["https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12/roster",
-                       "https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/3139477/gamelog"]:
-              try: d = get(name); print("OK", name, list(d)[:12])
-              except Exception as e: print("FAIL", name, e)
+          import sys, json; sys.path.insert(0, "scripts")
+          from datetime import datetime, timezone
+          import player_stats as ps
+          now = datetime.now(timezone.utc); ts = now.replace(microsecond=0).isoformat().replace("+00:00","Z")
+          names = ["Luka Doncic","LeBron James","Austin Reaves","Trae Young","Jalen Johnson","Kristaps Porzingis","Nobody Fake"]
+          ev = {"sport_key":"basketball_nba","home_team":"Atlanta Hawks","away_team":"Los Angeles Lakers",
+                "bookmakers":[{"key":"x","markets":[{"key":"player_points","outcomes":[{"name":"Over","description":n,"point":20.5,"price":1.9} for n in names]}]}]}
+          out, note = ps.update(None, [ev], now, ts)
+          print("NOTE", note)
+          for k, v in out["players"].items():
+              print(k, "->", v["n"], v["team"], len(v["g"]), "games; latest", v["g"][:3])
+          print("BYTES", len(json.dumps(out)))
