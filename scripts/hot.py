@@ -5,8 +5,8 @@ For each player + stat we look at every over line the Aussie bookies offer (main
 ladders like 25+), keep the lines he's cleared in 80%+ of his last 10 games, and show the one that
 pays the most. Ranked by last-10 hit rate, then last-5, then price.
 "value" = best value picks: where his hit rate beats the chance the price implies by the most
-(prob x price - 1; prob = 40% his last 10 + season hit rate, nudged toward 50% for small samples,
- 60% the bookies' consensus at that line with the margin taken off).
+(prob x price - 1; prob = 30% his last 10 + season hit rate, nudged toward 50% for small samples,
+ 70% the bookies' consensus at that line with the margin taken off).
 """
 from datetime import datetime, timedelta
 
@@ -25,9 +25,9 @@ STAT = {  # game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, t
 SKIP_BOOKS = {"betfair_ex_au", "pinnacle"}
 MIN_GAMES, MIN_HIT, MIN_PRICE, MAX_PRICE = 6, 0.8, 1.30, 4.0
 LIMIT, PER_PLAYER = 30, 2
-VALUE_MIN_HIT, VALUE_MIN, VALUE_LIMIT = 0.6, 4.0, 8   # value picks: 60%+ last 10, 4%+ expected return, one per player
+VALUE_MIN_HIT, VALUE_MIN, VALUE_LIMIT = 0.7, 4.0, 8   # value picks: 70%+ last 10, 4%+ expected return, one per player
 VALUE_BOOKS, VALUE_MAX_PRICE = 3, 3.0   # need 3+ bookies on the line; skip long shots
-HIT_WEIGHT, MARGIN = 0.4, 0.94           # 40% hit rate, 60% bookie consensus; ~6% margin off the median
+HIT_WEIGHT, MARGIN = 0.3, 0.94           # 30% hit rate, 70% bookie consensus; ~6% margin off the median
 
 
 def _book(b):
