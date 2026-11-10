@@ -77,8 +77,10 @@
   td.bestcol{font-weight:900}
   td.mv{font-size:13px}
   .up{color:var(--mint)} .down{color:var(--red)} .flat{color:var(--muted)}
-  .gbtn{background:none;border:1px solid var(--line);color:var(--mint);border-radius:8px;width:26px;height:22px;margin-left:6px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;justify-content:center}
-  .gbtn svg{width:14px;height:14px}
+  .gbtn{background:var(--panel2);border:1px solid var(--mint-dim);color:var(--mint);border-radius:999px;padding:2px 9px;margin-left:8px;cursor:pointer;vertical-align:middle;font:600 11px Archivo,system-ui,sans-serif;white-space:nowrap}
+  .gbtn:hover{border-color:var(--mint)}
+  .gbox{max-height:calc(100vh - 32px);overflow-y:auto}
+  .gbox h4{font-size:14px;margin:16px 0 4px;color:var(--text)} .gbox h4 small{color:var(--muted);font-weight:400}
   .gmodal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
   .gmodal[hidden]{display:none}
   .gbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:100%;max-width:640px;padding:18px 18px 14px}
@@ -454,7 +456,7 @@ function render(){
     const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed">Fair</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
     let prev=null;
     const trs=t.rows.map(r=>{
-      const gb=(r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" title="Probability graph" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 16l4-5 4 3 6-8"/></svg></button>`:'';
+      const gb=(r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}">View graph</button>`:'';
       const nm=r.s.desc?`${esc(r.s.desc)}${gb} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
                        :esc(r.s.name)+(r.point!=null?` <span class="pt">${fmtPt(market,r.point)}</span>`:'');
       const grp=r.s.desc&&prev!==null&&prev!==r.s.desc; prev=r.s.desc;
@@ -513,9 +515,34 @@ function showGraph(evId,mk,player){
   }
   const leg=sers.map((s,i)=>{const r=rows.find(r=>r.s.name===s.name), last=s.pts[s.pts.length-1];
     return `<span><i style="background:${COL[i%COL.length]}"></i>${esc(s.name)}${last&&last[3]!=null?' '+last[3]:''}: <b>${last?(100/last[1]).toFixed(1)+'%':'–'}</b> now${s.pts.length>1?` (opened ${(100/s.pts[0][1]).toFixed(1)}%)`:''}${r&&r.fair?` · fair ${(100/r.fair).toFixed(1)}%`:''}</span>`;}).join('');
+  // ---- graph 2: every bookie's price right now ----
+  let body2='';
+  if(t&&rows.length){
+    const bks=t.books.map((b,i)=>({b,c:rows.map(r=>r.cells[i])})).filter(x=>x.c.some(Boolean));
+    const ps=bks.flatMap(x=>x.c.filter(Boolean).map(c=>c.price)).concat(rows.filter(r=>r.fair).map(r=>r.fair));
+    let p0=Math.min(...ps), p1=Math.max(...ps); const pd=Math.max(0.05,(p1-p0)*0.12); p0=Math.max(1,Math.floor((p0-pd)*20)/20); p1=Math.ceil((p1+pd)*20)/20;
+    const W2=600,L2=96,R2=46,T2=22,RH=36,H2=T2+bks.length*RH+26;
+    const X=p=>L2+(p-p0)/(p1-p0)*(W2-L2-R2);
+    let g='';
+    const st=(p1-p0)>1.5?0.5:(p1-p0)>0.6?0.2:0.1;
+    for(let v=Math.ceil(p0/st)*st;v<=p1+1e-9;v+=st) g+=`<line x1="${X(v)}" x2="${X(v)}" y1="${T2-6}" y2="${H2-22}" stroke="#1b2523"/><text x="${X(v)}" y="${H2-6}" fill="#87978f" font-size="11" text-anchor="middle">$${v.toFixed(2)}</text>`;
+    rows.forEach((r,k)=>{ if(r.fair) g+=`<line x1="${X(r.fair)}" x2="${X(r.fair)}" y1="${T2-10}" y2="${H2-22}" stroke="${COL[k%COL.length]}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".8"><title>${esc(r.s.name)} fair $${r.fair.toFixed(2)}</title></line>`; });
+    bks.forEach((x,i)=>{
+      const y=T2+i*RH+RH/2;
+      g+=`<text x="${L2-10}" y="${y+4}" fill="#ecf5f1" font-size="12" text-anchor="end">${esc(bkName(x.b))}</text><line x1="${L2}" x2="${W2-R2}" y1="${y}" y2="${y}" stroke="#1b2523" stroke-width="2"/>`;
+      x.c.forEach((c,k)=>{ if(!c) return; const col=COL[k%COL.length], cx=X(c.price), best=c.ok&&c.price===rows[k].best;
+        const lbl=`${c.price.toFixed(2)}${c.ok?'':' ('+c.point+')'}`;
+        g+=`<circle cx="${cx}" cy="${y}" r="${best?6.5:5}" fill="${c.ok?col:'none'}" stroke="${col}" stroke-width="2"><title>${esc(bkName(x.b))} ${esc(rows[k].s.name)} ${c.point??''} @ $${c.price.toFixed(2)}${best?' (best)':''}</title></circle>`+
+             `<text x="${cx}" y="${k%2?y+19:y-9}" fill="${col}" font-size="10.5" font-weight="${best?700:400}" text-anchor="middle">${lbl}</text>`;});
+    });
+    body2=`<h4>Bookie prices <small>· right now at the main line${rows[0]&&rows[0].point!=null?' ('+rows[0].point+')':''}</small></h4>
+      <svg class="gchart" viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Price at each bookie">${g}</svg>
+      <div class="gleg">${rows.map((r,k)=>`<span><i style="background:${COL[k%COL.length]}"></i>${esc(r.s.name)} best <b>$${isFinite(r.best)?r.best.toFixed(2):'–'}</b>${r.bestBook?' '+esc(bkName(r.bestBook)):''}</span>`).join('')}<span>big dot = best · hollow = different line · dashed = fair</span></div>`;
+  }
   $('gmodal').innerHTML=`<div class="gbox" role="dialog" aria-modal="true"><button class="gclose" type="button" aria-label="Close">×</button>
-    <h3>${esc(player)}</h3><div class="gsub">${esc(PROP_LABEL[mk]||mk)} · ${esc(ev.home_team)} v ${esc(ev.away_team)} · implied probability from the best price</div>
-    ${body}<div class="gleg">${leg}${rows.some(r=>r.fair)?'<span>dashed = fair</span>':''}</div></div>`;
+    <h3>${esc(player)}</h3><div class="gsub">${esc(PROP_LABEL[mk]||mk)} · ${esc(ev.home_team)} v ${esc(ev.away_team)}</div>
+    <h4>Probability <small>· implied from the best price over time</small></h4>
+    ${body}<div class="gleg">${leg}${rows.some(r=>r.fair)?'<span>dashed = fair</span>':''}</div>${body2}</div>`;
   $('gmodal').hidden=false;
   $('gmodal').querySelector('.gclose').onclick=()=>$('gmodal').hidden=true;
 }
