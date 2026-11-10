@@ -234,7 +234,7 @@
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
       <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
       <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2">$2.00</option><option value="2.5" selected>$2.50</option><option value="3">$3.00</option></select></label>
-      <label class="toggle" id="bpropsBox" hidden><input type="checkbox" id="bprops"> Include player props</label>
+      <label class="stakebox" id="bpropsBox" hidden>Betfair comm %<input id="bcomm" type="number" inputmode="decimal" min="0" max="50" step="any" value="8"></label>
     </div>
   </div>
   <div class="legend" id="legend"></div>
@@ -548,72 +548,65 @@ function topEV(evs,q,o={}){
     <div class="tbl-wrap"><table class="bb"><tr><th>Edge</th><th>Bet</th><th>Best price</th><th>Fair</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 
-/* ---------- bonus bet conversions (stake not returned) ---------- */
-let bbook=store.get('bbook','all'), bprops=store.get('bprops',false);
-function conversions(evs){
+/* ---------- bonus bet conversions (stake not returned): bonus at a bookie, lay on Betfair ---------- */
+let bbook=store.get('bbook','all'), bcomm=store.get('bcomm',8);
+function conversions(evs,c){
   const now=new Date(), out=[];
   evs.forEach(ev=>{
     if(new Date(ev.commence_time)<=now) return;
-    const byMkt={};
-    ev.bookmakers.forEach(b=>b.markets.forEach(m=>{
-      if(m.key.endsWith('_lay')) return;
-      m.outcomes.forEach(o=>(byMkt[m.key]=byMkt[m.key]||[]).push({book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price}));
-    }));
-    Object.entries(byMkt).forEach(([mk,outs])=>{
-      const best={};
-      outs.forEach(c=>{
-        if(c.book.key==='betfair_ex_au'||c.price<1.5) return;
-        const names=[...new Set(outs.filter(o=>o.desc===c.desc).map(o=>o.name))].filter(n=>n!==c.name);
-        if(!names.length) return;
-        const legs=[];
-        for(const n of names){
-          const ok=outs.filter(o=>o.desc===c.desc&&o.name===n&&o.book.key!==c.book.key&&o.book.key!=='betfair_ex_au'&&
-            (c.point==null||(mk==='spreads'?o.point===-c.point:o.point===c.point)));
-          if(!ok.length) return;
-          legs.push(ok.reduce((a,b)=>b.price>a.price?b:a));
-        }
-        const conv=(c.price-1)*(1-legs.reduce((t,l)=>t+1/l.price,0));
-        const k=c.book.key+'|'+c.desc;
-        if(!best[k]||conv>best[k].conv) best[k]={ev,mk,c,legs,conv};
+    const bf=ev.bookmakers.find(b=>b.key==='betfair_ex_au'); if(!bf) return;
+    const lays={};
+    bf.markets.forEach(m=>{ if(m.key.endsWith('_lay')) lays[m.key.slice(0,-4)]=m.outcomes; });
+    const best={};
+    ev.bookmakers.forEach(b=>{ if(b.key==='betfair_ex_au') return;
+      b.markets.forEach(m=>{ const lo=lays[m.key]; if(!lo) return;
+        m.outcomes.forEach(o=>{
+          if(o.price<1.5) return;
+          const l=lo.find(x=>x.name===o.name&&(x.description||'')===(o.description||'')&&(o.point==null||x.point===o.point));
+          if(!l||!(l.price>1)) return;
+          const conv=(o.price-1)*(1-c)/(l.price-c);
+          const k=b.key+'|'+m.key;
+          const row={ev,mk:m.key,c:{book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price},lay:{name:l.name,desc:l.description||'',point:l.point,price:l.price},conv};
+          if(!best[k]||conv>best[k].conv) best[k]=row;
+        });
       });
-      Object.values(best).forEach(x=>out.push(x));
     });
+    Object.values(best).forEach(x=>out.push(x));
   });
   return out.sort((a,b)=>b.conv-a.conv);
 }
 function renderBonus(){
-  const O=DATA.odds, P=DATA.props||{events:[]};
+  const O=DATA.odds;
   const S=Math.max(1,parseFloat($('bstake').value)||50);
-  $('bprops').checked=bprops;
-  const evs=O.events.concat(bprops?P.events:[]);
-  const all=conversions(evs);
+  $('bcomm').value=bcomm; const c=Math.min(Math.max(bcomm,0),50)/100;
+  const all=conversions(O.events,c);
   const books={}; all.forEach(x=>books[x.c.book.key]=x.c.book);
   if(bbook!=='all'&&!books[bbook]) bbook='all';
   $('sports').innerHTML=[['all','All bookies'],...Object.values(books).sort((a,b)=>bkName(a).localeCompare(bkName(b))).map(b=>[b.key,bkName(b)])]
     .map(([k,l])=>`<button class="chip ${k===bbook?'on':''}" data-s="${esc(k)}">${esc(l)}</button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{bbook=b.dataset.s;store.set('bbook',bbook);render();});
-  $('q').placeholder='Search team or player';
-  $('legend').textContent='Pick the bookie your bonus bet is with. Bet the bonus on the first leg, hedge with cash on the other side at a different bookie. % = how much of the bonus you keep as cash, whatever happens. Odds are from the last update, so check them before you bet. Betfair is left out (commission).';
+  $('q').placeholder='Search team';
+  $('legend').textContent=`Pick the bookie your bonus bet is with. Bet the bonus at the bookie, then lay the same selection on Betfair. % = how much of the bonus you keep as cash, whatever happens, after ${bcomm}% Betfair commission. Lay prices are from the last update, so check the price and the money available on Betfair before you bet.`;
   const q=$('q').value.trim().toLowerCase();
   let rows=all.filter(x=>(bbook==='all'||x.c.book.key===bbook)&&
     (!q||(x.ev.home_team+' '+x.ev.away_team+' '+x.c.desc).toLowerCase().includes(q)));
   rows=rows.slice(0,40);
-  if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No conversions found for this bookie right now.</div>';return;}
+  if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No Betfair lay conversions found for this bookie right now.</div>';return;}
   const pt=(mk,p)=>p==null?'':' '+fmtPt(mk,p);
   const lbl=(mk)=>mk==='h2h'?'H2H':mk==='spreads'?'Line':mk==='totals'?'Total':(PROP_LABEL[mk]||mk);
   const sel=(x,o)=>`${o.desc?esc(o.desc)+' ':''}${esc(o.name)}${pt(x.mk,o.point)}`;
   const trs=rows.map(x=>{
-    const A=x.c.price, hedge=x.legs.map(l=>`<span class="leg"><b>$${(S*(A-1)/l.price).toFixed(2)}</b> on ${sel(x,l)} @ <b>${l.price.toFixed(2)}</b> <span class="bk">${esc(bkName(l.book))}</span></span>`).join('');
-    const calc=x.legs.length===1?`<a class="calc" href="calculator.html?mode=bb&stake=${S}&o1=${A}&o2=${x.legs[0].price}">Calculator →</a>`:'';
+    const A=x.c.price, LO=x.lay.price, L=S*(A-1)/(LO-c);
+    const calc=`<a class="calc" href="calculator.html?mode=lay&stake=${S}&o1=${A}&o2=${LO}&comm=${bcomm}">Calculator →</a>`;
     return `<tr><td class="conv">${(x.conv*100).toFixed(1)}%<small>$${(S*x.conv).toFixed(2)} cash</small></td>
       <td><span class="leg"><b>$${S.toFixed(0)} bonus</b> on ${sel(x,x.c)} @ <b>${A.toFixed(2)}</b> <span class="bk">${esc(bkName(x.c.book))}</span></span></td>
-      <td>${hedge}</td>
+      <td><span class="leg">Lay <b>$${L.toFixed(2)}</b> on ${sel(x,x.lay)} @ <b>${LO.toFixed(2)}</b> <span class="bk">Betfair · liability $${(L*(LO-1)).toFixed(2)}</span></span></td>
       <td><span class="leg">${esc(x.ev.home_team)} v ${esc(x.ev.away_team)}</span><span class="bk">${esc(x.ev.sport_title)} · ${lbl(x.mk)} · ${when(x.ev.commence_time)}</span></td>
       <td>${calc}</td></tr>`;}).join('');
-  $('list').innerHTML=`<div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Hedge (cash)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
+  $('list').innerHTML=`<div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Lay (Betfair)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
 }
 $('bstake').oninput=()=>{if(!DATA)return; if(view==='bonus')renderBonus(); else if(view==='arb')renderArbs();};
-$('bprops').onchange=e=>{bprops=e.target.checked;store.set('bprops',bprops);render();};
+$('bcomm').oninput=()=>{const v=parseFloat($('bcomm').value); if(!(v>=0))return; bcomm=v; store.set('bcomm',bcomm); if(DATA&&view==='bonus')renderBonus();};
 
 /* ---------- arbitrage: best prices across bookies that add up to under 100% ---------- */
 function findArbs(evs){
