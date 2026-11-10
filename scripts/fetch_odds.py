@@ -276,7 +276,19 @@ def main():
     cutoff = NOW - KEEP_AFTER_START
     hist = {i: e for i, e in hist.items() if parse(e["commence_time"]) > cutoff}
 
+    # ---- horse racing (Betfair Exchange, separate login; never fails the odds update) ----
+    racing = prev.get("racing")
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import fetch_racing
+        if fetch_racing.enabled():
+            racing = fetch_racing.get_racing(prev.get("racing"), TS)
+            print(f"racing: {len(racing['races'])} races; errors: {racing['errors'][:3]}")
+    except Exception as e:
+        print("racing failed:", type(e).__name__, e)
+
     bundle = {
+        "racing": racing,
         "odds": {
             "updated": TS,
             "credits_remaining": api.remaining,
