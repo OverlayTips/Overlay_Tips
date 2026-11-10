@@ -77,6 +77,16 @@
   td.bestcol{font-weight:900}
   td.mv{font-size:13px}
   .up{color:var(--mint)} .down{color:var(--red)} .flat{color:var(--muted)}
+  .gbtn{background:none;border:1px solid var(--line);color:var(--mint);border-radius:8px;width:26px;height:22px;margin-left:6px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;justify-content:center}
+  .gbtn svg{width:14px;height:14px}
+  .gmodal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+  .gmodal[hidden]{display:none}
+  .gbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:100%;max-width:640px;padding:18px 18px 14px}
+  .gbox h3{font-size:17px;margin-bottom:2px} .gbox .gsub{color:var(--muted);font-size:13px;margin-bottom:10px}
+  .gbox svg.gchart{width:100%;height:auto;display:block}
+  .gleg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin-top:8px}
+  .gleg b{color:var(--text)} .gleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .gclose{float:right;background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
   .empty{background:var(--panel);border:1px dashed var(--line);border-radius:16px;padding:28px;color:var(--muted)}
   .empty h3{color:var(--text);font-style:italic;font-weight:900;font-size:20px;margin-bottom:8px}
   .empty ol{margin:10px 0 0 20px;display:flex;flex-direction:column;gap:6px}
@@ -444,7 +454,8 @@ function render(){
     const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed">Fair</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
     let prev=null;
     const trs=t.rows.map(r=>{
-      const nm=r.s.desc?`${esc(r.s.desc)} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
+      const gb=(r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" title="Probability graph" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 16l4-5 4 3 6-8"/></svg></button>`:'';
+      const nm=r.s.desc?`${esc(r.s.desc)}${gb} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
                        :esc(r.s.name)+(r.point!=null?` <span class="pt">${fmtPt(market,r.point)}</span>`:'');
       const grp=r.s.desc&&prev!==null&&prev!==r.s.desc; prev=r.s.desc;
       let mv='<span class="flat">–</span>';
@@ -460,6 +471,59 @@ function render(){
   }).join('');
   if(top) $('list').insertAdjacentHTML('afterbegin',top);
 }
+
+/* ---------- per-player probability graph (implied % from the best price, main line) ---------- */
+function showGraph(evId,mk,player){
+  const P=DATA.props||{events:[]}, ev=P.events.concat(DATA.odds.events).find(e=>e.id===evId); if(!ev) return;
+  const H=DATA.history?.events?.[evId]?.series||{};
+  const pre=mk+'|'+player+'|';
+  let sers=Object.entries(H).filter(([k])=>k.startsWith(pre)&&k.endsWith('|main')).map(([k,v])=>({name:k.slice(pre.length,-5),pts:v}));
+  sers.sort((a,b)=>a.name==='Over'?-1:b.name==='Over'?1:a.name.localeCompare(b.name));
+  const t=eventRows(ev,mk), rows=t?t.rows.filter(r=>r.s.desc===player):[];
+  const COL=['#62f0a8','#ff6b6b','#efd38f','#87b7ff'];
+  const end=Math.min(Date.now(),new Date(ev.commence_time).getTime());
+  const W=600,Hh=260,L=42,R=14,T=14,B=30;
+  let body;
+  if(!sers.length||sers.every(s=>!s.pts.length)){
+    body='<div class="empty" style="padding:30px 10px"><h3>No price history yet</h3>The graph builds up as the odds update (3× a day).</div>';
+  }else{
+    const all=sers.flatMap(s=>s.pts.map(p=>[Date.parse(p[0]),100/p[1]]));
+    rows.forEach(r=>{ if(r.fair) all.push([end,100/r.fair]); if(isFinite(r.best)) all.push([end,100/r.best]); });
+    let x0=Math.min(...all.map(a=>a[0])), x1=Math.max(end,...all.map(a=>a[0])); if(x1-x0<3600e3) x0=x1-3600e3;
+    let y0=Math.min(...all.map(a=>a[1])), y1=Math.max(...all.map(a=>a[1])); const pad=Math.max(3,(y1-y0)*0.15); y0=Math.max(0,Math.floor((y0-pad)/5)*5); y1=Math.min(100,Math.ceil((y1+pad)/5)*5);
+    const X=t=>L+(t-x0)/(x1-x0)*(W-L-R), Y=v=>T+(1-(v-y0)/(y1-y0))*(Hh-T-B);
+    let g='';
+    const step=Math.max(5,Math.ceil((y1-y0)/5/5)*5);
+    for(let v=y0;v<=y1;v+=step) g+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1b2523"/><text x="${L-6}" y="${Y(v)+4}" fill="#87978f" font-size="11" text-anchor="end">${v}%</text>`;
+    const fmtT=ms=>new Date(ms).toLocaleString('en-AU',{weekday:'short',hour:'numeric'});
+    [x0,(x0+x1)/2,x1].forEach((tt,i)=>g+=`<text x="${X(tt)}" y="${Hh-8}" fill="#87978f" font-size="11" text-anchor="${['start','middle','end'][i]}">${fmtT(tt)}</text>`);
+    sers.forEach((s,i)=>{
+      const c=COL[i%COL.length]; let d='',lastPt=null,lab='';
+      s.pts.forEach((p,j)=>{const x=X(Date.parse(p[0])), y=Y(100/p[1]);
+        d+=j?`H${x.toFixed(1)}V${y.toFixed(1)}`:`M${x.toFixed(1)} ${y.toFixed(1)}`;
+        lab+=`<circle cx="${x}" cy="${y}" r="3" fill="${c}"><title>${esc(s.name)} ${p[3]??''} @ ${p[1].toFixed(2)} (${(100/p[1]).toFixed(1)}%) ${esc(SHORT[p[2]]||p[2])} · ${new Date(p[0]).toLocaleString('en-AU')}</title></circle>`;
+        if(p[3]!=null&&p[3]!==lastPt) lab+=`<text x="${x+4}" y="${y-6}" fill="${c}" font-size="10">${p[3]}</text>`; lastPt=p[3];});
+      const lastY=Y(100/s.pts[s.pts.length-1][1]); d+=`H${X(x1).toFixed(1)}`;
+      g+=`<path d="${d}" fill="none" stroke="${c}" stroke-width="2.2"/>${lab}`;
+      const r=rows.find(r=>r.s.name===s.name);
+      if(r&&r.fair) g+=`<line x1="${X(x1)-26}" x2="${X(x1)}" y1="${Y(100/r.fair)}" y2="${Y(100/r.fair)}" stroke="${c}" stroke-width="2" stroke-dasharray="3 3"><title>Fair ${(100/r.fair).toFixed(1)}%</title></line>`;
+      void lastY;
+    });
+    body=`<svg class="gchart" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Implied probability over time">${g}</svg>`;
+  }
+  const leg=sers.map((s,i)=>{const r=rows.find(r=>r.s.name===s.name), last=s.pts[s.pts.length-1];
+    return `<span><i style="background:${COL[i%COL.length]}"></i>${esc(s.name)}${last&&last[3]!=null?' '+last[3]:''}: <b>${last?(100/last[1]).toFixed(1)+'%':'–'}</b> now${s.pts.length>1?` (opened ${(100/s.pts[0][1]).toFixed(1)}%)`:''}${r&&r.fair?` · fair ${(100/r.fair).toFixed(1)}%`:''}</span>`;}).join('');
+  $('gmodal').innerHTML=`<div class="gbox" role="dialog" aria-modal="true"><button class="gclose" type="button" aria-label="Close">×</button>
+    <h3>${esc(player)}</h3><div class="gsub">${esc(PROP_LABEL[mk]||mk)} · ${esc(ev.home_team)} v ${esc(ev.away_team)} · implied probability from the best price</div>
+    ${body}<div class="gleg">${leg}${rows.some(r=>r.fair)?'<span>dashed = fair</span>':''}</div></div>`;
+  $('gmodal').hidden=false;
+  $('gmodal').querySelector('.gclose').onclick=()=>$('gmodal').hidden=true;
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.gbtn'); if(b){e.preventDefault(); showGraph(b.dataset.ev,b.dataset.mk,b.dataset.p); return;}
+  if(e.target.id==='gmodal') $('gmodal').hidden=true;
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('gmodal')) $('gmodal').hidden=true;});
 
 const MKT_LABEL={h2h:'H2H',spreads:'Line',totals:'Total'};
 function renderEV(){
@@ -875,5 +939,6 @@ $('views').querySelectorAll('button').forEach(b=>b.onclick=()=>{view=b.dataset.v
 $('movers').onchange=e=>{movers=e.target.checked;store.set('movers',movers);render();};
 $('q').oninput=render;
 </script>
+<div class="gmodal" id="gmodal" hidden></div>
 </body>
 </html>
