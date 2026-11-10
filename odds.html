@@ -246,7 +246,7 @@
       <label class="stakebox" id="mvBox" hidden>Show<select id="mvSel"><option value="all">Steamers + drifters</option><option value="steam">Steamers (shortening)</option><option value="drift">Drifters (lengthening)</option></select></label>
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
       <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
-      <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2">$2.00</option><option value="2.5" selected>$2.50</option><option value="3">$3.00</option></select></label>
+      <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2" selected>$2.00</option><option value="2.5">$2.50</option><option value="3">$3.00</option></select></label>
       <label class="stakebox" id="bpropsBox" hidden>Betfair comm %<input id="bcomm" type="number" inputmode="decimal" min="0" max="50" step="any" value="8"></label>
     </div>
   </div>
@@ -492,7 +492,7 @@ function render(){
   if(view==='chk'){ ['markets','moversBox','gapBox','maxBox','evtBox','mvBox','bookBox','stakeBox','bpropsBox','shareBar'].forEach(id=>{const el=$(id); if(el) el.hidden=true;}); renderCheck(); return; }
   if(view==='mv'){ $('markets').hidden=true; $('moversBox').hidden=true; $('gapBox').hidden=true; $('maxBox').hidden=true; renderMovers(); return; }
   const isE=view==='ev', isK=view.startsWith('bk:'), isP=view==='pp'||isK;
-  $('markets').hidden=isE||isP; $('moversBox').hidden=isE||isP; $('gapBox').hidden=!isP; $('maxBox').hidden=!isP;
+  $('markets').hidden=isE||isP; $('moversBox').hidden=isE||isP; $('gapBox').hidden=!isP; $('maxBox').hidden=!(isP||isE); $('maxSel').value=String(maxOdds);
   if(isK){ renderBook(); return; }
   if(isE){ renderEV(); return; }
   if(isP){ renderPropPicks(); return; }
@@ -686,9 +686,9 @@ function renderEV(){
   const q=$('q').value.trim().toLowerCase();
   const pool=evs.filter(e=>sport==='all'||e.sport_title===sport);
   $('evtSel').value=evType;
-  $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,title:evType==='props'?'Highest EV player overs/unders':evType==='games'?'Highest EV game markets':'Highest EV bets',
+  $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,maxOdds,title:(evType==='props'?'Highest EV player overs/unders':evType==='games'?'Highest EV game markets':'Highest EV bets')+` under $${maxOdds.toFixed(2)}`,
     meta:'Games and player props, best edge first.',
-    empty:'<div class="empty"><h3>No +EV bets right now</h3>Nothing beats the fair price by more than 0.5% at the moment. Check again after the next update.</div>'});
+    empty:`<div class="empty"><h3>No +EV bets under $${maxOdds.toFixed(2)} right now</h3>Nothing at $${maxOdds.toFixed(2)} or less beats the fair price by more than 0.5% at the moment. Raise the max odds or check again after the next update.</div>`});
 }
 
 /* "my bookie": price a row at one chosen bookie instead of the best price */
@@ -850,7 +850,7 @@ function findArbs(evs){
 }
 
 /* ---------- prop picks: overs/unders under a max price where one bookie is well above the rest ---------- */
-let gapMin=+store.get('gapMin',5), maxOdds=+store.get('maxOdds',2.5);
+let gapMin=+store.get('gapMin',5), maxOdds=+store.get('maxOdds2',2);
 function renderPropPicks(){
   const P=DATA.props||{events:[]};
   $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
@@ -913,7 +913,7 @@ function renderBook(){
 }
 $('bookSel').onchange=e=>{bookFilter=e.target.value;store.set('bookFilter',bookFilter);render();};
 $('gapSel').onchange=e=>{gapMin=+e.target.value;store.set('gapMin',gapMin);render();};
-$('maxSel').onchange=e=>{maxOdds=+e.target.value;store.set('maxOdds',maxOdds);render();};
+$('maxSel').onchange=e=>{maxOdds=+e.target.value;store.set('maxOdds2',maxOdds);render();};
 
 /* ---------- market movers: biggest price moves since the tracker first saw each price ---------- */
 let mvMode=store.get('mvMode','all');
