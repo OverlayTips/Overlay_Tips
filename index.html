@@ -95,12 +95,12 @@
       <div class="chart-top">
         <div>
           <div class="mono">November · month to date</div>
-          <div class="big" id="bigNum">+78.45U</div>
-          <div class="sub"><b>$785 profit</b> for a $10 unit punter</div>
+          <div class="big" id="bigNum">+75.65U</div>
+          <div class="sub"><b>$757 profit</b> for a $10 unit punter</div>
         </div>
         <span class="live"><span class="dot"></span>TRACKED</span>
       </div>
-      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Cumulative profit in units across November: from 0 to plus 78.45 units over eight days">
+      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Cumulative profit in units across November: from 0 to plus 75.65 units over nine days">
         <defs>
           <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#62f0a8" stop-opacity=".28"/>
@@ -117,7 +117,7 @@
 
   <div class="wrap">
     <div class="stats reveal">
-      <div class="stat"><b>7/8</b><span>Winning days</span></div>
+      <div class="stat"><b>7/9</b><span>Winning days</span></div>
       <div class="stat"><b>+35.80U</b><span>Best day · Cup Day</span></div>
       <div class="stat"><b>+24.27U</b><span>Stakes Day · 8/16</span></div>
       <div class="stat"><b>100%</b><span>Of bets posted</span></div>
@@ -213,6 +213,7 @@
       <button class="shot" data-src="res-sat.jpg"><img src="res-sat.jpg" alt="Sat 7 Nov Stakes Day results: +24.27U on the day"><span>Sat · Stakes Day · +24.27U</span></button>
       <button class="shot" data-src="res-sun.jpg"><img src="res-sun.jpg" alt="Sun 8 Nov results: +0.26U on the day, NBL 1/1, NBA 2/4, rugby league 0/1"><span>Sun · NBA + NBL · +0.26U</span></button>
       <button class="shot" data-src="res-mon.jpg"><img src="res-mon.jpg" alt="Mon 9 Nov results: −2.22U on the day, NFL 4/5 +5.88U, NBA 1/5 −8.09U"><span>Mon · NFL + NBA · −2.22U</span></button>
+      <button class="shot" data-src="res-tue10.jpg"><img src="res-tue10.jpg" alt="Tue 10 Nov results: −2.80U on the day, NFL 3/4 +4.25U, NBA 1/5 −7.05U"><span>Tue · NFL + NBA · −2.80U</span></button>
     </div>
   </div>
 </section>
@@ -323,7 +324,7 @@
 </div>
 
 <div class="sticky" id="sticky">
-  <small><b>+78.45U this month</b>Free for the first 500</small>
+  <small><b>+75.65U this month</b>Free for the first 500</small>
   <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
 </div>
 
@@ -347,6 +348,9 @@ const days = [
   {d:'Mon', n:'9 Nov', what:'NFL 4-1 · NBA 1-4', sub:'NFL +5.88U (Walker, McGowan, CMC & the Burrow SGM cashed) · NBA −8.09U', u:-2.22, staked:24.75, bets:10, won:5, img:'res-mon.jpg',
     legs:[['Burrow 2+ TDs / Brown 30+ SGM','1.72',2.5,1],['Randle O4.5 Ast','1.87',2.5,0],['McGowan O25.5 Rush Yds','1.88',2.5,1],['K. Walker III 90+ Rush Yds','1.80',2.5,1],['JSN O94.5 Rec Yds','1.88',2.25,0],['McCaffrey 60+ Rush Yds','1.85',2.5,1],['Edgecombe 20+ Pts+Reb','2.05',2.25,0],['LaMelo O21.5 Pts','1.96',2.25,1],['Celtics + Lopez U5.5 Reb SGM','1.72',2.5,0],['D. White O16.5 Pts+Reb','1.78',3,0]],
     sp:{NFL:[5.88,4,5], NBA:[-8.09,1,5]}},
+  {d:'Tue', n:'10 Nov', what:'NFL 3-1 · NBA 1-4', sub:'NFL +4.25U (Cook 100+, Wentz under & the JJ/Cook SGM cashed) · NBA −7.05U (Allen 15+ @ $2.10 cashed)', u:-2.80, staked:21.25, bets:9, won:4, img:'res-tue10.jpg',
+    legs:[['J. Jefferson O77.5 Rec Yds','1.88',2.5,0],['J. Cook 100+ Rush+Rec Yds','2.20',2,1],['JJ 50+ Rec / Cook 60+ Rush SGM','1.70',3,1],['Wentz U1.5 Pass TDs','1.90',2.5,1],['G. Allen 15+ Pts','2.10',2,1],['J. Johnson 20+ Pts','1.83',2.5,0],['P. Reed 3+ Ast','2.45',1.75,0],['Gafford 15+ Pts+Reb','1.76',2.5,0],['Sengun O20.5 Pts','1.96',2.5,0]],
+    sp:{NFL:[4.25,3,4], NBA:[-7.05,1,5]}},
   /* legs (optional): [bet, odds, units, 1 = won / 0 = lost]   img (optional): results card image
      sp (optional): per-sport split for the "By sport" tracker: {Sport:[units, won, bets]} (won/bets null if unknown) */
 ];
@@ -354,7 +358,8 @@ const winners = [
   ['Point of Law','Melbourne Cup'],['Evaporate','7.50'],['Birdman','6.00'],['Pinhole','3.00'],
   ['Savvy Spy','2.70'],['Horseshoe Hill','2.50'],['Harden 3+ threes','2.25'],['Barrett 35+ PRA','1.86'],
   ['Dybantsa 6+ reb','1.81'],['Doolittle + Roma SGM','✓'],['Henry & Hill','TNF'],['K. Davis 25+ pts','2.10'],['Braun U6.5 R+A','2.05'],
-  ['K. Walker III 90+','1.80'],['McGowan O25.5','1.88'],['CMC 60+ rush','1.85'],['LaMelo O21.5','1.96']
+  ['K. Walker III 90+','1.80'],['McGowan O25.5','1.88'],['CMC 60+ rush','1.85'],['LaMelo O21.5','1.96'],
+  ['G. Allen 15+ pts','2.10'],['Cook 100+ yds','2.20'],['Wentz U1.5 TDs','1.90'],['JJ / Cook SGM','1.70']
 ];
 
 const fmt = u => (u>=0?'+':'−')+Math.abs(u).toFixed(2)+'U';
