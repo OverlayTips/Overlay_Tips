@@ -49,6 +49,11 @@
 .hs-pill{border-radius:7px;padding:4px 9px;font-weight:800;font-size:13px;background:#16201d;color:#c9d6d0}
 .hs-pill.big{background:var(--mint);color:#04130b;font-size:15px}
 .hs-game{color:#87978f;font-size:12.5px;margin-top:10px}
+.hs-h{font-size:24px!important;margin:4px 0 4px!important}
+.hs-sub{color:#87978f;font-size:14px;margin-bottom:14px}
+.hs-pill.val{background:var(--gold);color:#1a1305;font-size:15px}
+.hs-why{color:#c9d6d0;font-size:13px;margin-top:8px}
+.hs-why b{color:#ecf5f1}
 .hs-note{color:#87978f;font-size:13px;margin-top:22px;line-height:1.5}
 .hs-note a{color:var(--mint)}
 .hs-empty{border:1px dashed #1b2523;border-radius:16px;padding:28px;color:#87978f;text-align:center}
@@ -100,13 +105,20 @@
 </header>
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
+    <div class="hs-meta" id="meta">Loading…</div>
+    <div id="valWrap" hidden>
+      <h2 class="hs-h">💰 Best value picks</h2>
+      <p class="hs-sub">Where his hit rate beats the chance the bookie's price gives him by the most.</p>
+      <div class="hs-grid" id="vgrid"></div>
+      <h2 class="hs-h" style="margin-top:34px">🔥 Hot props</h2>
+      <p class="hs-sub">Lines he's cleared in 8+ of his last 10 games.</p>
+    </div>
     <div class="hs-bar">
       <div class="hs-chips" id="chips"></div>
       <label class="hs-sort">Sort <select id="sort"><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label>
     </div>
-    <div class="hs-meta" id="meta">Loading…</div>
     <div class="hs-grid" id="grid"></div>
-    <p class="hs-note">Hit rate = games he went over the line, out of his last 10 (5, and vs tonight's opponent this season). Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
+    <p class="hs-note">Hit rate = games he went over the line, out of his last 10 (5, and vs tonight's opponent this season). Value = how much his hit rate (last 10 + season, nudged toward 50% when there aren't many games) beats the chance the price implies, e.g. hits 75% at $1.60 (63%) = +20%. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
   </div>
 </section>
 </main>
@@ -130,7 +142,7 @@ document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SRC=new URLSearchParams(location.search).get('data')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json';
-let ITEMS=[], stat='All', sort='hit';
+let ITEMS=[], VALUE=[], stat='All', sort='hit';
 const pct=a=>a[1]?Math.round(a[0]/a[1]*100):0;
 const when=iso=>new Date(iso).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'});
 const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago';};
@@ -148,27 +160,30 @@ function chart(it){
   s+=`<line x1="${L}" x2="${W-R}" y1="${ly}" y2="${ly}" stroke="#efbe3b" stroke-width="1.6"/>`;
   return `<svg class="hs-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(it.player)} last ${n} games"><defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8af5b6"/><stop offset="1" stop-color="#2fcf7f"/></linearGradient></defs>${s}</svg>`;
 }
-function card(it){
+function card(it,val){
   return `<article class="hs-card">
     <div class="hs-top"><div><div class="hs-name">${esc(it.player)}<small>${esc(it.team||'')}</small></div>
       <div class="hs-line">🔥 ${esc(it.line)} ${esc(it.stat)}</div></div>
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
-    <div class="hs-pills"><span class="hs-pill big">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
+    <div class="hs-pills">${val?`<span class="hs-pill val">+${it.value.toFixed(0)}% value</span>`:''}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
+    ${val?`<div class="hs-why">Hits about <b>${Math.round(it.prob*100)}%</b> (season ${it.season[0]}/${it.season[1]}) · ${it.price.toFixed(2)} implies <b>${Math.round(100/it.price)}%</b></div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)}</div>
   </article>`;
 }
 function draw(){
-  const stats=['All',...new Set(ITEMS.map(i=>i.stat))];
+  const stats=['All',...new Set(ITEMS.concat(VALUE).map(i=>i.stat))];
   $('chips').innerHTML=stats.map(s=>`<button type="button" class="${s===stat?'on':''}" data-s="${esc(s)}">${esc(s)}</button>`).join('');
   $('chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{stat=b.dataset.s;draw();});
+  const vs=VALUE.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
+  $('valWrap').hidden=!VALUE.length; $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):'<div class="hs-empty">No value picks for this stat right now.</div>';
   let xs=ITEMS.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
   if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
   $('grid').innerHTML=xs.length?xs.map(card).join(''):`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player's been clearing his line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
-  ITEMS=d.items||[]; $('meta').textContent=`${ITEMS.length} hot props · updated ${ago(d.updated)}`; draw();
+  ITEMS=d.items||[]; VALUE=d.value||[]; $('meta').textContent=`${ITEMS.length} hot props · updated ${ago(d.updated)}`; draw();
 }).catch(()=>{ $('meta').textContent=''; $('grid').innerHTML='<div class="hs-empty"><h3>Hot stats are loading soon</h3>The first batch lands with the next odds update.</div>'; });
 </script>
 </body>
