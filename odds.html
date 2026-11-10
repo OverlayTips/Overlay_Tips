@@ -144,6 +144,15 @@
   td.fair .evp{color:var(--mint);font-size:12px;font-weight:700}
   .topev{border-color:var(--mint-dim)}
   .topev .evp{color:var(--mint2);font-weight:900;font-size:15px}
+  .evchart{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px 12px;margin-bottom:14px}
+  .evchart h4{font-size:15px;margin-bottom:2px} .evchart .ec-sub{color:var(--muted);font-size:12.5px;margin-bottom:10px}
+  .ec-row{display:grid;grid-template-columns:minmax(0,38%) 1fr 52px;align-items:center;gap:10px;padding:3px 0;border-radius:6px}
+  .ec-row:hover{background:var(--panel2)}
+  .ec-lbl{font-size:12.5px;line-height:1.25;min-width:0} .ec-lbl b{display:block;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ec-lbl span{color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .ec-track{height:14px;border-left:1px solid var(--line)} .ec-bar{height:100%;background:var(--mint);border-radius:0 4px 4px 0;min-width:2px}
+  .ec-val{font:700 13px Archivo,system-ui,sans-serif;color:var(--text);text-align:right}
+  @media(max-width:640px){.ec-row{grid-template-columns:minmax(0,46%) 1fr 46px;gap:8px}}
   .topev td{min-width:90px}
   @media(max-width:640px){
     .topev table,.topev tbody{display:block}
@@ -742,7 +751,7 @@ function renderEV(){
   const q=$('q').value.trim().toLowerCase();
   const pool=evs.filter(e=>sport==='all'||e.sport_title===sport);
   $('evtSel').value=evType;
-  $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,maxOdds,title:(evType==='props'?'Highest EV player overs/unders':evType==='games'?'Highest EV game markets':'Highest EV bets')+` under $${maxOdds.toFixed(2)}`,
+  $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,maxOdds,chart:true,title:(evType==='props'?'Highest EV player overs/unders':evType==='games'?'Highest EV game markets':'Highest EV bets')+` under $${maxOdds.toFixed(2)}`,
     meta:'Games and player props, best edge first.',
     empty:`<div class="empty"><h3>No +EV bets under $${maxOdds.toFixed(2)} right now</h3>Nothing at $${maxOdds.toFixed(2)} or less beats the fair price by more than 0.5% at the moment. Raise the max odds or check again after the next update.</div>`});
 }
@@ -815,9 +824,23 @@ function topEV(evs,q,o={}){
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
     <td class="c-fair">${(x.fair||r.fair).toFixed(2)}${r.fairSrc==='pin'?' <span class="pin">PIN</span>':''}</td>
     <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');
-  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">${o.title||'Top +EV props right now'}${o.noBook?'':esc(myName())}</div>
+  return (o.chart?evChart(out.slice(0,10),ptOf):'')+`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">${o.title||'Top +EV props right now'}${o.noBook?'':esc(myName())}</div>
     <div class="ev-meta">${o.meta||'Every prop market, ranked by edge vs the fair price.'} ${out.length>limit?'Top '+limit+' of '+out.length:out.length+' found'}.</div></div></div>
     <div class="tbl-wrap"><table class="bb"><tr><th>Edge</th><th>Bet</th><th>Best price</th><th>Fair</th><th>Game</th></tr>${rows}</table></div></div>`;
+}
+
+/* best value picks at a glance: edge % as ranked bars (one series, so no legend) */
+function evChart(top,ptOf){
+  if(top.length<2) return '';
+  const max=Math.max(...top.map(x=>x.edge));
+  const rows=top.map(x=>{const {e,mk,r,pk,edge}=x, pt=ptOf(x);
+    const pick=r.s.desc?`${r.s.desc} ${r.s.name}${pt!=null?' '+pt:''}`:`${r.s.name}${pt!=null?' '+fmtPt(mk,pt):''}`;
+    const mkt=MKT_LABEL[mk]||PROP_LABEL[mk]||mk;
+    const tip=`${pick} (${mkt}) · $${pk.price.toFixed(2)} ${bkName(pk.book)} · fair ${(x.fair||r.fair).toFixed(2)} · +${edge.toFixed(1)}% · ${e.home_team} v ${e.away_team}, ${when(e.commence_time)}`;
+    return `<div class="ec-row" title="${esc(tip)}"><div class="ec-lbl"><b>${esc(pick)}</b><span>${esc(mkt)} · $${pk.price.toFixed(2)} ${esc(bkName(pk.book))}</span></div>
+      <div class="ec-track"><div class="ec-bar" style="width:${(edge/max*100).toFixed(1)}%"></div></div><div class="ec-val">+${edge.toFixed(1)}%</div></div>`;}).join('');
+  return `<div class="evchart" role="img" aria-label="Top ${top.length} value picks by edge"><h4>Best value right now</h4>
+    <div class="ec-sub">Edge over the fair price (bookie margins removed), top ${top.length}. Full details in the table below.</div>${rows}</div>`;
 }
 
 /* ---------- bonus bet conversions (stake not returned): bonus at a bookie, lay on Betfair ---------- */

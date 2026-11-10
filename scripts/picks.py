@@ -200,7 +200,7 @@ def compute(events, props, hist, now):
             if pct <= -8:
                 mk, *rest = key.split("|")
                 steamers.append({"sport": ev.get("sport_title"), "game": _game(ev), "start": ev["commence_time"],
-                                 "market": _mlabel(mk), "pick": " ".join(rest), "from": a[1], "to": z[1],
+                                 "market": _mlabel(mk), "pick": " ".join(x for x in rest if x != "None"), "from": a[1], "to": z[1],
                                  "pct": round(pct, 1)})
     overlays.sort(key=lambda x: -x["edge_pct"])
     arbs.sort(key=lambda x: -x["margin_pct"])
