@@ -976,9 +976,9 @@ function renderRacing(){
   const now=new Date(), races=RC.races.filter(r=>new Date(r.start)>new Date(now-5*60000));
   const venues=[...new Set(races.map(r=>r.venue))];
   if(raceVenue!=='all'&&!venues.includes(raceVenue)) raceVenue='all';
-  $('sports').innerHTML=`<button class="chip ${raceMode==='movers'?'on':''}" data-m="movers">Movers</button>`+[['all','All tracks'],...venues.map(v=>[v,v])]
+  $('sports').innerHTML=`<button class="chip ${raceMode==='next'?'on':''}" data-m="next">Upcoming</button><button class="chip ${raceMode==='movers'?'on':''}" data-m="movers">Movers</button>`+[['all','All tracks'],...venues.map(v=>[v,v])]
     .map(([k,l])=>`<button class="chip ${raceMode==='races'&&k===raceVenue?'on':''}" data-s="${esc(k)}">${esc(l)}</button>`).join('');
-  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ if(b.dataset.m){raceMode='movers';} else {raceMode='races';raceVenue=b.dataset.s;store.set('raceVenue',raceVenue);} store.set('raceMode',raceMode); render(); });
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ if(b.dataset.m){raceMode=b.dataset.m;} else {raceMode='races';raceVenue=b.dataset.s;store.set('raceVenue',raceVenue);} store.set('raceMode',raceMode); render(); });
   $('legend').textContent=`Australian win markets from the Betfair Exchange (updated ${ago(RC.updated)}). Fair = the exchange price with the margin stripped out, the sharpest price in racing. If Sportsbet, TAB etc. pay more than Fair, it's value (use Check a price). Back/Lay = best Betfair prices now.`;
   const q=$('q').value.trim().toLowerCase(), H=RC.history||{};
   const mv=(r,x)=>{const s=H[r.id+'|'+x.id]; if(!s||s.length<2) return null; return {from:s[0][1],to:s[s.length-1][1],pct:(s[s.length-1][1]-s[0][1])/s[0][1]*100};};
@@ -997,15 +997,19 @@ function renderRacing(){
       <td class="c-game">${esc(r.venue)} ${esc(r.name.split(' ')[0])}<br><span class="bk">${t(r.start)}</span></td></tr>`;}).join('')}</table></div></div>`;
     return;
   }
-  const list=races.filter(r=>(raceVenue==='all'||r.venue===raceVenue)&&(!q||(r.venue+' '+r.runners.map(x=>x.name).join(' ')).toLowerCase().includes(q)));
+  const isNext=raceMode==='next';
+  const until=iso=>{const m=Math.round((new Date(iso)-Date.now())/60000); return m<=0?'jumping':m<60?`in ${m}m`:`in ${Math.floor(m/60)}h ${m%60}m`;};
+  let list=races.filter(r=>(isNext||raceVenue==='all'||r.venue===raceVenue)&&(!q||(r.venue+' '+r.runners.map(x=>x.name).join(' ')).toLowerCase().includes(q)));
+  if(isNext) list=list.filter(r=>new Date(r.start)>new Date(Date.now()-2*60000)).sort((a,b)=>new Date(a.start)-new Date(b.start)).slice(0,12);
   if(!list.length){$('list').innerHTML='<div class="empty"><h3>No races</h3>Nothing upcoming for this filter.</div>';return;}
+  if(isNext) $('legend').textContent=`Next ${list.length} races to jump across every track, soonest first (Betfair prices updated ${ago(RC.updated)}). Fair = exchange price with the margin stripped out. If Sportsbet, TAB etc. pay more than Fair, it's value.`;
   $('list').innerHTML=list.slice(0,40).map(r=>{
     const rows=r.runners.filter(x=>!q||x.name.toLowerCase().includes(q)||r.venue.toLowerCase().includes(q)).map(x=>{const m=mv(r,x);
       const mvs=m&&Math.abs(m.pct)>=3?`<span class="rc-move ${m.pct<0?'rc-steam':'rc-drift'}">${m.pct<0?'▼':'▲'}${Math.abs(m.pct).toFixed(0)}% <span class="bk">${m.from.toFixed(2)}→</span></span>`:'<span class="flat">–</span>';
       return `<tr><td>${x.no?`<span class="rc-no">${x.no}</span>`:''}${esc(x.name.replace(/^\d+\.\s*/,''))}</td><td class="bestcol">${x.fair?x.fair.toFixed(2):'–'}</td><td>${x.back?x.back.toFixed(2):'–'}</td><td>${x.lay?x.lay.toFixed(2):'–'}</td><td class="mv">${mvs}</td></tr>`;}).join('');
     return `<div class="ev"><div class="ev-head"><div><div class="ev-title">${esc(r.venue)} ${esc(r.name)}</div>
       <div class="ev-meta">${t(r.start)} · ${when(r.start).split(',')[0]} · $${(r.matched||0).toLocaleString()} matched</div></div>
-      <div class="badges"><span class="badge">${r.runners.length} runners</span></div></div>
+      <div class="badges">${isNext?`<span class="badge ${new Date(r.start)-Date.now()<15*60000?'live':''}">${until(r.start)}</span>`:''}<span class="badge">${r.runners.length} runners</span></div></div>
       <div class="tbl-wrap"><table class="rct"><tr><th>Runner</th><th>Fair</th><th>Back</th><th>Lay</th><th>Move</th></tr>${rows}</table></div></div>`;}).join('');
 }
 function renderArbs(){
