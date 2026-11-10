@@ -424,8 +424,49 @@ function eventRows(ev, mk){
     const med=a=>{a=[...a].sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
     g.forEach((r,k)=>{const p=med(probs[k]); r.fair=1/p; r.edge=isFinite(r.best)?(r.best*p-1)*100:null; r.nfair=probs[k].length;});
   });
+  altLines(rows,books);
   const pct=rows.reduce((t,r)=>t+(isFinite(r.best)?100/r.best:0),0);
   return {books,rows,pct};
+}
+
+/* off-line prices on player over/unders, e.g. Unibet Over 31.5 @ 1.87 when most bookies sit on 32.5.
+   Model the stat as roughly normal (sd ≈ 1.15·√line, about right for points/rebounds/disposals), pin its
+   middle to the main line's probability, then work out what each off-line price is worth AT the main line.
+   If that beats the best main-line price, it's the better bet and gets the mint highlight instead. */
+const Phi=z=>{const t=1/(1+0.3275911*Math.abs(z)/Math.SQRT2),
+  e=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-z*z/2);
+  return z>=0?(1+e)/2:(1-e)/2;};
+const iPhi=p=>{ // Acklam's inverse normal
+  const a=[-39.69683028665376,220.9460984245205,-275.9285104469687,138.357751867269,-30.66479806614716,2.506628277459239],
+    b=[-54.47609879822406,161.5858368580409,-155.6989798598866,66.80131188771972,-13.28068155288572],
+    c=[-0.007784894002430293,-0.3223964580411365,-2.400758277161838,-2.549732539343734,4.374664141464968,2.938163982698783],
+    d=[0.007784695709041462,0.3224671290700398,2.445134137142996,3.754408661907416],pl=0.02425;
+  if(p<pl){const q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p>1-pl){const q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  const q=p-0.5,r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);};
+function altLines(rows,books){
+  const by={};
+  rows.forEach(r=>{ if(r.s.desc&&r.point!=null&&(r.s.name==='Over'||r.s.name==='Under')) (by[r.s.desc]=by[r.s.desc]||{})[r.s.name]=r; });
+  const medOk=r=>{ if(!r) return null; const ps=r.cells.filter(c=>c&&c.ok).map(c=>c.price).sort((a,b)=>a-b); return ps.length?ps[ps.length>>1]:null; };
+  Object.values(by).forEach(({Over:o,Under:u})=>{
+    if(o&&u&&o.point!==u.point) return;
+    const L=(o||u).point;
+    // chance of going over the main line: the fair price if we have one, else de-vig the median prices
+    let pO=o&&o.fair?1/o.fair:u&&u.fair?1-1/u.fair:null, est=false;
+    if(pO==null){ const a=medOk(o), b=medOk(u); est=true;
+      if(a&&b) pO=(1/a)/(1/a+1/b); else if(a) pO=1/a/1.05; else if(b) pO=1-1/b/1.05; else return; }
+    pO=Math.min(0.97,Math.max(0.03,pO));
+    const sd=Math.max(0.8,1.15*Math.sqrt(Math.max(L,0.5))), mu=L+sd*iPhi(pO);
+    [o,u].forEach(r=>{ if(!r) return;
+      const isO=r===o, pMain=isO?pO:1-pO, beat=isFinite(r.best)?r.best:0;
+      r.cells.forEach((c,i)=>{ if(!c||c.ok||c.point==null) return;
+        const z=(c.point-mu)/sd; c.p=isO?1-Phi(z):Phi(z);
+        c.eq=c.price*c.p/pMain;   // the main-line price that's worth the same
+        if(c.eq>beat*1.005&&(!r.alt||c.eq>r.alt.eq))
+          r.alt={i,price:c.price,point:c.point,eq:c.eq,book:books[i],edge:est?null:(c.price*c.p-1)*100};
+      });
+    });
+  });
 }
 
 function render(){
@@ -475,7 +516,7 @@ function render(){
   $('q').placeholder=view==='games'?'Search team':'Search team or player';
   $('legend').textContent=view==='games'
     ?'Fair = the true price with the bookie margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the median of the Aussie bookies. Any bookie paying more than Fair is +EV, e.g. check bet365 against it. Mint cell = best price at the main line. Open → now tracks the best price since the tracker first saw the game. Market % under 100 = arb across bookies.'
-    :'Fair = the true price with the margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the Aussie bookies. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best price at the most common line. Props refresh 3× a day.';
+    :'Fair = the true price with the margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the Aussie bookies. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best value: the best price at the most common line, unless a bookie on an easier line (e.g. Over 31.5 instead of 32.5) is worth more, then that one lights up with its line shown. Props refresh 3× a day.';
 
   if(view==='props' && !P.events.length){
     $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
@@ -515,10 +556,14 @@ function render(){
       if(r.mv){const cls=r.mv.pct<-0.5?'down':r.mv.pct>0.5?'up':'flat',ar=r.mv.pct<-0.5?'▼':r.mv.pct>0.5?'▲':'•';
         const pm=(r.mv.fp!=null&&r.mv.fp!==r.mv.tp)?`${fmtPt(market,r.mv.fp)}→${fmtPt(market,r.mv.tp)} `:'';
         mv=`<span class="${cls}">${pm}${r.mv.from.toFixed(2)} → ${r.mv.to.toFixed(2)} ${ar}${Math.abs(r.mv.pct).toFixed(0)}%</span>`;}
-      const cells=r.cells.map(c=>{if(!c)return'<td class="off">–</td>';
+      const cells=r.cells.map((c,i)=>{if(!c)return'<td class="off">–</td>';
         const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
-        return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
-      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–'}</td><td class="fair">${r.ladder&&!r.fair?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+        const isAlt=r.alt&&r.alt.i===i, cls=isAlt?'best':r.alt?(c.ok?'':'off'):(c.ok&&c.price===r.best?'best':c.ok?'':'off');
+        const tip=c.eq?` title="Worth about ${c.eq.toFixed(2)} at the main line (${r.point})"`:'';
+        return `<td class="${cls}"${tip}>${pt}${c.price.toFixed(2)}</td>`;}).join('');
+      const bestTxt=r.alt?`${r.alt.price.toFixed(2)}<span class="bbk">${esc(bkName(r.alt.book))} · ${esc(r.s.name)} ${r.alt.point}</span><span class="bbk">≈ ${r.alt.eq.toFixed(2)} at ${r.point}</span>`
+        :isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–';
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${bestTxt}</td><td class="fair">${r.ladder&&!r.fair?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}<div class="swipe">Swipe for every bookie →</div><div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
@@ -694,20 +739,25 @@ function topEV(evs,q,o={}){
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
     mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
       t.rows.forEach(r=>{ if(!r.fair||r.nfair<3) return;
-        if(o.type==='props'&&!(r.s.desc&&(r.point!=null||r.ladder))) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r); if(!pk) return;
+        if(o.type==='props'&&!(r.s.desc&&(r.point!=null||r.ladder))) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r);
+        const hit=!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q);
+        // an off-line price (e.g. Over 31.5 when the main line is 32.5) that beats the main line
+        const a=r.alt; if(a&&a.edge>0.5&&hit&&(myBook==='all'||o.noBook||a.book.key===myBook)){
+          out.push({e,mk,r,pk:{price:a.price,book:a.book},edge:a.edge,pt:a.point,fair:a.price/(1+a.edge/100)}); return; }
+        if(!pk) return;
         const edge=(pk.price/r.fair-1)*100;
-        if(edge>0.5&&(!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q)))
-        out.push({e,mk,r,pk,edge}); });});
+        if(edge>0.5&&hit) out.push({e,mk,r,pk,edge}); });});
   });
   out.sort((a,b)=>b.edge-a.edge);
-  if(!o.noBook) out.slice(0,5).forEach(({e,mk,r,pk})=>SHARE.push(shareLine(e,mk,{desc:r.s.desc,name:r.s.name,point:r.point},pk.price,pk.book)));
+  const ptOf=x=>x.pt!=null?x.pt:x.r.point;
+  if(!o.noBook) out.slice(0,5).forEach(x=>SHARE.push(shareLine(x.e,x.mk,{desc:x.r.s.desc,name:x.r.s.name,point:ptOf(x)},x.pk.price,x.pk.book)));
   if(!out.length) return o.empty||'';
-  const rows=out.slice(0,limit).map(({e,mk,r,pk,edge})=>`<tr>
+  const rows=out.slice(0,limit).map(x=>{const {e,mk,r,pk,edge}=x, pt=ptOf(x); return `<tr>
     <td class="c-edge"><span class="evp">+${edge.toFixed(1)}%</span></td>
-    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(r.point!=null?' '+r.point:'')+'</span>':esc(r.s.name)+(r.point!=null?' <span class="pt">'+fmtPt(mk,r.point)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
+    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>':esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
-    <td class="c-fair">${r.fair.toFixed(2)}${r.fairSrc==='pin'?' <span class="pin">PIN</span>':''}</td>
-    <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
+    <td class="c-fair">${(x.fair||r.fair).toFixed(2)}${r.fairSrc==='pin'?' <span class="pin">PIN</span>':''}</td>
+    <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');
   return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">${o.title||'Top +EV props right now'}${o.noBook?'':esc(myName())}</div>
     <div class="ev-meta">${o.meta||'Every prop market, ranked by edge vs the fair price.'} ${out.length>limit?'Top '+limit+' of '+out.length:out.length+' found'}.</div></div></div>
     <div class="tbl-wrap"><table class="bb"><tr><th>Edge</th><th>Bet</th><th>Best price</th><th>Fair</th><th>Game</th></tr>${rows}</table></div></div>`;
