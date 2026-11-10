@@ -307,6 +307,8 @@ def main():
               f"{len(summary['steamers'])} steamers")
     print(f"{len(events)} games across {len(wanted)} sports; props for {len(props)} games "
           f"({prop_calls} prop calls this run); credits remaining: {api.remaining}")
+    print(f"sharp ({SHARP_BOOK}): {sum(1 for e in events if e.get('sharp'))} games, "
+          f"{sum(1 for e in props.values() if e.get('sharp'))} prop games")
     for e in api.errors:
         print("WARN", e)
 
