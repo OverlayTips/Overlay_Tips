@@ -95,7 +95,9 @@
   .viewtabs{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;margin-top:20px}
   .viewtabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:10px 6px;border-radius:14px;
     border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:800;font-size:13px;line-height:1.1;text-align:center;transition:border-color .15s,background .15s,color .15s}
-  .viewtabs button i{font-style:normal;font-size:19px;line-height:1;height:20px;display:flex;align-items:center}
+  .viewtabs button i{font-style:normal;font-size:19px;line-height:1;height:22px;display:flex;align-items:center}
+  .viewtabs button i svg{width:22px;height:22px}
+  .viewtabs button.on i{color:var(--mint)}
   .viewtabs button i.bdg{font-size:10px;font-weight:900;letter-spacing:.04em;padding:3px 6px;border-radius:6px;border:1px solid var(--mint-dim);color:var(--mint2);height:auto}
   .viewtabs button:hover{color:var(--text);border-color:#26332f}
   .viewtabs button.on{color:var(--text);border-color:var(--mint);background:linear-gradient(160deg,#0f2a1e,var(--panel2) 70%);box-shadow:0 0 0 1px rgba(98,240,168,.15) inset}
@@ -141,6 +143,7 @@
   }
   .sharebar{display:inline-flex;gap:6px}
   .sharebtn{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-weight:800;font-size:14px;color:var(--text);white-space:nowrap}
+  .sharebtn{display:inline-flex;align-items:center;gap:6px}
   .sharebtn.wa{background:#25d366;border-color:#25d366;color:#04140c}
   .swipe{display:none}
   @media(max-width:640px){
@@ -180,15 +183,15 @@
     <h1>Odds <span class="g">tracker</span></h1>
     <div class="status" id="status"></div>
     <div class="viewtabs" id="views">
-      <button data-v="ev"><i>🔥</i><span>Top EV</span></button>
-      <button data-v="arb"><i>⚖️</i><span>Arbs</span></button>
-      <button data-v="pp"><i>🎯</i><span>Prop picks</span></button>
-      <button data-v="mv"><i>📈</i><span>Movers</span></button>
+      <button data-v="ev"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg></i><span>Top EV</span></button>
+      <button data-v="arb"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/></svg></i><span>Arbs</span></button>
+      <button data-v="pp"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".9" fill="currentColor"/></svg></i><span>Prop picks</span></button>
+      <button data-v="mv"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 4l-3 3M7 4l3 3"/><path d="M17 20V4M17 20l-3-3M17 20l3-3"/></svg></i><span>Movers</span></button>
       <button data-v="bk:sportsbet"><i class="bdg">SB</i><span>Sportsbet</span></button>
       <button data-v="bk:tab"><i class="bdg">TAB</i><span>TAB</span></button>
-      <button data-v="games" class="on"><i>🏟️</i><span>Games</span></button>
-      <button data-v="props"><i>👤</i><span>All props</span></button>
-      <button data-v="bonus"><i>🎁</i><span>Bonus bets</span></button>
+      <button data-v="games" class="on"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><circle cx="12" cy="12" r="2.5"/></svg></i><span>Games</span></button>
+      <button data-v="props"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></svg></i><span>All props</span></button>
+      <button data-v="bonus"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11" rx="1.5"/><path d="M2.5 9h19M12 9v11"/><path d="M12 9c-1.5-3.5-5.5-4-5.5-1.5S10 9 12 9zM12 9c1.5-3.5 5.5-4 5.5-1.5S14 9 12 9z"/></svg></i><span>Bonus bets</span></button>
     </div>
   </header>
 
@@ -199,7 +202,7 @@
       <input class="search" id="q" type="search" placeholder="Search team">
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
-      <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button">📲 Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
+      <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:18px;height:18px"><path d="M4 19l1.4-3.6A7.5 7.5 0 1 1 8 18.2z"/></svg>Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
       <label class="stakebox" id="evtBox" hidden>Show<select id="evtSel"><option value="all">Everything</option><option value="props">Player overs/unders</option><option value="games">Game markets</option></select></label>
       <label class="stakebox" id="mvBox" hidden>Show<select id="mvSel"><option value="all">Steamers + drifters</option><option value="steam">Steamers (shortening)</option><option value="drift">Drifters (lengthening)</option></select></label>
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
@@ -433,7 +436,7 @@ function renderEV(){
   const q=$('q').value.trim().toLowerCase();
   const pool=evs.filter(e=>sport==='all'||e.sport_title===sport);
   $('evtSel').value=evType;
-  $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,title:evType==='props'?'🔥 Highest EV player overs/unders':evType==='games'?'🔥 Highest EV game markets':'🔥 Highest EV bets',
+  $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,title:evType==='props'?'Highest EV player overs/unders':evType==='games'?'Highest EV game markets':'Highest EV bets',
     meta:'Games and player props, best edge first.',
     empty:'<div class="empty"><h3>No +EV bets right now</h3>Nothing beats the fair price by more than 0.5% at the moment. Check again after the next update.</div>'});
 }
@@ -644,7 +647,7 @@ function ppHTML(evs,q){
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
     <td class="c-fair others">${med.toFixed(2)} <span class="bk">(${n-1} others)</span></td>
     <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
-  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">🎯 Prop picks under $${maxOdds.toFixed(2)}${esc(myName())}</div>
+  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Prop picks under $${maxOdds.toFixed(2)}${esc(myName())}</div>
     <div class="ev-meta">${myBook==='all'?'One bookie well above the rest':'Priced well above the other bookies'}, biggest gap first. ${out.length>60?'Top 60 of '+out.length:out.length+' found'}.</div></div></div>
     <div class="tbl-wrap"><table class="bb ppt"><tr><th>Gap</th><th>Bet</th><th>Best price</th><th>Others pay</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
@@ -661,7 +664,7 @@ function renderBook(){
   $('legend').textContent=`Best bets at ${nm} only. +EV = ${nm}'s price beats the fair price (all bookies, margins removed). Prop picks = overs/unders at $${maxOdds.toFixed(2)} or less where ${nm} pays ${gapMin}%+ more than the other bookies. Check prices before betting. Price signals, not sure things.`;
   const q=$('q').value.trim().toLowerCase();
   const pool=e=>sport==='all'||e.sport_title===sport;
-  $('list').innerHTML=topEV(evs.filter(pool),q,{limit:40,title:'🔥 +EV',meta:`Games and player props where ${nm} beats the fair price, best edge first.`,
+  $('list').innerHTML=topEV(evs.filter(pool),q,{limit:40,title:'+EV',meta:`Games and player props where ${nm} beats the fair price, best edge first.`,
       empty:`<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">No +EV bets at ${nm} right now.</b></div>`})
     +ppHTML(P.events.filter(pool),q);
 }
@@ -712,7 +715,7 @@ function renderMovers(){
       <td class="c-price">${line}<span class="bk">${m.from.toFixed(2)} →</span> <b>${m.to.toFixed(2)}</b></td>
       <td class="c-fair">${isFinite(r.best)?r.best.toFixed(2)+' <span class="bk">'+esc(r.bestBook?bkName(r.bestBook):'')+'</span>':'–'}</td>
       <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');
-  $('list').innerHTML=`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">📈 Prop movers</div>
+  $('list').innerHTML=`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Prop movers</div>
     <div class="ev-meta">Biggest moves first. ${out.length>60?'Top 60 of '+out.length:out.length+' found'}.</div></div></div>
     <div class="tbl-wrap"><table class="bb mvt"><tr><th>Move</th><th>Bet</th><th>Opened → now</th><th>Best now</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
@@ -735,14 +738,14 @@ function arbsHTML(evs,q){
   const T=Math.max(1,parseFloat($('bstake').value)||100);
   const arbs=findArbs(evs).filter(a=>myBook==='all'||a.legs.some(l=>l.book.key===myBook)).filter(a=>!q||(a.desc+' '+a.ev.home_team+' '+a.ev.away_team).toLowerCase().includes(q)).slice(0,30);
   arbs.slice(0,3).forEach(a=>SHARE.push(`ARB +${a.margin.toFixed(1)}%: `+a.legs.map(l=>`${a.desc?a.desc+' ':''}${l.name}${l.point!=null?' '+fmtPt(a.mk,l.point):''} @ $${l.price.toFixed(2)} (${bkName(l.book)})`).join(' + ')+`\n   ${a.ev.sport_title} · ${shortTeam(a.ev.home_team)} v ${shortTeam(a.ev.away_team)}`));
-  if(!arbs.length) return '<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">⚖️ No arbs right now.</b> They pop up most on player props, so check again after the next update.</div>';
+  if(!arbs.length) return '<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">No arbs right now.</b> They pop up most on player props, so check again after the next update.</div>';
   const rows=arbs.map(a=>{
     const ret=T/a.sum;
     const legs=a.legs.map(l=>`<span class="leg"><b>$${(T*(1/l.price)/a.sum).toFixed(2)}</b> on ${a.desc?esc(a.desc)+' ':''}${esc(l.name)}${l.point!=null?' '+fmtPt(a.mk,l.point):''} @ <b>${l.price.toFixed(2)}</b> <span class="bk">${esc(bkName(l.book))}</span></span>`).join('');
     return `<tr><td class="conv c-edge">+${a.margin.toFixed(2)}%<small>$${(ret-T).toFixed(2)} profit</small></td><td class="c-bet">${legs}</td>
       <td class="c-game"><span class="leg">${esc(a.ev.home_team)} v ${esc(a.ev.away_team)}</span><span class="bk">${esc(a.ev.sport_title)} · ${esc(MKT_LABEL[a.mk]||PROP_LABEL[a.mk]||a.mk)} · ${when(a.ev.commence_time)}</span></td></tr>`;
   }).join('');
-  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">⚖️ Arbitrage plays${myBook==='all'?'':esc(' with a '+(BOOK_NAMES[myBook]||SHORT[myBook]||myBook)+' leg')}</div>
+  return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Arbitrage plays${myBook==='all'?'':esc(' with a '+(BOOK_NAMES[myBook]||SHORT[myBook]||myBook)+' leg')}</div>
     <div class="ev-meta">Guaranteed profit if every leg is still there. ${arbs.length} found · stakes for $${T.toFixed(0)} total</div></div></div>
     <div class="tbl-wrap"><table class="bb arbt"><tr><th>Profit</th><th>Bets (split your stake)</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
