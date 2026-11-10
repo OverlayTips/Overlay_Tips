@@ -158,6 +158,7 @@
       <div class="yday-u" id="ydayU"></div>
       <div class="yday-what" id="ydayWhat"></div>
       <ul class="yday-legs" id="ydayLegs"></ul>
+      <details class="yday-review" id="ydayReview" hidden><summary></summary><div></div></details>
       <div class="yday-foot">
         <a href="#results">All results →</a>
         <button type="button" id="ydayCard" hidden>View results card</button>
@@ -350,7 +351,14 @@ const days = [
     sp:{NFL:[5.88,4,5], NBA:[-8.09,1,5]}},
   {d:'Tue', n:'10 Nov', what:'NFL 3-1 · NBA 1-4', sub:'NFL +4.25U (Cook 100+, Wentz under & the JJ/Cook SGM cashed) · NBA −7.05U (Allen 15+ @ $2.10 cashed)', u:-2.80, staked:21.25, bets:9, won:4, img:'res-tue10.jpg',
     legs:[['J. Jefferson O77.5 Rec Yds','1.88',2.5,0],['J. Cook 100+ Rush+Rec Yds','2.20',2,1],['JJ 50+ Rec / Cook 60+ Rush SGM','1.70',3,1],['Wentz U1.5 Pass TDs','1.90',2.5,1],['G. Allen 15+ Pts','2.10',2,1],['J. Johnson 20+ Pts','1.83',2.5,0],['P. Reed 3+ Ast','2.45',1.75,0],['Gafford 15+ Pts+Reb','1.76',2.5,0],['Sengun O20.5 Pts','1.96',2.5,0]],
-    sp:{NFL:[4.25,3,4], NBA:[-7.05,1,5]}},
+    sp:{NFL:[4.25,3,4], NBA:[-7.05,1,5]},
+    review:{title:'What went wrong', notes:[
+      ['Sengun O20.5','Finished on 20 (11 reb, 8 ast). Missed by one. Part of the case was Denver possibly missing Murray. He played and scored 38.'],
+      ['J. Johnson 20+','15 pts on 6/14, 0/3 from deep. Good price, but his recent form was up and down and 2.5U was too big.'],
+      ['Gafford 15+ P+R','8 pts, 2 reb. Foul trouble (4 fouls) and Flagg took over with 43. Needed big minutes that never came.'],
+      ['P. Reed 3+ Ast','Didn\'t get there. Assist props on a backup big are always swingy.'],
+      ['Jefferson O77.5','Got past 50 for the SGM leg but well short of 77.5. The Vikings offence still isn\'t feeding him.']],
+      changes:['Smaller units on coin-flip props','Injury news has to be confirmed, not "potentially out"','Fewer NBA props on one slate']}},
   /* legs (optional): [bet, odds, units, 1 = won / 0 = lost]   img (optional): results card image
      sp (optional): per-sport split for the "By sport" tracker: {Sport:[units, won, bets]} (won/bets null if unknown) */
 ];
@@ -384,6 +392,10 @@ const maxDay = Math.max(...days.map(x=>Math.abs(x.u)));
     st.innerHTML=[['Staked',last.staked!=null?last.staked.toFixed(2)+'U':'–'],['ROI',last.staked?(last.u/last.staked*100).toFixed(1)+'%':'–'],['Strike',last.bets?last.won+'/'+last.bets:'–']].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('');
     document.getElementById('ydayWhat').after(st); }
   else ul.remove();
+  if(last.review){ const rv=document.getElementById('ydayReview'); rv.hidden=false;
+    rv.querySelector('summary').textContent=last.review.title;
+    rv.querySelector('div').innerHTML=last.review.notes.map(([b,t])=>`<p><b>${b}</b>${t}</p>`).join('')+
+      (last.review.changes?`<h4>What we're changing</h4><ul>${last.review.changes.map(c=>`<li>${c}</li>`).join('')}</ul>`:''); }
   if(last.img){ const btn=document.getElementById('ydayCard'); btn.hidden=false;
     btn.addEventListener('click',()=>{const lb=document.getElementById('lightbox'),im=document.getElementById('lbImg');im.src=last.img;im.alt=last.d+' '+last.n+' results card';lb.classList.add('open');lb.setAttribute('aria-hidden','false');}); }
 })();
