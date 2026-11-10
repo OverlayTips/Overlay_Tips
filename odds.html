@@ -311,6 +311,32 @@ $('lockBtn').onclick=()=>{store.del('pw');DATA=null;$('app').hidden=true;$('gate
 setInterval(async()=>{const pw=store.get('pw',null); if(DATA&&pw) unlock(pw,true);},10*60*1000);
 
 /* ---------- tables ---------- */
+/* fair price for each ladder line: take the bookies' median price curve for the player, then shift it
+   (in log-odds) so it matches the de-vigged fair price of the main over/under line */
+const lg=p=>Math.log(p/(1-p)), sg=x=>1/(1+Math.exp(-x));
+function ladderFair(ev,mk,books,rows){
+  const base=eventRows(ev,mk.replace(/_alternate$/,''));
+  if(!base||base.ladder) return;
+  const byP={};
+  rows.forEach(r=>{ if(!r.over) return; (byP[r.s.desc]=byP[r.s.desc]||[]).push(r); });
+  Object.entries(byP).forEach(([desc,rs])=>{
+    const m=base.rows.find(x=>x.s.desc===desc&&x.s.name==='Over'&&x.fair&&x.point!=null); if(!m) return;
+    // ladder curve: median implied probability at each line (needs 3+ bookies)
+    const curve=rs.map(r=>{const ps=r.cells.filter(Boolean).map(c=>1/c.price).sort((a,b)=>a-b);
+      return {r,pt:r.pt,n:ps.length,p:ps.length?ps[ps.length>>1]:null};}).filter(c=>c.n>=3&&c.p>0&&c.p<1).sort((a,b)=>a.pt-b.pt);
+    if(curve.length<2) return;
+    let at=curve.find(c=>c.pt===m.point), lm;
+    if(at) lm=lg(at.p);
+    else{ const lo=[...curve].reverse().find(c=>c.pt<m.point), hi=curve.find(c=>c.pt>m.point); if(!lo||!hi) return;
+      lm=lg(lo.p)+(lg(hi.p)-lg(lo.p))*(m.point-lo.pt)/(hi.pt-lo.pt); }
+    const shift=lg(1/m.fair)-lm;
+    // higher line can never be likelier than a lower one; long shots (under ~17%) are too noisy to price
+    let cap=1;
+    curve.forEach(c=>{ let p=Math.min(cap,sg(lg(c.p)+shift)); cap=p;
+      if(p<0.17||c.n<4) return;
+      c.r.fair=1/p; c.r.edge=(c.r.best*p-1)*100; c.r.nfair=Math.min(m.nfair||0,c.n); c.r.fairSrc=m.fairSrc; });
+  });
+}
 /* ladder (alternate) markets: every line is its own row, e.g. Klay 10+, 15+, 20+ points */
 function ladderRows(ev,mk,books){
   const R={};
@@ -330,6 +356,7 @@ function ladderRows(ev,mk,books){
     r.gap=r.med?(r.best/r.med-1)*100:null;
     r.mv=null; r.ladder=true;
   });
+  ladderFair(ev,mk,books,rows);
   return {books,rows,pct:0,ladder:true};
 }
 
@@ -476,7 +503,7 @@ function render(){
       ${view==='games'?`<span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>`:''}
       <span class="badge">${t.books.length} books</span></div></div>`;
     const first=view==='props'?(t.ladder?'Player · line':'Player'):market==='h2h'?'Team':market==='spreads'?'Line':'Total';
-    const th=`<tr><th>${first}</th><th>Best</th>${t.ladder?'<th title="Chance implied by the best price">Chance</th>':'<th title="True price with the bookie margin removed">Fair</th>'}<th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
+    const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed (ladders: worked out from the player's main over/under)">Fair</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
     let prev=null;
     const trs=t.rows.map(r=>{
       const gb=(!r.ladder&&r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}">View graph</button>`:'';
@@ -491,7 +518,7 @@ function render(){
       const cells=r.cells.map(c=>{if(!c)return'<td class="off">–</td>';
         const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
         return `<td class="${c.ok&&c.price===r.best?'best':c.ok?'':'off'}">${pt}${c.price.toFixed(2)}</td>`;}).join('');
-      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–'}</td><td class="fair">${r.ladder?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–'}</td><td class="fair">${r.ladder&&!r.fair?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}<div class="swipe">Swipe for every bookie →</div><div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
@@ -667,7 +694,7 @@ function topEV(evs,q,o={}){
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
     mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
       t.rows.forEach(r=>{ if(!r.fair||r.nfair<3) return;
-        if(o.type==='props'&&!(r.s.desc&&r.point!=null)) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r); if(!pk) return;
+        if(o.type==='props'&&!(r.s.desc&&(r.point!=null||r.ladder))) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r); if(!pk) return;
         const edge=(pk.price/r.fair-1)*100;
         if(edge>0.5&&(!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q)))
         out.push({e,mk,r,pk,edge}); });});
