@@ -342,6 +342,16 @@ def main():
     except Exception as e:
         print("player stats failed:", type(e).__name__, e)
 
+    # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
+    try:
+        import hot
+        hj = hot.build(list(props.values()), stats.get("nba") or {}, NOW, TS)
+        with open(os.path.join(OUT, "hot.json"), "w") as f:
+            json.dump(hj, f, separators=(",", ":"))
+        print(f"hot stats: {len(hj['items'])} props")
+    except Exception as e:
+        print("hot stats failed:", type(e).__name__, e)
+
     bundle = {
         "stats": stats,
         "racing": racing,
