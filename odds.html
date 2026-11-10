@@ -101,8 +101,8 @@
   .gate input[type=password]{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--text);font:inherit;font-size:16px}
   .gate input[type=password]:focus{outline:none;border-color:var(--mint-dim)}
   .gate .err{color:var(--red);font-size:14px;min-height:1.2em}
-  .gbtn{background:var(--mint2);color:#04140c;border-radius:999px;padding:12px 18px;font-weight:900;font-style:italic;font-size:16px}
-  .gbtn:disabled{opacity:.6}
+  .ubtn{background:var(--mint2);color:#04140c;border-radius:999px;padding:12px 18px;font-weight:900;font-style:italic;font-size:16px}
+  .ubtn:disabled{opacity:.6}
   .lock{font-size:14px;color:var(--muted);padding:6px 0}
   .lock:hover{color:var(--text)}
   .navr{display:flex;gap:18px;align-items:center}
@@ -209,7 +209,7 @@
     <input type="password" id="pw" autocomplete="current-password" placeholder="Password" required>
     <label class="toggle"><input type="checkbox" id="remember" checked> Remember on this device</label>
     <div class="err" id="gateErr"></div>
-    <button class="gbtn" id="gateBtn" type="submit">Unlock</button>
+    <button class="ubtn" id="gateBtn" type="submit">Unlock</button>
   </form>
 </section>
 
@@ -667,7 +667,7 @@ function bookieLines(ev,mk,player,t,r){
     <div class="gleg"><span>${esc(side)}${pt} · white dashed = fair price · above it = value</span></div>${note}`;
 }
 document.addEventListener('click',e=>{
-  const b=e.target.closest('.gbtn'); if(b){e.preventDefault(); showGraph(b.dataset.ev,b.dataset.mk,b.dataset.p); return;}
+  const b=e.target.closest('.gbtn[data-ev]'); if(b){e.preventDefault(); showGraph(b.dataset.ev,b.dataset.mk,b.dataset.p); return;}
   if(e.target.id==='gmodal') $('gmodal').hidden=true;
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('gmodal')) $('gmodal').hidden=true;});
