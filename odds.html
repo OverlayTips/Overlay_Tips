@@ -238,6 +238,7 @@
     <div class="row">
       <div class="seg" id="markets"></div>
       <input class="search" id="q" type="search" placeholder="Search team">
+      <label class="stakebox" id="statBox">Stats<select id="statSel"><option value="all">All props</option><option value="core">Points, rebounds, assists</option><option value="combo">+ PRA combos</option></select></label>
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
       <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:18px;height:18px"><path d="M4 19l1.4-3.6A7.5 7.5 0 1 1 8 18.2z"/></svg>Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
@@ -310,6 +311,21 @@ $('lockBtn').onclick=()=>{store.del('pw');DATA=null;$('app').hidden=true;$('gate
 (async()=>{const pw=store.get('pw',null); if(pw && !(await unlock(pw,true))) store.del('pw');})();
 setInterval(async()=>{const pw=store.get('pw',null); if(DATA&&pw) unlock(pw,true);},10*60*1000);
 
+/* ---------- props filter: just points / rebounds / assists ---------- */
+const CORE_STATS=['player_points','player_rebounds','player_assists'];
+const COMBO_STATS=CORE_STATS.concat(['player_points_rebounds_assists','player_points_rebounds','player_points_assists','player_rebounds_assists']);
+let statMode=store.get('statMode','all'), PROPS_CACHE=null;
+function propsData(){
+  const P=DATA.props||{events:[]};
+  if(statMode==='all') return P;
+  if(PROPS_CACHE&&PROPS_CACHE.src===P&&PROPS_CACHE.mode===statMode) return PROPS_CACHE.v;
+  const keep=statMode==='core'?CORE_STATS:COMBO_STATS;
+  const v={...P,events:P.events.map(e=>({...e,bookmakers:e.bookmakers.map(b=>({...b,markets:b.markets.filter(m=>keep.includes(m.key.replace(/_lay$/,'')))})).filter(b=>b.markets.length)})).filter(e=>e.bookmakers.length)};
+  PROPS_CACHE={src:P,mode:statMode,v}; return v;
+}
+$('statSel').value=statMode;
+$('statSel').onchange=e=>{statMode=e.target.value;store.set('statMode',statMode);CHK_IDX=null;render();};
+
 /* ---------- tables ---------- */
 function sideOf(o){return {key:(o.description?o.description+'|':'')+o.name, desc:o.description||null, name:o.name}}
 function eventRows(ev, mk){
@@ -380,7 +396,7 @@ function eventRows(ev, mk){
 
 function render(){
   if(!DATA) return;
-  const O=DATA.odds, P=DATA.props||{events:[]};
+  const O=DATA.odds, P=propsData();
   const c=O.credits_remaining;
   $('status').innerHTML=`<span>Updated <b>${ago(O.updated)}</b></span><span><b>${O.events.length}</b> games</span><span><b>${P.events.length}</b> with props</span>`+
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
@@ -390,6 +406,7 @@ function render(){
   $('mvBox').hidden=view!=='mv'; $('evtBox').hidden=view!=='ev';
   myBook=view.startsWith('bk:')?view.slice(3):(['ev','arb','pp'].includes(view)?bookFilter:'all');
   $('bookBox').hidden=!['ev','arb','pp'].includes(view); if(!$('bookBox').hidden) fillBooks();
+  $('statBox').hidden=['race','chk','bonus','games'].includes(view);
   const isB=view==='bonus', isA=view==='arb';
   $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB; $('gapBox').hidden=true; $('maxBox').hidden=true;
   $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
@@ -476,7 +493,7 @@ function render(){
 
 /* ---------- per-player probability graph (implied % from the best price, main line) ---------- */
 function showGraph(evId,mk,player){
-  const P=DATA.props||{events:[]}, ev=P.events.concat(DATA.odds.events).find(e=>e.id===evId); if(!ev) return;
+  const P=propsData(), ev=P.events.concat(DATA.odds.events).find(e=>e.id===evId); if(!ev) return;
   const H=DATA.history?.events?.[evId]?.series||{};
   const pre=mk+'|'+player+'|';
   let sers=Object.entries(H).filter(([k])=>k.startsWith(pre)&&k.endsWith('|main')).map(([k,v])=>({name:k.slice(pre.length,-5),pts:v}));
@@ -577,7 +594,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('gmodal')) $('gmo
 
 const MKT_LABEL={h2h:'H2H',spreads:'Line',totals:'Total'};
 function renderEV(){
-  const O=DATA.odds, P=DATA.props||{events:[]};
+  const O=DATA.odds, P=propsData();
   const evs=O.events.concat(P.events);
   const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
@@ -619,7 +636,7 @@ $('copyBtn').onclick=async()=>{const t=shareText(); if(!t){alert('No bets to cop
 let evType=store.get('evType','all');
 let myBook='all', bookFilter=store.get('bookFilter','all');
 function fillBooks(){
-  const O=DATA.odds,P=DATA.props||{events:[]},seen={};
+  const O=DATA.odds,P=propsData(),seen={};
   O.events.concat(P.events).forEach(e=>e.bookmakers.forEach(b=>{if(b.key!=='betfair_ex_au')seen[b.key]=b;}));
   $('bookSel').innerHTML='<option value="all">All bookies</option>'+Object.values(seen).sort((a,b)=>bkName(a).localeCompare(bkName(b)))
     .map(b=>`<option value="${esc(b.key)}">${esc(bkName(b))}</option>`).join('');
@@ -750,7 +767,7 @@ function findArbs(evs){
 /* ---------- prop picks: overs/unders under a max price where one bookie is well above the rest ---------- */
 let gapMin=+store.get('gapMin',5), maxOdds=+store.get('maxOdds',2.5);
 function renderPropPicks(){
-  const P=DATA.props||{events:[]};
+  const P=propsData();
   $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
   const counts={}; P.events.forEach(e=>counts[e.sport_title]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
@@ -793,7 +810,7 @@ function ppHTML(evs,q){
     <div class="tbl-wrap"><table class="bb ppt"><tr><th>Gap</th><th>Bet</th><th>Best price</th><th>Others pay</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 function renderBook(){
-  const O=DATA.odds, P=DATA.props||{events:[]}, nm=BOOK_NAMES[myBook]||myBook;
+  const O=DATA.odds, P=propsData(), nm=BOOK_NAMES[myBook]||myBook;
   $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
   const evs=O.events.concat(P.events);
   const counts={}; evs.forEach(e=>{ if(e.bookmakers.some(b=>b.key===myBook)) counts[e.sport_title]=1; });
@@ -816,7 +833,7 @@ $('maxSel').onchange=e=>{maxOdds=+e.target.value;store.set('maxOdds',maxOdds);re
 /* ---------- market movers: biggest price moves since the tracker first saw each price ---------- */
 let mvMode=store.get('mvMode','all');
 function renderMovers(){
-  const O=DATA.odds, P=DATA.props||{events:[]};
+  const O=DATA.odds, P=propsData();
   $('mvSel').value=mvMode;
   const evs=P.events;
   const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
@@ -866,7 +883,7 @@ $('mvSel').onchange=e=>{mvMode=e.target.value;store.set('mvMode',mvMode);render(
 /* ---------- check a price: type a bet you've found (e.g. on bet365) and see the edge vs fair ---------- */
 let CHK={q:'',sel:null,price:''}, CHK_IDX=null;
 function chkIndex(){
-  const O=DATA.odds,P=DATA.props||{events:[]},now=new Date(),out=[];
+  const O=DATA.odds,P=propsData(),now=new Date(),out=[];
   O.events.concat(P.events).forEach(e=>{
     if(new Date(e.commence_time)<=now) return;
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
@@ -958,7 +975,7 @@ function renderRacing(){
       <div class="tbl-wrap"><table class="rct"><tr><th>Runner</th><th>Fair</th><th>Back</th><th>Lay</th><th>Move</th></tr>${rows}</table></div></div>`;}).join('');
 }
 function renderArbs(){
-  const O=DATA.odds, P=DATA.props||{events:[]};
+  const O=DATA.odds, P=propsData();
   const evs=O.events.concat(P.events);
   const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
