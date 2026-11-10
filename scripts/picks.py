@@ -89,6 +89,25 @@ def _game(ev):
     return f"{ev['home_team']} v {ev['away_team']}"
 
 
+def sharp_fair(ev, mk, desc, sides, main):
+    """No-vig probabilities from the sharp book (Pinnacle) at the same line as the main line, or {}."""
+    sb = ev.get("sharp")
+    if not sb:
+        return {}
+    m = next((x for x in sb.get("markets", []) if x["key"] == mk), None)
+    if not m:
+        return {}
+    pr = {}
+    for s in sides:
+        o = next((o for o in m["outcomes"] if o["name"] == s and (o.get("description") or "") == desc
+                  and o.get("point") == main.get(s)), None)
+        if not o:
+            return {}
+        pr[s] = 1 / o["price"]
+    tot = sum(pr.values())
+    return {s: v / tot for s, v in pr.items()}
+
+
 def compute(events, props, hist, now):
     overlays, arbs, steamers = [], [], []
     pool = [e for e in list(events) + list(props) if now < _parse(e["commence_time"]) <= now + WINDOW]
@@ -98,8 +117,9 @@ def compute(events, props, hist, now):
                 continue   # yes-only markets (anytime scorer etc.) can't be de-vigged
             # books that price every side of this group -> no-vig probabilities per book
             books = set.intersection(*(set(b) for b in sides.values()))
-            fair = {}
-            if len(books) >= MIN_BOOKS:
+            fair = sharp_fair(ev, mk, desc, sides, main)
+            src = "pin" if fair else "mkt"
+            if not fair and len(books) >= MIN_BOOKS:
                 per = {s: [] for s in sides}
                 for b in books:
                     inv = {s: 1 / sides[s][b][0] for s in sides}
@@ -126,7 +146,7 @@ def compute(events, props, hist, now):
                     overlays.append({"sport": ev.get("sport_title"), "game": _game(ev), "start": ev["commence_time"],
                                      "market": _mlabel(mk), "pick": sel(s), "price": price,
                                      "book": SHORT.get(book, book), "fair": round(1 / fp, 2),
-                                     "edge_pct": round(edge * 100, 1), "books": len(books)})
+                                     "edge_pct": round(edge * 100, 1), "books": len(books), "fair_src": src})
             if len(best) == len(sides) and (mk != "h2h" or len(sides) >= 2):
                 pct = sum(1 / p for p, _ in best.values())
                 if pct < 1:
