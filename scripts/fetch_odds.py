@@ -10,7 +10,7 @@ repo only ever holds ciphertext.
 Env:
   ODDS_API_KEY         required
   ODDS_PAGE_PASSWORD   required (the password for the odds page)
-  SPORTS               game-market sports (default below)
+  SPORTS               game-market sports (default below); 'soccer_*' = every active soccer league
   MARKETS              default h2h,spreads,totals
   PROP_SPORTS          sports to pull player props for (default below)
   PROPS_EVERY_HOURS    re-pull props for a game at most this often (default 6)
@@ -24,7 +24,7 @@ API = os.environ.get("ODDS_API_BASE", "https://api.the-odds-api.com/v4")
 KEY = os.environ.get("ODDS_API_KEY", "").strip()
 PASSWORD = os.environ.get("ODDS_PAGE_PASSWORD", "")
 SPORTS = [s.strip() for s in os.environ.get("SPORTS",
-          "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,soccer_epl,americanfootball_nfl").split(",") if s.strip()]
+          "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,soccer_epl,americanfootball_nfl,soccer_*").split(",") if s.strip()]
 MARKETS = os.environ.get("MARKETS", "h2h,spreads,totals")
 PROP_SPORTS = [s.strip() for s in os.environ.get("PROP_SPORTS",
                "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,americanfootball_nfl,soccer_epl").split(",") if s.strip()]
@@ -208,7 +208,14 @@ def main():
 
     sports = api.get("/sports")          # free
     active = {s["key"]: s["title"] for s in sports if s.get("active")}
-    wanted = [s for s in SPORTS if s in active]
+    games = [s["key"] for s in sports if s.get("active") and not s.get("has_outrights")]
+    wanted = []
+    for pat in SPORTS:  # named sports first, so wildcards never starve them of credits
+        if not pat.endswith("*") and pat in active and pat not in wanted:
+            wanted.append(pat)
+    for pat in SPORTS:
+        if pat.endswith("*"):
+            wanted += [k for k in games if k.startswith(pat[:-1]) and k not in wanted]
 
     # ---- game markets ----
     events = []
