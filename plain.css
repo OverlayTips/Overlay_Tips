@@ -58,3 +58,8 @@ h3,.ev-title,.about-card h3,.contact-card h3,.tool-card h3{font-style:normal!imp
 :root{--gold:#d6a43c;--gold2:#d6a43c}
 .tier.vip .btn-mint{background:linear-gradient(180deg,#e2b452,#c4902c)!important;color:#1a1305!important}
 .tier.vip .btn-mint:hover{background:linear-gradient(180deg,#ebc062,#cf9a34)!important}
+
+/* gold matched to the logo's TIPS */
+:root{--gold:#efbe3b;--gold2:#efbe3b}
+.tier.vip .btn-mint{background:linear-gradient(180deg,#f9d45c,#d99e17)!important;color:#1a1305!important}
+.tier.vip .btn-mint:hover{background:linear-gradient(180deg,#ffdd6e,#e5ab22)!important}
