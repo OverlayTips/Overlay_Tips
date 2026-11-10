@@ -107,17 +107,17 @@
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
     <div class="hs-meta" id="meta">Loading…</div>
+    <div class="hs-bar">
+      <div class="hs-chips" id="chips"></div>
+      <div class="hs-ctl"><label class="hs-sort">Bookie <select id="book"><option value="all">All bookies (best price)</option></select></label>
+      <label class="hs-sort">Sort <select id="sort"><option value="value">Value</option><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label></div>
+    </div>
     <div id="valWrap" hidden>
       <h2 class="hs-h">💰 Best value picks</h2>
       <p class="hs-sub">Player form plus the bookies' consensus, against the best price. Biggest expected return first.</p>
       <div class="hs-grid" id="vgrid"></div>
       <h2 class="hs-h" style="margin-top:34px">🔥 Hot props</h2>
       <p class="hs-sub">Lines cleared in 8+ of the player's last 10 games.</p>
-    </div>
-    <div class="hs-bar">
-      <div class="hs-chips" id="chips"></div>
-      <div class="hs-ctl"><label class="hs-sort">Bookie <select id="book"><option value="all">All bookies (best price)</option></select></label>
-      <label class="hs-sort">Sort <select id="sort"><option value="value">Value</option><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label></div>
     </div>
     <div class="hs-grid" id="grid"></div>
     <p class="hs-note">Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks blend player form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
