@@ -115,7 +115,7 @@
     </div>
     <div class="hs-bar">
       <div class="hs-chips" id="chips"></div>
-      <label class="hs-sort">Sort <select id="sort"><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label>
+      <label class="hs-sort">Sort <select id="sort"><option value="value">Value</option><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label>
     </div>
     <div class="hs-grid" id="grid"></div>
     <p class="hs-note">Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks blend player form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
@@ -142,7 +142,8 @@ document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SRC=new URLSearchParams(location.search).get('data')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json';
-let ITEMS=[], VALUE=[], stat='All', sort='hit';
+let ITEMS=[], VALUE=[], stat='All', sort='value';
+const val=i=>typeof i.value==='number'?i.value:-1e9;
 const pct=a=>a[1]?Math.round(a[0]/a[1]*100):0;
 const when=iso=>new Date(iso).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'});
 const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago';};
@@ -166,7 +167,7 @@ function card(it,val){
       <div class="hs-line">🔥 ${esc(it.line)} ${esc(it.stat)}</div></div>
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
-    <div class="hs-pills">${val?`<span class="hs-pill val">+${it.value.toFixed(0)}% value</span>`:''}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
+    <div class="hs-pills">${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b>. $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)}</div>
   </article>`;
@@ -175,11 +176,11 @@ function draw(){
   const stats=['All',...new Set(ITEMS.concat(VALUE).map(i=>i.stat))];
   $('chips').innerHTML=stats.map(s=>`<button type="button" class="${s===stat?'on':''}" data-s="${esc(s)}">${esc(s)}</button>`).join('');
   $('chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{stat=b.dataset.s;draw();});
-  const vs=VALUE.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
+  const vs=VALUE.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()).sort((a,b)=>val(b)-val(a));
   $('valWrap').hidden=!VALUE.length; $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):'<div class="hs-empty">No value picks for this stat right now.</div>';
   let xs=ITEMS.filter(i=>(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
-  if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
-  $('grid').innerHTML=xs.length?xs.map(card).join(''):`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player has been clearing the line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
+  if(sort==='value') xs.sort((a,b)=>val(b)-val(a)); else if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
+  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player has been clearing the line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
