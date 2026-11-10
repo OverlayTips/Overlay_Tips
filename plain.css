@@ -41,3 +41,11 @@ h3,.ev-title,.about-card h3,.contact-card h3,.tool-card h3{font-style:normal!imp
 /* greens matched to the logo (#19ac6a mid, #24c17b light) */
 :root{--mint:#24c17b;--mint2:#2fcb85;--mint-dim:#17573a}
 .btn-mint:hover{background:#3bd690!important}
+
+/* VIP tier in gold */
+.tier.vip{border-color:var(--gold)!important}
+.tier.vip .mono{color:var(--gold)!important;font-weight:700}
+.tier.vip h3,.tier.vip .price{color:var(--gold)!important}
+.tier.vip li::before{color:var(--gold)!important}
+.tier.vip .btn-mint{background:var(--gold)!important;color:#1a1305!important}
+.tier.vip .btn-mint:hover{background:#e6c272!important}
