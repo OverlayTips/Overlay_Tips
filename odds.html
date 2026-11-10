@@ -86,6 +86,11 @@
   .gbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:100%;max-width:640px;padding:18px 18px 14px}
   .gbox h3{font-size:17px;margin-bottom:2px} .gbox .gsub{color:var(--muted);font-size:13px;margin-bottom:10px}
   .gbox svg.gchart{width:100%;height:auto;display:block}
+  .hr{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;font-size:11.5px;font-weight:700;white-space:nowrap;background:#16201d;color:var(--muted);vertical-align:1px}
+  .hr.good{background:#123a28;color:var(--mint)} .hr.bad{background:#3a1616;color:#ff8a8a}
+  .ps-sum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px} .ps-sum div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted)} .ps-sum b{display:block;color:var(--text);font-size:15px}
+  .ps-tbl{width:100%;border-collapse:collapse;font-size:13px} .ps-tbl th,.ps-tbl td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left} .ps-tbl th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
+  .ps-tbl td.y{color:var(--mint);font-weight:700} .ps-tbl td.n{color:#ff8a8a;font-weight:700}
   .gleg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin-top:8px}
   .gleg b{color:var(--text)} .gleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
   .gclose{float:right;background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
@@ -273,6 +278,56 @@ const PROP_LABEL={player_points_alternate:'Points ladder',player_rebounds_altern
   player_try_scorer_anytime:'Anytime try',player_try_scorer_first:'First try',player_try_scorer_over:'Tries',
   player_pass_yds:'Pass yds',player_pass_tds:'Pass TDs',player_pass_completions:'Completions',player_pass_attempts:'Pass att',player_pass_interceptions:'INTs',player_rush_yds:'Rush yds',player_rush_attempts:'Rush att',player_receptions:'Receptions',player_reception_yds:'Rec yds',player_anytime_td:'Anytime TD',player_1st_td:'First TD',
   player_first_goal_scorer:'First goal',player_shots_on_target:'Shots on target',player_shots:'Shots',player_to_receive_card:'Carded'};
+/* ---------- NBA player stats (ESPN game logs, pulled with the odds) ---------- */
+// game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, tov]
+const STATF={player_points:g=>g[4],player_rebounds:g=>g[5],player_assists:g=>g[6],player_threes:g=>g[7],player_blocks:g=>g[8],player_steals:g=>g[9],player_turnovers:g=>g[10],
+  player_points_rebounds_assists:g=>g[4]+g[5]+g[6],player_points_rebounds:g=>g[4]+g[5],player_points_assists:g=>g[4]+g[6],player_rebounds_assists:g=>g[5]+g[6],
+  player_double_double:g=>[g[4],g[5],g[6],g[8],g[9]].filter(v=>v>=10).length>=2?1:0};
+function pStats(e,desc){
+  if(!e||e.sport_key!=='basketball_nba'||!desc) return null;
+  const S=DATA.stats&&DATA.stats.nba; if(!S) return null;
+  const k=(S.by||{})[desc]; const p=k&&S.players[k]; if(!p||!p.g||!p.g.length) return null;
+  const T=S.teams||{}, h=T[e.home_team], a=T[e.away_team];
+  return {...p, opp:p.team===h?a:p.team===a?h:null};
+}
+// side: true = over / yes. point null for yes/no markets.
+function propHits(e,mk,desc,over,point){
+  const f=STATF[mk.replace(/_alternate$/,'')]; if(!f) return null;
+  const p=pStats(e,desc); if(!p) return null;
+  const gs=p.g.filter(g=>g[3]>0), yes=g=>point==null?f(g)>=1:f(g)>point, ok=g=>over?yes(g):!yes(g);
+  const cnt=a=>[a.filter(ok).length,a.length], avg=a=>a.length?a.reduce((s,g)=>s+f(g),0)/a.length:null;
+  const vs=p.opp?gs.filter(g=>g[1]===p.opp):[];
+  const old=gs.length&&(Date.now()-Date.parse(gs[0][0]))>60*864e5;
+  return {p,f,gs,ok,l5:cnt(gs.slice(0,5)),l10:cnt(gs.slice(0,10)),all:cnt(gs),vs:cnt(vs),a5:avg(gs.slice(0,5)),a10:avg(gs.slice(0,10)),aAll:avg(gs),old};
+}
+function sideOf2(r,pt){ // -> [over?, point]
+  if(r.ladder) return [r.over!==false, r.pt];
+  if(r.s.name==='Over'||r.s.name==='Under') return [r.s.name==='Over', pt!=null?pt:r.point];
+  if(r.s.name==='Yes'||r.s.name==='No') return [r.s.name==='Yes', null];
+  return null;
+}
+function hitChip(e,mk,r,pt){
+  const sd=r.s.desc&&sideOf2(r,pt); if(!sd) return '';
+  const h=propHits(e,mk,r.s.desc,sd[0],sd[1]); if(!h||!h.l10[1]) return '';
+  const [x,n]=h.l10, rate=x/n, cls=n>=5&&rate>=0.7?'good':n>=5&&rate<=0.3?'bad':'';
+  const avg=h.a10!=null&&sd[1]!=null?` · avg ${h.a10.toFixed(1)}`:'';
+  const tip=`Last ${n} games: hit ${x}. Season ${h.all[0]}/${h.all[1]}`+(h.vs[1]?`, vs ${h.p.opp} ${h.vs[0]}/${h.vs[1]}`:'')+(h.old?' (last season: no games yet this season)':'');
+  return `<span class="hr ${cls}" title="${esc(tip)}">L${n} ${x}/${n}${avg}${h.old?' · old':''}</span>`;
+}
+function statsPanel(e,mk,player,rows){
+  const p=pStats(e,player); if(!p||!STATF[mk.replace(/_alternate$/,'')]) return '';
+  const r=rows.find(r=>r.s.name==='Over'||r.s.name==='Yes')||rows[0]; if(!r) return '';
+  const sd=sideOf2(r); if(!sd) return '';
+  const h=propHits(e,mk,player,true,sd[1]); if(!h) return '';
+  const pc=c=>c[1]?`${c[0]}/${c[1]} <small>(${Math.round(c[0]/c[1]*100)}%)</small>`:'–';
+  const line=sd[1]!=null?`over ${sd[1]}`:'yes';
+  const box=(t,c,sub)=>`<div>${t}<b>${pc(c)}</b>${sub||''}</div>`;
+  const fm=v=>v==null?'–':v.toFixed(1);
+  const sum=`<div class="ps-sum">${box('Last 5',h.l5,sd[1]!=null?`avg ${fm(h.a5)}`:'')}${box('Last 10',h.l10,sd[1]!=null?`avg ${fm(h.a10)}`:'')}${box(h.old?'Last season':'Season',h.all,sd[1]!=null?`avg ${fm(h.aAll)}`:'')}${h.vs[1]?box('vs '+h.p.opp,h.vs):''}</div>`;
+  const tr=h.gs.slice(0,10).map(g=>{const v=h.f(g), y=h.ok(g); return `<tr><td>${new Date(g[0]+'T12:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</td><td>${g[2]==='@'?'@':'v'} ${esc(g[1])}</td><td>${g[3]}</td><td>${g[4]}</td><td>${g[5]}</td><td>${g[6]}</td><td>${g[7]}</td><td class="${y?'y':'n'}">${mk.includes('double_double')?(v?'Yes':'No'):v} ${y?'✓':'✗'}</td></tr>`;}).join('');
+  return `<h4>Player stats <small>· ${esc(h.p.team||'')} · hit rate for ${esc(line)}${h.old?' · no games yet this season, showing last season':''}</small></h4>${sum}
+    <div class="tbl-wrap"><table class="ps-tbl"><tr><th>Date</th><th>Opp</th><th>Min</th><th>Pts</th><th>Reb</th><th>Ast</th><th>3PM</th><th>${esc((PROP_LABEL[mk]||'Stat').replace(' ladder',''))}</th></tr>${tr}</table></div>`;
+}
 const bkName=b=>SHORT[b.key]||b.title.replace(/\s*\(AU\)$/,'');
 const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<1?'just now':m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
 const when=iso=>new Date(iso).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
@@ -517,7 +572,7 @@ function render(){
   $('q').placeholder=view==='games'?'Search team':'Search team or player';
   $('legend').textContent=view==='games'
     ?'Fair = the true price with the bookie margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the median of the Aussie bookies. Any bookie paying more than Fair is +EV, e.g. check bet365 against it. Mint cell = best price at the main line. Open → now tracks the best price since the tracker first saw the game. Market % under 100 = arb across bookies.'
-    :'Fair = the true price with the margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the Aussie bookies. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best value: the best price at the most common line, unless a bookie on an easier line (e.g. Over 31.5 instead of 32.5) is worth more, then that one lights up with its line shown. Props refresh 3× a day.';
+    :'Fair = the true price with the margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the Aussie bookies. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best value: the best price at the most common line, unless a bookie on an easier line (e.g. Over 31.5 instead of 32.5) is worth more, then that one lights up with its line shown. Props refresh 3× a day. NBA: L10 7/10 = the player cleared this line in 7 of his last 10 games (green 70%+, red 30% or less). Tap View graph for his game log.';
 
   if(view==='props' && !P.events.length){
     $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
@@ -549,8 +604,8 @@ function render(){
     let prev=null;
     const trs=t.rows.map(r=>{
       const gb=(!r.ladder&&r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}">View graph</button>`:'';
-      const nm=r.ladder?`${esc(r.s.desc||'')} <span class="pt" style="color:var(--text);font-weight:700">${esc(r.s.name)}</span>`
-              :r.s.desc?`${esc(r.s.desc)}${gb} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`
+      const nm=r.ladder?`${esc(r.s.desc||'')} <span class="pt" style="color:var(--text);font-weight:700">${esc(r.s.name)}</span>${hitChip(e,market,r)}`
+              :r.s.desc?`${esc(r.s.desc)}${gb} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>${hitChip(e,market,r)}`
                        :esc(r.s.name)+(r.point!=null?` <span class="pt">${fmtPt(market,r.point)}</span>`:'');
       const grp=r.s.desc&&prev!==null&&prev!==r.s.desc; prev=r.s.desc;
       let mv='<span class="flat">–</span>';
@@ -618,6 +673,7 @@ function showGraph(evId,mk,player){
     <div class="seg gside" style="margin:2px 0 8px">${sides2.map((n,k)=>`<button type="button" data-k="${k}" class="${k?'':'on'}">${esc(n)}</button>`).join('')}</div><div id="gbk"></div>`:'';
   $('gmodal').innerHTML=`<div class="gbox" role="dialog" aria-modal="true"><button class="gclose" type="button" aria-label="Close">×</button>
     <h3>${esc(player)}</h3><div class="gsub">${esc(PROP_LABEL[mk]||mk)} · ${esc(ev.home_team)} v ${esc(ev.away_team)}</div>
+    ${statsPanel(ev,mk,player,rows)}
     <h4>Probability <small>· implied from the best price over time</small></h4>
     ${body}<div class="gleg">${leg}${rows.some(r=>r.fair)?'<span>dashed = fair</span>':''}</div>${body2}</div>`;
   if(body2){
@@ -755,7 +811,7 @@ function topEV(evs,q,o={}){
   if(!out.length) return o.empty||'';
   const rows=out.slice(0,limit).map(x=>{const {e,mk,r,pk,edge}=x, pt=ptOf(x); return `<tr>
     <td class="c-edge"><span class="evp">+${edge.toFixed(1)}%</span></td>
-    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>':esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
+    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>'+hitChip(e,mk,r,pt):esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
     <td class="c-fair">${(x.fair||r.fair).toFixed(2)}${r.fairSrc==='pin'?' <span class="pin">PIN</span>':''}</td>
     <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');
@@ -886,7 +942,7 @@ function ppHTML(evs,q){
   if(!out.length) return `<div class="empty"><h3>No standout prop prices right now</h3>No over/under at $${maxOdds.toFixed(2)} or less${myName()} is ${gapMin}%+ above the other bookies. Try a lower min gap, or check after the next update.</div>`;
   const rows=out.slice(0,60).map(({e,mk,r,pk,med,gap,n})=>`<tr>
     <td class="c-edge"><span class="evp">+${gap.toFixed(1)}%</span><small style="display:block;color:var(--muted);font-size:12px">vs others</small></td>
-    <td class="c-bet">${esc(r.s.desc||'')} <span class="pt">${esc(r.s.name)} ${r.point}</span><br><span class="bk">${esc(PROP_LABEL[mk]||mk)}${r.fair?' · edge '+((pk.price/r.fair-1)*100>0?'+':'')+((pk.price/r.fair-1)*100).toFixed(1)+'%':''}</span></td>
+    <td class="c-bet">${esc(r.s.desc||'')} <span class="pt">${esc(r.s.name)} ${r.point}</span>${hitChip(e,mk,r)}<br><span class="bk">${esc(PROP_LABEL[mk]||mk)}${r.fair?' · edge '+((pk.price/r.fair-1)*100>0?'+':'')+((pk.price/r.fair-1)*100).toFixed(1)+'%':''}</span></td>
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
     <td class="c-fair others">${med.toFixed(2)} <span class="bk">(${n-1} others)</span></td>
     <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`).join('');
