@@ -133,23 +133,42 @@ def _report_urls(now_et):
         t -= timedelta(minutes=15)
 
 
-_NAME = r"(?P<name>[A-Z][A-Za-z'.\-]+(?: [A-Z][A-Za-z'.\-]+)*(?: (?:Jr\.|Sr\.|II|III|IV))?, [A-Z][A-Za-z'.\-]+(?: [A-Za-z'.\-]+)*)"
-_ROW = re.compile(_NAME + r" (?P<status>" + "|".join(STATUSES) + r")\b ?(?P<reason>.*)$")
+_ROW = re.compile(r"(?P<name>[A-Z][^,]*?,\s?[A-Z][^\s,]*) (?P<status>" + "|".join(STATUSES) + r")\b ?(?P<reason>.*)$")
+_SFX = re.compile(r"^(?P<last>.*?)\s?(?P<sfx>Jr\.|Sr\.|III|II|IV)$")
+
+
+def key(name):
+    """Name key that ignores spacing too: the PDF text often comes out with spaces squashed."""
+    return norm(name).replace(" ", "")
+
+
+def _pretty_reason(r):
+    r = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", r.strip())       # RightKneeContusion -> Right Knee Contusion
+    r = re.sub(r"^Injury/Illness\s?-\s?", "", r)
+    r = re.sub(r"\s?-\s?", " - ", r, count=1) if " - " not in r else r
+    return r[:120]
 
 
 def parse_injury_report(text):
-    """{team abbr: [{"name", "status", "reason"}]} from the official report's extracted text."""
-    teams_re = re.compile("|".join(re.escape(n) for n in sorted(TEAMS, key=len, reverse=True)))
-    out, team = {}, None
+    """{(ET game date "YYYY-MM-DD", team abbr): [{"name", "status", "reason"}]} from the official report's extracted text.
+    Copes with normal spacing ("Boston Celtics Tatum, Jayson Questionable ...") and squashed
+    spacing ("BostonCeltics Tatum,Jayson Questionable Injury/Illness-RightAnkleSprain")."""
+    pats = {r"\s?".join(re.escape(w) for w in n.split()): TEAMS[n] for n in TEAMS}
+    teams_re = re.compile("|".join(sorted(pats, key=len, reverse=True)))
+    lookup = {re.sub(r"\s", "", n): ab for n, ab in TEAMS.items()}
+    out, team, day = {}, None, ""
     for line in text.splitlines():
         line = re.sub(r"\s+", " ", line).strip()
-        if not line or line.startswith(("Injury Report:", "Page ", "Game Date")):
+        if not line or line.startswith(("Injury Report:", "Page ", "Game Date", "GameDate")):
             continue
+        dm = re.match(r"(\d{2})/(\d{2})/(\d{4})", line)
+        if dm:
+            day = f"{dm.group(3)}-{dm.group(1)}-{dm.group(2)}"
         tm = None
         for m in teams_re.finditer(line):
             tm = m
         if tm:
-            team = TEAMS[tm.group(0)]
+            team = lookup[re.sub(r"\s", "", tm.group(0))]
             rest = line[tm.end():].strip()
         else:
             rest = line
@@ -158,13 +177,11 @@ def parse_injury_report(text):
         m = _ROW.search(rest)
         if not m:
             continue
-        last, first = [s.strip() for s in m.group("name").split(",", 1)]
-        sfx = re.search(r" (Jr\.|Sr\.|II|III|IV)$", last)
-        if sfx:
-            last = last[:sfx.start()]
-        name = f"{first} {last}" + (f" {sfx.group(1)}" if sfx else "")
-        out.setdefault(team, []).append({"name": name, "status": m.group("status"),
-                                         "reason": m.group("reason").strip()[:120]})
+        last, first = [x.strip() for x in m.group("name").split(",", 1)]
+        sm = _SFX.match(last)
+        name = f"{first} {sm.group('last')} {sm.group('sfx')}" if sm and sm.group("last") else f"{first} {last}"
+        out.setdefault((day, team), []).append({"name": name, "status": m.group("status"),
+                                         "reason": _pretty_reason(m.group("reason"))})
     return out
 
 
@@ -266,6 +283,16 @@ def build(now):
             continue
         keep[g["id"]] = g
 
+    known = {}   # tidy names from ESPN / NBA.com, to fix up the PDF's squashed ones
+    for t in esp.values():
+        for i in t:
+            known.setdefault(key(i["name"]), i["name"])
+    for l in lu.values():
+        for p in l["starters"]:
+            known.setdefault(key(p["name"]), p["name"])
+        for nm in l["inactive"]:
+            known.setdefault(key(nm), nm)
+
     players = {}
     for g in sorted(keep.values(), key=lambda g: g["start"]):
         gd = datetime.fromisoformat(g["start"].replace("Z", "+00:00")).astimezone(ET).strftime("%Y-%m-%d")
@@ -276,28 +303,33 @@ def build(now):
             t["starters"] = l.get("starters", [])
             t["confirmed"] = l.get("confirmed", False)
             inj, seen = [], set()
-            for i in off.get(ab, []):
-                inj.append({**i, "src": "NBA"})
-                seen.add(norm(i["name"]))
+            offl = off.get((gd, ab))
+            if offl is None:   # report not out for that date yet: newest entries for the team
+                offl = next((v for (d, a2), v in sorted(off.items(), reverse=True) if a2 == ab), [])
+            for i in offl:
+                k = key(i["name"])
+                if k not in seen:
+                    inj.append({**i, "name": known.get(k, i["name"]), "src": "NBA"})
+                    seen.add(k)
             for i in esp.get(ab, []):
-                if norm(i["name"]) not in seen:
-                    inj.append({**{k: v for k, v in i.items() if v}, "src": "ESPN"})
-                    seen.add(norm(i["name"]))
+                if key(i["name"]) not in seen:
+                    inj.append({**{k2: v for k2, v in i.items() if v}, "src": "ESPN"})
+                    seen.add(key(i["name"]))
             for nm in l.get("inactive", []):
-                if norm(nm) not in seen:
+                if key(nm) not in seen:
                     inj.append({"name": nm, "status": "Out", "reason": "Inactive", "src": "NBA"})
-                    seen.add(norm(nm))
+                    seen.add(key(nm))
             inj.sort(key=lambda i: (RANK.get(i["status"], 5), i["name"]))
             t["injuries"] = inj
             if g["state"] == "post":
                 continue
-            # quick lookup for other pages: each player's next game only
+            # quick lookup for other pages (key = name without spaces): each player's next game only
             mine = {}
             for i in inj:
-                mine[norm(i["name"])] = {"name": i["name"], "team": ab, "status": i["status"],
-                                         "starter": False, "confirmed": False, "start": g["start"]}
-            for s in t["starters"]:
-                p = mine.setdefault(norm(s["name"]), {"name": s["name"], "team": ab, "status": "", "start": g["start"]})
+                mine[key(i["name"])] = {"name": i["name"], "team": ab, "status": i["status"],
+                                        "starter": False, "confirmed": False, "start": g["start"]}
+            for st in t["starters"]:
+                p = mine.setdefault(key(st["name"]), {"name": st["name"], "team": ab, "status": "", "start": g["start"]})
                 p["starter"], p["confirmed"] = True, t["confirmed"]
             for k, v in mine.items():
                 players.setdefault(k, v)

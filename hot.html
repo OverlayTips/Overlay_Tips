@@ -154,11 +154,11 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const SRC=new URLSearchParams(location.search).get('data')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json';
 let ITEMS=[], VALUE=[], stat='All', sort='value', book='all', LU={};
 const LSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-data/lineups.json';
-// same as scripts/lineups.py norm(): accents, dots, apostrophes and Jr/Sr/II off
+// same as scripts/lineups.py key(): accents, dots, apostrophes, Jr/Sr/II and spaces off
 const norm=n=>String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[.'’`]/g,'').replace(/-/g,' ').split(/\s+/).filter(t=>t&&!['jr','sr','ii','iii','iv','v'].includes(t)).join(' ');
 const INJ={'Out':['inj-out','❌ Out'],'Doubtful':['inj-dbt','⚠️ Doubtful'],'Questionable':['inj-q','⚠️ Questionable'],'Day-To-Day':['inj-q','⚠️ Day-to-day'],'Probable':['inj-p','Probable']};
 function status(it){
-  const p=LU[norm(it.player)];
+  const p=LU[norm(it.player).replace(/ /g,'')];
   if(!p) return {cls:'',pill:''};
   if(INJ[p.status]) return {cls:p.status==='Out'?'out':'',pill:`<a href="lineups.html" class="hs-pill ${INJ[p.status][0]}">${INJ[p.status][1]}</a>`};
   if(p.starter&&p.confirmed) return {cls:'',pill:'<a href="lineups.html" class="hs-pill start">✅ Starting</a>'};

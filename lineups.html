@@ -162,13 +162,13 @@ function draw(){
   if(!days.includes(day)) day=days[0];
   $('days').innerHTML=days.length>1?days.map(d=>{const g=GAMES.find(x=>dayKey(x.start)===d);return `<button type="button" class="${d===day?'on':''}" data-d="${d}">${esc(dayName(g.start))}</button>`;}).join(''):'';
   $('days').querySelectorAll('button').forEach(b=>b.onclick=()=>{day=b.dataset.d;draw();});
-  const xs=GAMES.filter(g=>dayKey(g.start)===day);
+  const xs=GAMES.filter(g=>dayKey(g.start)===day).sort((a,b)=>(a.state==='post')-(b.state==='post')||a.start.localeCompare(b.start));
   $('grid').innerHTML=xs.length?xs.map(card).join(''):'<div class="lu-empty"><h3>No NBA games right now</h3>Lineups and injuries show up here on game days.</div>';
 }
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/120000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
   GAMES=(d.games||[]).filter(g=>g.state!=='post'||Date.now()-new Date(g.start)<5*3600e3);
-  const conf=GAMES.reduce((n,g)=>n+g.away.confirmed+g.home.confirmed,0);
-  $('meta').textContent=`${GAMES.length} games · ${conf} confirmed lineups · updated ${ago(d.updated)}`; draw();
+  const up=GAMES.filter(g=>g.state!=='post'), conf=up.reduce((n,g)=>n+g.away.confirmed+g.home.confirmed,0);
+  $('meta').textContent=`${up.length} upcoming games · ${conf} confirmed lineups · updated ${ago(d.updated)}`; draw();
 }).catch(()=>{ $('meta').textContent=''; $('grid').innerHTML='<div class="lu-empty"><h3>Lineups are loading soon</h3>The first update lands within 15 minutes.</div>'; });
 </script>
 </body>
