@@ -54,3 +54,12 @@ jobs:
           git config user.email "odds-bot@users.noreply.github.com"
           git add state.json && git commit -qm "Alerts state $(date -u +%FT%TZ)"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" alerts-state:alerts-state
+
+      - name: Publish lineups for the website
+        if: ${{ !inputs.test && hashFiles('st/lineups.json') != '' }}
+        run: |
+          mkdir -p ld && cp st/lineups.json ld/ && cd ld && git init -q -b lineups-data .
+          git config user.name "odds-bot"
+          git config user.email "odds-bot@users.noreply.github.com"
+          git add lineups.json && git commit -qm "Lineups snapshot $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" lineups-data:lineups-data

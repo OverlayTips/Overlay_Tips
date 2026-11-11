@@ -3,8 +3,9 @@
 Runs on GitHub's servers every ~10 min during the Aussie morning/arvo (see .github/workflows/nba-alerts.yml).
 Each run:
   1. pulls today's NBA games (US date), projected lineups and the injury report from BALLDONTLIE (GOAT tier)
-  2. compares them with what it saw last run (state.json on the alerts-state branch)
-  3. sends ONE push with whatever changed: lineups that just got confirmed, and injury status changes
+  2. writes lineups.json for the website (lineups-data branch)
+  3. compares them with what it saw last run (state.json on the alerts-state branch)
+  4. sends ONE push with whatever changed: lineups that just got confirmed, and injury status changes
      for players on teams playing today. Each push has a "Share to WhatsApp" button with the same text,
      ready to forward to the Overlay group.
 
@@ -55,6 +56,8 @@ def pages(path, params=(), limit=20):
 
 
 def push(title, lines, tags="basketball"):
+    if not TOPIC:
+        return
     body = "\n".join(lines)
     wa = f"{title}\n\n{body}\n\n{FOOT}"
     msg = {"topic": TOPIC, "title": title, "message": body, "tags": tags.split(","),
@@ -87,10 +90,39 @@ def short(p):
     return p.get("last_name") or pname(p)
 
 
+def write_site(day, games, lineups, injuries):
+    """lineups.json for the website's Lineups page (published to the lineups-data branch)."""
+    by = {}
+    for lu in lineups:
+        k = (lu.get("game_id"), lu.get("team_id"))
+        if lu.get("status") == "confirmed" or k not in by:
+            by[k] = lu
+
+    def side(g, t):
+        lu = by.get((g.get("id"), t.get("id"))) or {}
+        st = lu.get("status") or ""
+        inj = sorted(({"n": x["n"], "s": x["s"], "r": x["r"] if x["s"] == "Out" else "", "d": x["d"]}
+                      for x in injuries.values() if x.get("t") == t.get("id")),
+                     key=lambda x: (ORDER.get(x["s"], 9), x["n"]))
+        return {"abbr": t.get("abbreviation") or "", "name": t.get("full_name") or t.get("name") or "",
+                "status": "confirmed" if st == "confirmed" else ("projected" if lu else ""),
+                "starters": [{"n": pname(x.get("player") or {}),
+                              "pos": x.get("position") or (x.get("player") or {}).get("position") or ""}
+                             for x in lu.get("lineup") or []],
+                "injuries": inj}
+
+    out = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "date": day,
+           "games": [{"tip": g.get("datetime") or "", "status": g.get("status") or "",
+                      "away": side(g, g.get("visitor_team") or {}), "home": side(g, g.get("home_team") or {})}
+                     for g in sorted(games, key=lambda g: g.get("datetime") or "")]}
+    path = os.path.join(os.path.dirname(STATE) or ".", "lineups.json")
+    json.dump(out, open(path, "w"), separators=(",", ":"))
+
+
 def main():
-    if not TOPIC:   # not set up yet: skip quietly so GitHub doesn't email a failure every 10 min
-        print("::warning::Add the NTFY_TOPIC secret to start sending alerts"); return
-    if os.environ.get("TEST") == "1":
+    if not TOPIC:   # phone alerts not set up: still build the website's lineups page
+        print("::warning::Add the NTFY_TOPIC secret to start sending alerts")
+    if os.environ.get("TEST") == "1" and TOPIC:
         push("Overlay alerts are working ✅", ["You'll get NBA confirmed lineups + injury news here.",
                                                "Tap 'Share to WhatsApp' on any alert to forward it."])
         print("test push sent"); return
@@ -105,6 +137,7 @@ def main():
     day = datetime.now(ET).strftime("%Y-%m-%d")      # US game date (Aussie morning = US evening)
 
     games = api("/games", [("dates[]", day), ("per_page", 100)]).get("data") or []
+    all_lineups = pages("/projected_lineups", [("dates[]", day)]) if games else []
     teams, opp, tip = {}, {}, {}
     for g in games:
         h, v = g.get("home_team") or {}, g.get("visitor_team") or {}
@@ -119,7 +152,7 @@ def main():
     sent = state.get("lineups", {}) if state.get("day") == day else {}
     lineup_lines = []
     if games:
-        for lu in pages("/projected_lineups", [("dates[]", day)]):
+        for lu in all_lineups:
             if lu.get("status") != "confirmed":
                 continue
             k = f"{lu.get('game_id')}-{lu.get('team_id')}"
@@ -166,6 +199,8 @@ def main():
             title = "NBA injury update" if len(inj_lines) > 1 else "NBA injury: " + inj_lines[0][2:]
         body = lineup_lines + ([""] if lineup_lines and inj_lines else []) + inj_lines
         push(title, body[:40])
+
+    write_site(day, games, all_lineups, new)
 
     state = {"day": day, "lineups": sent, "injuries": new,
              "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
