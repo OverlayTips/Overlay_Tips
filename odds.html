@@ -359,19 +359,26 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 
 /* ---------- unlock ---------- */
-/* PRA ladder: overs at 15+, 20+, 25+, 30+ ... only, built from every PRA line the bookies send
-   (main market + their alternate ladder). The normal PRA market stays as it is. */
+/* PRA ladder: overs at 15+, 20+, 25+, 30+ ... plus any other line a bookie has at $1.60-$1.90,
+   built from every PRA line the bookies send (main market + their alternate ladder).
+   The normal PRA market stays as it is. */
+const PRA_MIN=1.60, PRA_MAX=1.90;
 function praLadder(D){
   const MK='player_points_rebounds_assists', AL=MK+'_alternate';
-  ((D.props||{}).events||[]).forEach(e=>e.bookmakers.forEach(b=>{
-    const seen={}, outs=[];
-    b.markets.filter(m=>m.key===AL||m.key===MK).forEach(m=>m.outcomes.forEach(o=>{
-      if(o.name!=='Over'||o.point==null||!o.description||Math.ceil(o.point)%5) return;
-      const k=o.description+'|'+o.point; if(seen[k]) return; seen[k]=1; outs.push({...o});
+  ((D.props||{}).events||[]).forEach(e=>{
+    const ov=b=>b.markets.filter(m=>m.key===AL||m.key===MK).flatMap(m=>m.outcomes)
+      .filter(o=>o.name==='Over'&&o.point!=null&&o.description);
+    const keep=new Set();   // lines (player|point) worth showing for this game
+    e.bookmakers.forEach(b=>ov(b).forEach(o=>{
+      if(Math.ceil(o.point)%5===0||(o.price>=PRA_MIN&&o.price<=PRA_MAX)) keep.add(o.description+'|'+o.point);
     }));
-    b.markets=b.markets.filter(m=>m.key!==AL);
-    if(outs.length) b.markets.push({key:AL,outcomes:outs});
-  }));
+    e.bookmakers.forEach(b=>{
+      const seen={}, outs=[];
+      ov(b).forEach(o=>{ const k=o.description+'|'+o.point; if(!keep.has(k)||seen[k]) return; seen[k]=1; outs.push({...o}); });
+      b.markets=b.markets.filter(m=>m.key!==AL);
+      if(outs.length) b.markets.push({key:AL,outcomes:outs});
+    });
+  });
 }
 async function decrypt(bundle,pw){
   const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
