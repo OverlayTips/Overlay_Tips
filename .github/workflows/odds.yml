@@ -69,7 +69,7 @@ jobs:
           cp data.json .git-tmp/
           if [ -f picks.json ] && [ "$PW_SET" = "true" ]; then cp picks.json .git-tmp/; fi
           if [ -f hot.json ]; then cp hot.json .git-tmp/; fi   # free public Hot stats page
-          if [ -f lines.json ]; then cp lines.json .git-tmp/; fi   # free public Live page (lines only)
+          if [ -f lines.json ]; then cp lines.json .git-tmp/; fi   # members Live page (encrypted)
           cd .git-tmp
           git config user.name "odds-bot"
           git config user.email "odds-bot@users.noreply.github.com"

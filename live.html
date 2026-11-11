@@ -71,6 +71,16 @@
 .lv-empty h3{color:#ecf5f1;margin-bottom:6px}
 .lv-note{color:#87978f;font-size:13px;margin-top:22px;line-height:1.5}
 .lv-note a{color:var(--mint)}
+.lv-gate{display:flex;justify-content:center;padding:10px 0 40px}
+.lv-gate form{width:100%;max-width:380px;background:#0e1312;border:1px solid #1b2523;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.lv-gate h2{font-size:26px!important;margin:0!important}
+.lv-gate p{color:#87978f;font-size:14px}
+.lv-gate input[type=password]{background:#121a18;border:1px solid #1b2523;border-radius:12px;padding:12px 14px;color:#ecf5f1;font:inherit;font-size:16px}
+.lv-gate label{color:#87978f;font-size:14px;display:flex;gap:8px;align-items:center}
+.lv-gate .err{color:#ff8a8a;font-size:14px;min-height:1.2em}
+.lv-gate button{background:var(--mint);color:#04130b;border:0;border-radius:999px;padding:12px 18px;font:900 16px Archivo,system-ui,sans-serif;cursor:pointer}
+.lv-gate button:disabled{opacity:.6}
+.lv-lock{background:none;border:0;color:#87978f;font:600 13px Archivo,system-ui,sans-serif;cursor:pointer;margin-left:8px;text-decoration:underline}
 </style>
 <script src="nav.js?v=1"></script>
 </head>
@@ -119,14 +129,28 @@
 <main>
 <header class="page-head">
   <div class="wrap">
-    <div class="mono">Free · NBA live</div>
+    <div class="mono">Members · NBA live</div>
     <h1>Live</h1>
-    <p>Every NBA game live, in Sydney time. Pick a game to watch each player's stats against his prop line as it happens, or open the full box score. Refreshes every 30 seconds.</p>
+    <p>Members only. Every NBA game live, in Sydney time. Pick a game to watch each player's stats against his prop line as it happens, or open the full box score. Refreshes every 30 seconds.</p>
   </div>
 </header>
-<section class="page-sec" style="padding-top:0">
+<section class="page-sec" style="padding-top:0" id="gate">
+  <div class="wrap lv-gate">
+    <form id="gateForm" autocomplete="on">
+      <div class="mono">Members only</div>
+      <h2>Unlock Live</h2>
+      <p>Same password as the Odds board.</p>
+      <input type="text" name="username" value="overlay-odds" autocomplete="username" hidden>
+      <input type="password" id="pw" autocomplete="current-password" placeholder="Password" required>
+      <label><input type="checkbox" id="remember" checked> Remember on this device</label>
+      <div class="err" id="gateErr"></div>
+      <button id="gateBtn" type="submit">Unlock</button>
+    </form>
+  </div>
+</section>
+<section class="page-sec" style="padding-top:0" id="app" hidden>
   <div class="wrap">
-    <div class="lv-meta" id="meta">Loading…</div>
+    <div class="lv-meta"><span id="meta">Loading…</span><button type="button" class="lv-lock" id="lockBtn">Lock</button></div>
     <div class="lv-games" id="games"></div>
     <div class="lv-panel" id="panel" hidden>
       <div class="lv-head">
@@ -165,6 +189,9 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const Q=new URLSearchParams(location.search), TZ='Australia/Sydney';
 const ESPN=Q.get('espn')||'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 const LINES=Q.get('lines')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/lines.json';
+// same password + saved login as the Odds board (odds.html stores it as odds.pw)
+const store={get(k){try{return JSON.parse(localStorage.getItem('odds.'+k));}catch(e){return null;}},set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v));}catch(e){}},del(k){try{localStorage.removeItem('odds.'+k);}catch(e){}}};
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const ESPN2NBA={GS:'GSW',NY:'NYK',SA:'SAS',NO:'NOP',UTAH:'UTA',WSH:'WAS',PHO:'PHX'};
 const ab=a=>{a=String(a||'').toUpperCase();return ESPN2NBA[a]||a;};
 const key=n=>String(n||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[.'’`]/g,'').replace(/-/g,' ').split(/\s+/).filter(t=>t&&!['jr','sr','ii','iii','iv','v'].includes(t)).join('');
@@ -284,8 +311,30 @@ async function cycle(){
   const live=EVENTS.some(e=>st(e).state==='in');
   timer=setTimeout(cycle,live?30000:failed?60000:180000);
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)cycle();});
-fetch(LINES+(LINES.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{games:[]}).catch(()=>({games:[]})).then(d=>{LINESD=d&&d.games?d:{games:[]};cycle();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&PW)cycle();});
+async function decrypt(bundle,pw){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  const k=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(bundle.salt),iterations:bundle.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  const gz=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(bundle.iv)},k,b64(bundle.ct));
+  return JSON.parse(await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+}
+let BUNDLE=null, PW=null;
+async function unlock(pw,quiet){
+  if(!BUNDLE){try{const r=await fetch(LINES+(LINES.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/120000));if(!r.ok)throw 0;BUNDLE=await r.json();}catch(e){if(!quiet)$('gateErr').textContent="Couldn't load. Check your connection and try again.";return false;}}
+  if(!BUNDLE.ct){if(!quiet)$('gateErr').textContent='Live unlocks after the next odds update.';return false;}
+  try{const d=await decrypt(BUNDLE,pw);LINESD=d&&d.games?d:{games:[]};}catch(e){if(!quiet)$('gateErr').textContent='Wrong password.';return 'bad';}
+  PW=pw; $('gate').hidden=true; $('app').hidden=false; cycle(); return true;
+}
+$('gateForm').onsubmit=async e=>{
+  e.preventDefault(); $('gateBtn').disabled=true; $('gateErr').textContent='';
+  const pw=$('pw').value;
+  if((await unlock(pw))===true){if($('remember').checked)store.set('pw',pw);else store.del('pw');}
+  $('gateBtn').disabled=false;
+};
+$('lockBtn').onclick=()=>{store.del('pw');PW=null;LINESD={games:[]};clearTimeout(timer);$('app').hidden=true;$('gate').hidden=false;$('pw').value='';$('pBody').innerHTML='';$('games').innerHTML='';};
+// fresh lines every 10 min while open
+setInterval(()=>{if(PW){BUNDLE=null;unlock(PW,true);}},10*60*1000);
+(async()=>{const pw=store.get('pw');if(pw&&(await unlock(pw,true))==='bad')store.del('pw');})();   // keep it on a network blip
 </script>
 </body>
 </html>

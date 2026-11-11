@@ -1,7 +1,7 @@
-"""Main NBA player prop lines for the free Live page (live.html).
+"""Main NBA player prop lines for the members' Live page (live.html).
 
-Published UNENCRYPTED as odds-data/lines.json, so it carries only the line itself (e.g. Tatum
-Points 26.5): no prices, fair odds or edges, which stay on the members' odds board.
+fetch_odds.py publishes it as odds-data/lines.json, encrypted with the odds page password. It carries
+only the line itself (e.g. Tatum Points 26.5): no prices, fair odds or edges.
   {"updated": TS, "games": [{"home", "away", "start", "players": {name: {stat label: line}}}]}
 """
 from datetime import datetime
