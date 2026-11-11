@@ -343,13 +343,21 @@ def main():
     except Exception as e:
         print("player stats failed:", type(e).__name__, e)
 
+    sgms = []
     # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
     try:
         import hot
         hj = hot.build(list(props.values()), stats.get("nba") or {}, NOW, TS)
+        legs = hj.pop("_legs", [])
         with open(os.path.join(OUT, "hot.json"), "w") as f:
             json.dump(hj, f, separators=(",", ":"))
         print(f"hot stats: {len(hj['items'])} props")
+        try:
+            import sgm
+            sgms = sgm.build(legs)
+            print(f"value SGMs: {len(sgms)}")
+        except Exception as e:
+            print("SGM builder failed:", type(e).__name__, e)
     except Exception as e:
         print("hot stats failed:", type(e).__name__, e)
 
@@ -365,6 +373,7 @@ def main():
 
     bundle = {
         "stats": stats,
+        "sgm": {"updated": TS, "items": sgms},
         "racing": racing,
         "odds": {
             "updated": TS,

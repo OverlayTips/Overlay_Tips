@@ -38,7 +38,7 @@ def _book(b):
 
 def build(prop_events, stats, now, ts):
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
-    cands, vcands = [], []
+    cands, vcands, legs = [], [], []
     for ev in prop_events:
         if ev.get("sport_key") != "basketball_nba":
             continue
@@ -102,6 +102,7 @@ def build(prop_events, stats, now, ts):
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
                 "games": [[g[0], g[1], g[2], f(g)] for g in l10],
             }
+            legs.append({**item, "ev": ev["id"], "mk": mk})   # SGM builder (members only, see sgm.py)
             key = (desc, mk)
             if h10 / len(l10) >= MIN_HIT and (key not in top or price > top[key]["price"]):
                 top[key] = item
@@ -128,4 +129,4 @@ def build(prop_events, stats, now, ts):
         value.append(c)
         if len(value) >= VALUE_LIMIT:
             break
-    return {"updated": ts, "items": out, "value": value}
+    return {"updated": ts, "items": out, "value": value, "_legs": legs}
