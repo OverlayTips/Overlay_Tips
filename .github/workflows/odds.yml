@@ -4,7 +4,12 @@ name: Update odds
 # sends a picks alert: 6:45am "Early odds picks", 9:13am "Morning odds picks", 5:45pm "Daily odds picks".
 # Use "Run workflow" in the Actions tab for an extra refresh any time.
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      fresh_props:
+        description: "Re-pull every game's player props now (ignore the 2-hour cache)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -18,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PW_SET: ${{ secrets.ODDS_PAGE_PASSWORD != '' }}
-      PROPS_EVERY_HOURS: "2"
+      PROPS_EVERY_HOURS: ${{ inputs.fresh_props && '0' || '2' }}
     steps:
       - name: Check Sydney time
         run: |
