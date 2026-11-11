@@ -82,8 +82,8 @@ def short(p):
 
 
 def main():
-    if not TOPIC:
-        sys.exit("NTFY_TOPIC not set")
+    if not TOPIC:   # not set up yet: skip quietly so GitHub doesn't email a failure every 10 min
+        print("::warning::Add the NTFY_TOPIC secret to start sending alerts"); return
     if os.environ.get("TEST") == "1":
         push("Overlay alerts are working ✅", ["You'll get NBA confirmed lineups + injury news here.",
                                                "Tap 'Share to WhatsApp' on any alert to forward it."])

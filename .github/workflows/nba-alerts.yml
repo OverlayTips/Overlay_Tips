@@ -47,7 +47,7 @@ jobs:
         run: python scripts/nba_alerts.py
 
       - name: Save state
-        if: ${{ !inputs.test }}
+        if: ${{ !inputs.test && hashFiles('st/state.json') != '' }}
         run: |
           cd st && git init -q -b alerts-state .
           git config user.name "odds-bot"
