@@ -15,7 +15,8 @@ Env:
   TEST=1          send a test push and exit
 Usage: python scripts/nba_alerts.py
 """
-import json, os, sys, time, urllib.error, urllib.parse, urllib.request
+import json
+import re, os, sys, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -61,8 +62,13 @@ def push(title, lines, tags="basketball"):
                         "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]}
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(msg).encode(),
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        r.read()
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            r.read()
+    except urllib.error.HTTPError as e:
+        ok = bool(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", TOPIC))
+        print(f"::error::ntfy {e.code}: {e.read()[:300]!r} (topic valid format: {ok}, length {len(TOPIC)})")
+        raise
 
 
 def sydtime(iso):
