@@ -87,7 +87,7 @@ def espn_games(dates):
 
 # ---------------------------------------------------------------- lineups (NBA.com)
 def nba_lineups(dates):
-    """{team abbr: {"confirmed": bool, "starters": [...], "inactive": [names]}}"""
+    """{(ET game date "YYYY-MM-DD", team abbr): {"confirmed": bool, "starters": [...], "inactive": [names]}}"""
     out, got = {}, 0
     for d in dates:
         try:
@@ -111,8 +111,8 @@ def nba_lineups(dates):
                     if p.get("position"):
                         starters.append({"name": nm, "pos": p["position"]})
                         conf.append((p.get("lineupStatus") or "").lower() == "confirmed")
-                if starters and ab not in out:
-                    out[ab] = {"confirmed": bool(conf) and all(conf), "starters": starters, "inactive": inactive}
+                if starters:
+                    out[(f"{d:%Y-%m-%d}", ab)] = {"confirmed": bool(conf) and all(conf), "starters": starters, "inactive": inactive}
     if not got:
         raise RuntimeError("no lineup file for these dates yet")
     return out
@@ -168,19 +168,45 @@ def parse_injury_report(text):
     return out
 
 
+INDEX = "https://official.nba.com/nba-injury-report-{a}-{b}-season/"
+_PDF = re.compile(r"https://ak-static\.cms\.nba\.com/referee/injury/Injury-Report_(\d{4}-\d{2}-\d{2})_(\d{1,2})(?:_(\d{2}))?(AM|PM)\.pdf")
+
+
+def _index_urls(now_et):
+    """Latest report links from the NBA's official injury report page (season starts in October)."""
+    y = now_et.year if now_et.month >= 8 else now_et.year - 1
+    for a, b in ((y, str(y + 1)[2:]), (y, y + 1)):
+        try:
+            html = _get(INDEX.format(a=a, b=b), {"User-Agent": UA}, raw=True).decode("utf-8", "ignore")
+        except Exception:
+            continue
+        def key(m):
+            h = int(m.group(2)) % 12 + (12 if m.group(4) == "PM" else 0)
+            return (m.group(1), h, int(m.group(3) or 0))
+        ms = sorted({m.group(0): m for m in _PDF.finditer(html)}.values(), key=key, reverse=True)
+        if ms:
+            return [m.group(0) for m in ms[:3]]
+    return []
+
+
 def nba_injuries(now):
     import pdfplumber   # installed by the workflow
     now_et = now.astimezone(ET)
-    for url in _report_urls(now_et):
+    tried = 0
+    for url in list(_index_urls(now_et)) + list(_report_urls(now_et)):
+        tried += 1
         try:
             pdf = _get(url, {"User-Agent": UA}, raw=True, timeout=15)
-        except urllib.error.HTTPError:
+        except urllib.error.HTTPError as e:
+            if tried <= 2:
+                print(f"  {url.rsplit('/', 1)[-1]}: HTTP {e.code}")
             continue
         with pdfplumber.open(io.BytesIO(pdf)) as doc:
             text = "\n".join((p.extract_text() or "") for p in doc.pages)
         inj = parse_injury_report(text)
         if inj:
             return inj, url.rsplit("/", 1)[-1]
+        print(f"  {url.rsplit('/', 1)[-1]}: no rows parsed; first lines: {text[:300]!r}")
     raise RuntimeError("no official injury report found in the last 10 hours")
 
 
@@ -241,11 +267,12 @@ def build(now):
         keep[g["id"]] = g
 
     players = {}
-    for g in keep.values():
+    for g in sorted(keep.values(), key=lambda g: g["start"]):
+        gd = datetime.fromisoformat(g["start"].replace("Z", "+00:00")).astimezone(ET).strftime("%Y-%m-%d")
         for side in ("away", "home"):
             t = g[side]
             ab = t["abbr"]
-            l = lu.get(ab) or {}
+            l = lu.get((gd, ab)) or {}
             t["starters"] = l.get("starters", [])
             t["confirmed"] = l.get("confirmed", False)
             inj, seen = [], set()
@@ -262,12 +289,18 @@ def build(now):
                     seen.add(norm(nm))
             inj.sort(key=lambda i: (RANK.get(i["status"], 5), i["name"]))
             t["injuries"] = inj
+            if g["state"] == "post":
+                continue
+            # quick lookup for other pages: each player's next game only
+            mine = {}
             for i in inj:
-                players[norm(i["name"])] = {"name": i["name"], "team": ab, "status": i["status"],
-                                            "starter": False, "confirmed": False}
+                mine[norm(i["name"])] = {"name": i["name"], "team": ab, "status": i["status"],
+                                         "starter": False, "confirmed": False, "start": g["start"]}
             for s in t["starters"]:
-                p = players.setdefault(norm(s["name"]), {"name": s["name"], "team": ab, "status": ""})
+                p = mine.setdefault(norm(s["name"]), {"name": s["name"], "team": ab, "status": "", "start": g["start"]})
                 p["starter"], p["confirmed"] = True, t["confirmed"]
+            for k, v in mine.items():
+                players.setdefault(k, v)
     gl = sorted(keep.values(), key=lambda g: g["start"])
     return {"updated": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "sources": sources, "games": gl, "players": players}
 
