@@ -32,7 +32,8 @@ _BBALL = ("player_points,player_rebounds,player_assists,player_threes,player_poi
           "player_points_rebounds,player_points_assists,player_rebounds_assists,player_blocks,player_steals,"
           "player_turnovers,player_double_double,player_first_basket,"
           # ladders: every line a bookie offers (10+, 15+, 20+ points; 1+, 2+ assists ...)
-          "player_points_alternate,player_rebounds_alternate,player_assists_alternate,player_threes_alternate")
+          "player_points_alternate,player_rebounds_alternate,player_assists_alternate,player_threes_alternate,"
+          "player_points_rebounds_assists_alternate")
 # Only markets that actually come back are charged, so asking for extras costs nothing when a bookie doesn't offer them.
 PROP_MARKETS = {
     "basketball_nba": _BBALL,

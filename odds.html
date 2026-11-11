@@ -296,7 +296,7 @@ let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
 const SHORT={sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet',picklebet:'Picklebet'};
 const GAME_MKTS=[['h2h','H2H'],['spreads','Line'],['totals','Total']];
-const PROP_LABEL={player_points_alternate:'Points ladder',player_rebounds_alternate:'Rebounds ladder',player_assists_alternate:'Assists ladder',player_threes_alternate:'Threes ladder',player_points:'Points',player_rebounds:'Rebounds',player_assists:'Assists',player_threes:'Threes',player_points_rebounds_assists:'PRA',player_points_rebounds:'Pts+Reb',player_points_assists:'Pts+Ast',player_rebounds_assists:'Reb+Ast',player_blocks:'Blocks',player_steals:'Steals',player_turnovers:'Turnovers',player_double_double:'Double-double',player_first_basket:'First basket',
+const PROP_LABEL={player_points_alternate:'Points ladder',player_rebounds_alternate:'Rebounds ladder',player_assists_alternate:'Assists ladder',player_threes_alternate:'Threes ladder',player_points_rebounds_assists_alternate:'PRA ladder',player_points:'Points',player_rebounds:'Rebounds',player_assists:'Assists',player_threes:'Threes',player_points_rebounds_assists:'PRA',player_points_rebounds:'Pts+Reb',player_points_assists:'Pts+Ast',player_rebounds_assists:'Reb+Ast',player_blocks:'Blocks',player_steals:'Steals',player_turnovers:'Turnovers',player_double_double:'Double-double',player_first_basket:'First basket',
   player_disposals:'Disposals',player_goal_scorer_anytime:'Anytime goal',player_goal_scorer_first:'First goal',player_goals_scored_over:'Goals',player_marks_over:'Marks',player_tackles_over:'Tackles',player_afl_fantasy_points:'Fantasy pts',
   player_try_scorer_anytime:'Anytime try',player_try_scorer_first:'First try',player_try_scorer_over:'Tries',
   player_pass_yds:'Pass yds',player_pass_tds:'Pass TDs',player_pass_completions:'Completions',player_pass_attempts:'Pass att',player_pass_interceptions:'INTs',player_rush_yds:'Rush yds',player_rush_attempts:'Rush att',player_receptions:'Receptions',player_reception_yds:'Rec yds',player_anytime_td:'Anytime TD',player_1st_td:'First TD',
@@ -359,6 +359,20 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 
 /* ---------- unlock ---------- */
+/* PRA ladder: overs at 15+, 20+, 25+, 30+ ... only, built from every PRA line the bookies send
+   (main market + their alternate ladder). The normal PRA market stays as it is. */
+function praLadder(D){
+  const MK='player_points_rebounds_assists', AL=MK+'_alternate';
+  ((D.props||{}).events||[]).forEach(e=>e.bookmakers.forEach(b=>{
+    const seen={}, outs=[];
+    b.markets.filter(m=>m.key===AL||m.key===MK).forEach(m=>m.outcomes.forEach(o=>{
+      if(o.name!=='Over'||o.point==null||!o.description||Math.ceil(o.point)%5) return;
+      const k=o.description+'|'+o.point; if(seen[k]) return; seen[k]=1; outs.push({...o});
+    }));
+    b.markets=b.markets.filter(m=>m.key!==AL);
+    if(outs.length) b.markets.push({key:AL,outcomes:outs});
+  }));
+}
 async function decrypt(bundle,pw){
   const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
   const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(bundle.salt),iterations:bundle.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
@@ -375,7 +389,7 @@ async function unlock(pw,quiet){
   let bundle;
   try{ bundle=await fetchBundle(); }catch(e){ if(!quiet) $('gateErr').textContent='No odds data published yet.'; return false; }
   if(!bundle.v){ if(!quiet) $('gateErr').textContent='Odds are paused: the page password hasn\'t been set up in GitHub yet.'; return false; }
-  try{ DATA=await decrypt(bundle,pw); CHK_IDX=null; }catch(e){ if(!quiet) $('gateErr').textContent='Wrong password.'; return false; }
+  try{ DATA=await decrypt(bundle,pw); praLadder(DATA); CHK_IDX=null; }catch(e){ if(!quiet) $('gateErr').textContent='Wrong password.'; return false; }
   $('gate').hidden=true; $('app').hidden=false; $('lockBtn').hidden=false;
   render(); return true;
 }
