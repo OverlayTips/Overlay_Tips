@@ -13,11 +13,15 @@
 //                           "home": TEAM, "away": TEAM}]}
 //    TEAM = {"abbr", "name", "score", "players": [{"name", "min", "pts", "reb", "ast", "fg3m",
 //                                                  "stl", "blk", "tov", "pf"}]}
-// Answers are cached for 20 seconds, so BALLDONTLIE sees at most a few calls a minute.
+// GET /plays?game_id=N   header X-Members-Password   (play-by-play, BALLDONTLIE GOAT tier)
+// -> {"updated", "game_id", "plays": [{"n", "period", "clock", "text", "team", "home", "away",
+//                                      "scoring", "value"}]}   oldest first
+// Answers are cached for 20 seconds (plays 10s), so BALLDONTLIE sees at most a few calls a minute.
 
 const BDL = "https://api.balldontlie.io/v1";
 const ORIGINS = ["https://overlay.tips", "https://www.overlay.tips"];
 const CACHE_SECONDS = 20;
+const PLAYS_CACHE_SECONDS = 10;
 
 export default {
   async fetch(req, env, ctx) {
@@ -35,6 +39,7 @@ export default {
       return json({ error: "password" }, 401, cors);
 
     const url = new URL(req.url);
+    if (url.pathname === "/plays") return plays(url, env, ctx, cors);
     if (url.pathname !== "/nba") return json({ error: "not found" }, 404, cors);
     const dates = (url.searchParams.get("dates") || "").split(",")
       .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 3);
@@ -57,6 +62,44 @@ export default {
     return new Response(body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
   },
 };
+
+async function plays(url, env, ctx, cors) {
+  const id = url.searchParams.get("game_id") || "";
+  if (!/^\d{1,12}$/.test(id)) return json({ error: "game_id" }, 400, cors);
+  const cache = caches.default;
+  const key = new Request("https://overlay-live.cache/plays?g=" + id);
+  const hit = await cache.match(key);
+  if (hit) return new Response(hit.body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  let body;
+  try {
+    const all = [];
+    let cursor = null;
+    for (let page = 0; page < 10; page++) {   // a full game is a few hundred plays
+      const qs = `game_id=${id}&per_page=100${cursor != null ? "&cursor=" + encodeURIComponent(cursor) : ""}`;
+      const r = await fetch(`${BDL}/plays?${qs}`, { headers: { Authorization: env.BDL_KEY } });
+      if (!r.ok) throw new Error(`/plays ${r.status}`);
+      const j = await r.json();
+      all.push(...(j.data || []));
+      cursor = j.meta && j.meta.next_cursor;
+      if (cursor == null) break;
+    }
+    all.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    body = JSON.stringify({
+      updated: new Date().toISOString(), game_id: Number(id),
+      plays: all.map((p) => ({
+        n: p.order ?? 0, period: p.period ?? 0, clock: p.clock ?? "", text: p.text || "",
+        team: (p.team && p.team.abbreviation) || "", home: p.home_score ?? null, away: p.away_score ?? null,
+        scoring: !!p.scoring_play, value: p.score_value ?? 0,
+      })),
+    });
+  } catch (e) {
+    return json({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) }, 502, cors);
+  }
+  ctx.waitUntil(cache.put(key, new Response(body, {
+    headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${PLAYS_CACHE_SECONDS}` },
+  })));
+  return new Response(body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+}
 
 function json(obj, status, headers) {
   return new Response(JSON.stringify(obj), { status, headers: { ...headers, "Content-Type": "application/json" } });
