@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBA Lineups & Injuries Today | Overlay Tips</title>
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="Today's NBA starting lineups (confirmed and projected) and the injury report for every team playing, updated every 10 minutes.">
+<link rel="canonical" href="https://overlay.tips/lineups.html">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overlay Tips">
+<meta property="og:title" content="NBA Lineups & Injuries Today | Overlay Tips">
+<meta property="og:description" content="Today's NBA starting lineups (confirmed and projected) and the injury report for every team playing, updated every 10 minutes.">
+<meta property="og:url" content="https://overlay.tips/lineups.html">
+<meta property="og:image" content="https://overlay.tips/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NBA Lineups & Injuries Today | Overlay Tips">
+<meta name="twitter:description" content="Today's NBA starting lineups (confirmed and projected) and the injury report for every team playing, updated every 10 minutes.">
+<meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
+<meta name="theme-color" content="#060807">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=20261111a">
+<link rel="stylesheet" href="plain.css?v=6">
+<style>
+.lu-meta{color:#87978f;font-size:13px;margin-bottom:14px}
+.lu-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.lu-chips button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
+.lu-chips button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
+.lu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
+.lu-game{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:18px;padding:14px 16px 16px}
+.lu-gh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}
+.lu-gh b{font-weight:900;font-size:19px;color:#ecf5f1}.lu-gh span{color:var(--gold);font-weight:800;font-size:14px;white-space:nowrap}
+.lu-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lu-team h3{font-size:15px!important;margin:0 0 6px!important;color:#ecf5f1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lu-tag{border-radius:6px;padding:2px 7px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.lu-tag.c{background:var(--mint);color:#04130b}.lu-tag.p{background:#16201d;color:#87978f}
+.lu-st{list-style:none;margin:0 0 8px;padding:0}
+.lu-st li{display:flex;gap:8px;font-size:14px;color:#c9d6d0;padding:2px 0}
+.lu-st li i{font-style:normal;color:#87978f;font-family:"Space Mono",monospace;font-size:12px;min-width:22px}
+.lu-inj{display:flex;flex-direction:column;gap:4px}
+.lu-inj div{font-size:12.5px;color:#c9d6d0}
+.lu-p{border-radius:6px;padding:1px 6px;font-weight:800;font-size:11.5px;margin-right:5px;background:#16201d;color:#c9d6d0}
+.lu-p.out{background:#5a1f1f;color:#ffb3b3}.lu-p.dbt{background:#5a3a1f;color:#ffd0a3}.lu-p.q{background:#4a431c;color:#f5e39a}.lu-p.ok{background:#123325;color:#a8f7cf}
+.lu-none{color:#5f6f68;font-size:12.5px}
+.lu-empty{border:1px dashed #1b2523;border-radius:16px;padding:28px;color:#87978f;text-align:center}
+.lu-note{color:#87978f;font-size:13px;margin-top:22px;line-height:1.5}
+@media(max-width:420px){.lu-grid{grid-template-columns:1fr}.lu-teams{grid-template-columns:1fr}}
+</style>
+<script src="nav.js?v=1"></script>
+</head>
+<body class="no-js">
+
+<nav>
+  <div class="wrap navrow">
+    <a href="index.html" class="brand" aria-label="Overlay Tips home">
+      <img src="logo-nav.png?v=1" alt="Overlay Tips" class="brand-logo">
+    </a>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="lineups.html" class="on" aria-current="page">Lineups</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+    <a href="previews/">Previews</a>
+      <a href="membership.html">Membership</a>
+      <a href="index.html#results">Results</a>
+      <a href="calculator.html">Bonus bet calc</a>
+      <a href="giveaway.html">Giveaway</a>
+      <a href="merch.html">Merch</a>
+      <a href="about.html">About</a>
+      <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
+    </div>
+  </div>
+  <div class="tabbar" aria-label="Site sections">
+    <a href="index.html">Home</a>
+    <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="lineups.html" class="on" aria-current="page">Lineups</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+    <a href="previews/">Previews</a>
+    <a href="membership.html">Membership</a>
+    <a href="index.html#results">Results</a>
+    <a href="calculator.html">Bonus bet calc</a>
+    <a href="giveaway.html">Giveaway</a>
+    <a href="merch.html">Merch</a>
+      <a href="about.html">About</a>
+  </div>
+</nav>
+
+<main>
+<header class="page-head">
+  <div class="wrap">
+    <div class="mono">Free · NBA team news</div>
+    <h1>Lineups</h1>
+    <p>Today's starting fives and injury report for every NBA game. Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning.</p>
+  </div>
+</header>
+<section class="page-sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="lu-meta" id="meta">Loading…</div>
+    <div class="lu-chips" id="chips"></div>
+    <div class="lu-grid" id="grid"></div>
+    <p class="lu-note">Data: BALLDONTLIE. Starters are listed PG, SG, SF, PF, C. Projected lineups can change before tip-off, so check for the Confirmed tag before you lock in a bet. Players marked Available are back off the injury list.</p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="rg">
+      <b>18+ only. Gamble responsibly.</b> Analysed tips, not guaranteed wins. Only bet what you can afford to lose.
+      Need help? Call Gambling Help Online on <b>1800 858 858</b> or visit <a href="https://www.gamblinghelponline.org.au" target="_blank" rel="noopener">gamblinghelponline.org.au</a>.
+      You can self-exclude from all Australian bookmakers at <a href="https://www.betstop.gov.au" target="_blank" rel="noopener">betstop.gov.au</a>.
+    </div>
+    <div class="foot">
+      <span>© 2026 Overlay Tips · 1U = $10 in examples</span>
+      <span>Past results don't guarantee future profit. · <a href="terms.html">Giveaway T&amp;Cs</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+document.body.classList.remove('no-js');
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-data/lineups.json';
+let D=null, view='all';
+const tm=iso=>{try{return new Date(iso).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'}).replace(' ','').toLowerCase();}catch(e){return '';}};
+const pc=s=>({'Out':'out','Doubtful':'dbt','Questionable':'q','Day-To-Day':'q','Available':'ok','Probable':'ok'}[s]||'');
+function team(t){
+  const tag=t.status==='confirmed'?'<span class="lu-tag c">Confirmed</span>':(t.status?'<span class="lu-tag p">Projected</span>':'');
+  const st=t.starters.length?'<ul class="lu-st">'+t.starters.map(p=>`<li><i>${esc(p.pos)}</i>${esc(p.n)}</li>`).join('')+'</ul>':'<div class="lu-none">Lineup not out yet</div>';
+  const inj=t.injuries.length?'<div class="lu-inj">'+t.injuries.map(i=>`<div><span class="lu-p ${pc(i.s)}">${esc(i.s)}</span>${esc(i.n)}${i.r?` <span class="lu-none">· back ${esc(i.r)}</span>`:''}</div>`).join('')+'</div>':'<div class="lu-none">No injuries listed</div>';
+  return `<div class="lu-team"><h3>${esc(t.abbr)} ${tag}</h3>${st}${inj}</div>`;
+}
+function render(){
+  const gs=(D.games||[]).filter(g=>view==='all'||(view==='conf'?(g.away.status==='confirmed'||g.home.status==='confirmed'):(g.away.status!=='confirmed'||g.home.status!=='confirmed')));
+  $('grid').innerHTML=gs.length?gs.map(g=>`<article class="lu-game"><div class="lu-gh"><b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><span>${/Final/i.test(g.status)?'Final':tm(g.tip)}</span></div><div class="lu-teams">${team(g.away)}${team(g.home)}</div></article>`).join(''):'<div class="lu-empty">No games here right now.</div>';
+}
+fetch(SRC+'?t='+Math.floor(Date.now()/120000)).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>{
+  D=d; const n=(d.games||[]).length, c=(d.games||[]).reduce((a,g)=>a+(g.away.status==='confirmed')+(g.home.status==='confirmed'),0);
+  $('meta').textContent=n?`${n} games · ${c} of ${n*2} lineups confirmed · updated ${tm(d.updated)}`:`No NBA games today · updated ${tm(d.updated)}`;
+  $('chips').innerHTML=n?[['all','All games'],['conf','Confirmed'],['wait','Waiting']].map(([k,l])=>`<button data-v="${k}" class="${k===view?'on':''}">${l}</button>`).join(''):'';
+  $('chips').onclick=e=>{const b=e.target.closest('button');if(!b)return;view=b.dataset.v;[...$('chips').children].forEach(x=>x.classList.toggle('on',x===b));render();};
+  render();
+}).catch(()=>{$('meta').textContent='';$('grid').innerHTML='<div class="lu-empty">Couldn\'t load lineups. Refresh in a minute.</div>';});
+</script>
+</body>
+</html>
