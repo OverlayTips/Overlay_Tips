@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NBA Lineups & Injuries Today | Overlay Tips</title>
+<title>Overlay Wire: NBA Lineups & Injuries Today | Overlay Tips</title>
 <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
 <link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
@@ -13,12 +13,12 @@
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overlay Tips">
-<meta property="og:title" content="NBA Lineups & Injuries Today | Overlay Tips">
+<meta property="og:title" content="Overlay Wire: NBA Lineups & Injuries Today | Overlay Tips">
 <meta property="og:description" content="Today's NBA starting lineups (confirmed and projected) and the injury report for every team playing, updated every 10 minutes.">
 <meta property="og:url" content="https://overlay.tips/lineups.html">
 <meta property="og:image" content="https://overlay.tips/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="NBA Lineups & Injuries Today | Overlay Tips">
+<meta name="twitter:title" content="Overlay Wire: NBA Lineups & Injuries Today | Overlay Tips">
 <meta name="twitter:description" content="Today's NBA starting lineups (confirmed and projected) and the injury report for every team playing, updated every 10 minutes.">
 <meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
 <meta name="theme-color" content="#060807">
@@ -28,6 +28,7 @@
 <link rel="stylesheet" href="site.css?v=20261111a">
 <link rel="stylesheet" href="plain.css?v=6">
 <style>
+.wire-tabs{display:inline-flex;gap:4px;padding:4px;margin:0 0 18px;background:#0e1312;border:1px solid #1b2523;border-radius:999px}.wire-tabs a{padding:8px 18px;border-radius:999px;color:#87978f;font-weight:700;font-size:15px;text-decoration:none}.wire-tabs a.on{background:var(--mint);color:#04130b}
 .lu-meta{color:#87978f;font-size:13px;margin-bottom:14px}
 .lu-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
 .lu-chips button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
@@ -65,10 +66,9 @@
       <a href="index.html">Home</a>
       <a href="odds.html" class="hot">Odds</a>
     <a href="hot.html">Hot stats</a>
-    <a href="lineups.html" class="on" aria-current="page">Lineups</a>
+    <a href="lineups.html" class="on" aria-current="page">Overlay Wire</a>
     <a href="live.html">Live</a>
     <a href="tracker.html">Bet tracker</a>
-    <a href="previews/">Previews</a>
       <a href="membership.html">Membership</a>
       <a href="index.html#results">Results</a>
       <a href="calculator.html">Bonus bet calc</a>
@@ -82,10 +82,9 @@
     <a href="index.html">Home</a>
     <a href="odds.html" class="hot">Odds</a>
     <a href="hot.html">Hot stats</a>
-    <a href="lineups.html" class="on" aria-current="page">Lineups</a>
+    <a href="lineups.html" class="on" aria-current="page">Overlay Wire</a>
     <a href="live.html">Live</a>
     <a href="tracker.html">Bet tracker</a>
-    <a href="previews/">Previews</a>
     <a href="membership.html">Membership</a>
     <a href="index.html#results">Results</a>
     <a href="calculator.html">Bonus bet calc</a>
@@ -98,6 +97,7 @@
 <main>
 <header class="page-head">
   <div class="wrap">
+    <nav class="wire-tabs" aria-label="Overlay Wire"><a href="lineups.html" class="on" aria-current="page">Lineups</a><a href="previews/">Previews</a></nav>
     <div class="mono">Free · NBA team news</div>
     <h1>Lineups</h1>
     <p>Today's starting fives and injury report for every NBA game. Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning.</p>

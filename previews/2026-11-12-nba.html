@@ -42,6 +42,7 @@
 .post tr:last-child td{border-bottom:0}
 .post-meta{color:#87978f;font-size:14px;margin-top:-4px}
 .post-foot{margin-top:30px;padding-top:18px;border-top:1px solid #1b2523;color:#87978f;font-size:14px;line-height:1.55}
+.wire-tabs{display:inline-flex;gap:4px;padding:4px;margin:0 0 18px;background:#0e1312;border:1px solid #1b2523;border-radius:999px}.wire-tabs a{padding:8px 18px;border-radius:999px;color:#87978f;font-weight:700;font-size:15px;text-decoration:none}.wire-tabs a.on{background:var(--mint);color:#04130b}
 .pv-list{display:grid;gap:14px;max-width:760px}
 .pv-item{display:block;background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:16px;padding:16px 18px;color:inherit;text-decoration:none}
 .pv-item:hover{border-color:var(--mint-dim,#1d5a3f)}
@@ -63,10 +64,9 @@
       <a href="../index.html">Home</a>
       <a href="../odds.html" class="hot">Odds</a>
       <a href="../hot.html">Hot stats</a>
-      <a href="../lineups.html">Lineups</a>
+      <a href="../lineups.html" class="on" aria-current="page">Overlay Wire</a>
       <a href="../live.html">Live</a>
       <a href="../tracker.html">Bet tracker</a>
-      <a href="../previews/" class="on" aria-current="page">Previews</a>
       <a href="../membership.html">Membership</a>
       <a href="../index.html#results">Results</a>
       <a href="../calculator.html">Bonus bet calc</a>
@@ -80,10 +80,9 @@
     <a href="../index.html">Home</a>
       <a href="../odds.html" class="hot">Odds</a>
       <a href="../hot.html">Hot stats</a>
-      <a href="../lineups.html">Lineups</a>
+      <a href="../lineups.html" class="on" aria-current="page">Overlay Wire</a>
       <a href="../live.html">Live</a>
       <a href="../tracker.html">Bet tracker</a>
-      <a href="../previews/" class="on" aria-current="page">Previews</a>
       <a href="../membership.html">Membership</a>
       <a href="../index.html#results">Results</a>
       <a href="../calculator.html">Bonus bet calc</a>
@@ -96,6 +95,7 @@
 <main>
 <header class="page-head">
   <div class="wrap">
+    <nav class="wire-tabs" aria-label="Overlay Wire"><a href="../lineups.html">Lineups</a><a href="../previews/" class="on" aria-current="page">Previews</a></nav>
     <div class="mono">Preview · Thu 12 Nov 2026</div>
     <h1>NBA preview: Thursday 12 November</h1>
     <p>Ten games from 11:10am. Saddiq Bey&#x27;s threes Under is the top price on the board, Karl-Anthony Towns leads the value picks, and Josh Hart and Nolan Traore are game-time calls.</p>

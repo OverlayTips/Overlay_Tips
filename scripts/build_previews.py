@@ -23,8 +23,8 @@ POSTS = os.path.join(ROOT, "previews", "posts")
 OUT = os.path.join(ROOT, "previews")
 SITE = "https://overlay.tips"
 
-NAV = [("index.html", "Home", ""), ("odds.html", "Odds", "hot"), ("hot.html", "Hot stats", ""), ("lineups.html", "Lineups", ""), ("live.html", "Live", ""), ("tracker.html", "Bet tracker", ""),
-       ("previews/", "Previews", ""), ("membership.html", "Membership", ""), ("index.html#results", "Results", ""),
+NAV = [("index.html", "Home", ""), ("odds.html", "Odds", "hot"), ("hot.html", "Hot stats", ""), ("lineups.html", "Overlay Wire", ""), ("live.html", "Live", ""), ("tracker.html", "Bet tracker", ""),
+       ("membership.html", "Membership", ""), ("index.html#results", "Results", ""),
        ("calculator.html", "Bonus bet calc", ""), ("giveaway.html", "Giveaway", ""), ("merch.html", "Merch", ""),
        ("about.html", "About", "")]
 
@@ -46,6 +46,7 @@ CSS = """
 .post tr:last-child td{border-bottom:0}
 .post-meta{color:#87978f;font-size:14px;margin-top:-4px}
 .post-foot{margin-top:30px;padding-top:18px;border-top:1px solid #1b2523;color:#87978f;font-size:14px;line-height:1.55}
+.wire-tabs{display:inline-flex;gap:4px;padding:4px;margin:0 0 18px;background:#0e1312;border:1px solid #1b2523;border-radius:999px}.wire-tabs a{padding:8px 18px;border-radius:999px;color:#87978f;font-weight:700;font-size:15px;text-decoration:none}.wire-tabs a.on{background:var(--mint);color:#04130b}
 .pv-list{display:grid;gap:14px;max-width:760px}
 .pv-item{display:block;background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:16px;padding:16px 18px;color:inherit;text-decoration:none}
 .pv-item:hover{border-color:var(--mint-dim,#1d5a3f)}
@@ -129,7 +130,7 @@ def nice_date(d):
     return d.strftime("%a %-d %b %Y")
 
 
-def page(title, desc, canon, body, active="previews/"):
+def page(title, desc, canon, body, active="lineups.html"):
     pre = "../"
     def link(href, label, cls, tabbar=False):
         on = href == active
@@ -219,6 +220,7 @@ def build():
         e = html.escape
         body = f"""<header class="page-head">
   <div class="wrap">
+    <nav class="wire-tabs" aria-label="Overlay Wire"><a href="../lineups.html">Lineups</a><a href="../previews/" class="on" aria-current="page">Previews</a></nav>
     <div class="mono">Preview · {e(nice_date(p['date']))}</div>
     <h1>{e(p['title'])}</h1>
     <p>{e(p['summary'])}</p>
@@ -237,6 +239,7 @@ def build():
                       f'<b>{html.escape(p["title"])}</b><p>{html.escape(p["summary"])}</p></a>' for p in posts)
     body = f"""<header class="page-head">
   <div class="wrap">
+    <nav class="wire-tabs" aria-label="Overlay Wire"><a href="../lineups.html">Lineups</a><a href="../previews/" class="on" aria-current="page">Previews</a></nav>
     <div class="mono">Free · Daily</div>
     <h1>Previews</h1>
     <p>Each morning's slate: the best prices, value picks and in-form players, using the Overlay Tips odds tracker.</p>
