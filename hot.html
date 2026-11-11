@@ -45,6 +45,9 @@
 .hs-price{text-align:right;white-space:nowrap}
 .hs-price b{display:block;font-size:24px;font-weight:900;color:#ecf5f1;line-height:1.1}
 .hs-price span{font-size:12px;color:#87978f;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.hs-price i{display:block;font-style:normal;font-size:12.5px;font-weight:700;color:#87978f;margin-top:3px}
+.hs-price i em{font-style:normal;color:#c9d6d0}
+.hs-price i.over em{color:var(--mint)}
 .hs-chart{width:100%;height:auto;display:block;margin:10px 0 6px}
 .hs-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .hs-pill{border-radius:7px;padding:4px 9px;font-weight:800;font-size:13px;background:#16201d;color:#c9d6d0}
@@ -130,7 +133,7 @@
       <p class="hs-sub">Lines cleared in 8+ of the player's last 10 games.</p>
     </div>
     <div class="hs-grid" id="grid"></div>
-    <p class="hs-note">Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks blend player form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
+    <p class="hs-note">Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks blend player form (last 10 + season, nudged toward 50% when there aren't many games) with what the bookies as a group think, then compare that to the chance the best price needs. Fair price = that rated chance turned into odds (1 ÷ chance), so a price above fair is value. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
   </div>
 </section>
 </main>
@@ -181,15 +184,19 @@ function chart(it){
   s+=`<line x1="${L}" x2="${W-R}" y1="${ly}" y2="${ly}" stroke="#efbe3b" stroke-width="1.6"/>`;
   return `<svg class="hs-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(it.player)} last ${n} games"><defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8af5b6"/><stop offset="1" stop-color="#2fcf7f"/></linearGradient></defs>${s}</svg>`;
 }
+function fair(it){
+  if(typeof it.prob!=='number'||it.prob<=0) return '';
+  const f=1/it.prob; return `<i class="${it.price>f?'over':''}" title="Our rated chance (${Math.round(it.prob*100)}%) as odds. Price above this = value.">Fair <em>${f.toFixed(2)}</em></i>`;
+}
 function card(it,val){
   const ls=status(it);
   return `<article class="hs-card ${ls.cls}">
     <div class="hs-top"><div><div class="hs-name">${esc(it.player)}<small>${esc(it.team||'')}</small></div>
       <div class="hs-line">🔥 ${esc(it.line)} ${esc(it.stat)}</div></div>
-      <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
+      <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b>${fair(it)}</div></div>
     ${chart(it)}
     <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
-    ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b>. $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
+    ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;
 }
