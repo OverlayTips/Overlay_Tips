@@ -146,7 +146,7 @@ def _pretty_reason(r):
     r = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", r.strip())       # RightKneeContusion -> Right Knee Contusion
     r = re.sub(r"^Injury/Illness\s?-\s?", "", r)
     r = re.sub(r"\s?-\s?", " - ", r, count=1) if " - " not in r else r
-    return r[:120]
+    return r.strip(" -;")[:120]
 
 
 def parse_injury_report(text):
@@ -303,11 +303,10 @@ def build(now):
             t["starters"] = l.get("starters", [])
             t["confirmed"] = l.get("confirmed", False)
             inj, seen = [], set()
-            offl = off.get((gd, ab))
-            if offl is None:   # report not out for that date yet: newest entries for the team
-                offl = next((v for (d, a2), v in sorted(off.items(), reverse=True) if a2 == ab), [])
-            for i in offl:
+            for i in off.get((gd, ab), []):   # team not filed for that date yet -> ESPN covers it
                 k = key(i["name"])
+                if i["status"] == "Available" and i["reason"].startswith("GLeague"):
+                    continue   # two-way / assignment noise
                 if k not in seen:
                     inj.append({**i, "name": known.get(k, i["name"]), "src": "NBA"})
                     seen.add(k)
