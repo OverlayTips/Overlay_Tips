@@ -1,0 +1,56 @@
+name: NBA alerts
+
+# Confirmed starting lineups + injury news -> push to Jayden's phone (ntfy app), with a
+# "Share to WhatsApp" button on each alert. Every 10 min from ~6am to ~4pm Sydney time (AEDT),
+# which covers the US injury reports and every tip-off. Uses BALLDONTLIE only (no Odds API credits).
+# Needs secrets: NBA_STATS_KEY (already set) and NTFY_TOPIC.
+# "Run workflow" with test ticked sends a test push.
+on:
+  schedule:
+    - cron: "*/10 19-23,0-4 * * *"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Just send a test push"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nba-alerts
+  cancel-in-progress: false
+
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load previous state
+        run: |
+          mkdir -p st
+          git fetch -q --depth=1 origin alerts-state && git show FETCH_HEAD:state.json > st/state.json || echo "no state yet"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check for news + push
+        env:
+          NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STATE: st/state.json
+          TEST: ${{ inputs.test && '1' || '0' }}
+        run: python scripts/nba_alerts.py
+
+      - name: Save state
+        if: ${{ !inputs.test }}
+        run: |
+          cd st && git init -q -b alerts-state .
+          git config user.name "odds-bot"
+          git config user.email "odds-bot@users.noreply.github.com"
+          git add state.json && git commit -qm "Alerts state $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" alerts-state:alerts-state
