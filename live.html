@@ -186,7 +186,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const Q=new URLSearchParams(location.search), TZ='Australia/Sydney';
 // Cloudflare Worker that holds the BALLDONTLIE key (cloudflare/live-worker.js); members password required
-const API=Q.get('api')||'__LIVE_WORKER_URL__';
+const API=Q.get('api')||'https://overlay-live.borgjayden005.workers.dev';
 const LINES=Q.get('lines')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/lines.json';
 // same password + saved login as the Odds board (odds.html stores it as odds.pw)
 const store={get(k){try{return JSON.parse(localStorage.getItem('odds.'+k));}catch(e){return null;}},set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v));}catch(e){}},del(k){try{localStorage.removeItem('odds.'+k);}catch(e){}}};
