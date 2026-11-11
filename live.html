@@ -202,7 +202,7 @@ const mins=m=>{const n=parseInt(String(m||'0').split(':')[0],10);return isFinite
 const etDate=(d=new Date())=>d.toLocaleDateString('en-CA',{timeZone:'America/New_York'});
 const PER=p=>p>4?`OT${p-4>1?p-4:''}`:`Q${p}`;
 
-let EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\d+)/)||[])[1]||null, VIEW='props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
+let ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\d+)/)||[])[1]||null, VIEW='props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
 
 async function loadBoard(){
   const now=new Date(), ds=[etDate(new Date(now-864e5)),etDate(now),etDate(new Date(+now+864e5))];
@@ -211,9 +211,10 @@ async function loadBoard(){
   try{
     const r=await fetch(`${API}/nba?dates=${ds.join(',')}`,{cache:'no-store',headers:{'X-Members-Password':PW}});
     if(r.status===401){lock("Live scores didn't accept that password. If it opens the Odds board, the Live server's password needs updating.");return;}
-    if(!r.ok) throw new Error(r.status);
-    all=(await r.json()).games||[];
-  }catch(e){failed=true;return;}
+    if(!r.ok){let d='';try{const j=await r.json();d=j.error+(j.detail?': '+j.detail:'');}catch(_){}throw new Error(`${r.status}${d?' '+d:''}`);}
+    const j=await r.json().catch(()=>{throw new Error('not JSON (is the Worker code deployed?)');});
+    all=j.games||[]; ERR='';
+  }catch(e){failed=true;ERR=String(e&&e.message||e).slice(0,160)||'no connection (is the Worker code deployed?)';if(ERR==='Failed to fetch')ERR='no connection (is the Worker code deployed?)';return;}
   // live games, anything tipping in the next 30h, and finals from the last 8h
   EVENTS=all.filter(e=>{const t=new Date(e.start);return e.state==='in'||(e.state==='pre'&&t-now<30*3600e3)||(e.state==='post'&&now-t<8*3600e3);})
     .sort((x,y)=>({in:0,pre:1,post:2}[x.state]-{in:0,pre:1,post:2}[y.state])||String(x.start).localeCompare(String(y.start)));
@@ -222,7 +223,7 @@ async function loadBoard(){
 const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e.status||'Live'):e.state==='post'?'Final':`${day(e.start)} ${tip(e.start)}`;
 function drawBoard(){
   const live=EVENTS.filter(e=>e.state==='in').length;
-  $('meta').innerHTML=failed&&!EVENTS.length?'Live scores unavailable right now, retrying…':live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'';
+  $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'';
   if(!EVENTS.length){$('games').innerHTML=failed?'':'<div class="lv-empty" style="grid-column:1/-1"><h3>No NBA games right now</h3>Games show up here on game days.</div>';$('panel').hidden=true;return;}
   $('games').innerHTML=EVENTS.map(e=>{
     const pre=e.state==='pre', hs=num(e.home.score), as=num(e.away.score);
