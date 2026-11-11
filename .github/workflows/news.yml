@@ -1,0 +1,39 @@
+name: Update NBA news
+
+# NBA headlines from ESPN's official RSS feed for the home page's "NBA news" box (shown unchanged,
+# linked to espn.com and credited to ESPN, per ESPN's RSS terms). Hourly; publishes news.json to
+# the news-data branch. No odds credits used.
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news
+  cancel-in-progress: false
+
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch ESPN NBA headlines
+        run: python scripts/news.py
+        env:
+          OUT_DIR: news-data
+      - name: Publish to news-data branch
+        run: |
+          cd news-data
+          git init -q -b news-data .
+          git config user.name "odds-bot"
+          git config user.email "odds-bot@users.noreply.github.com"
+          git add news.json
+          git commit -qm "NBA news $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" news-data:news-data

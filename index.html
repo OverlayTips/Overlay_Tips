@@ -38,6 +38,15 @@
 </script>
 <link rel="stylesheet" href="site.css?v=20261111a">
 <link rel="stylesheet" href="plain.css?v=6">
+<style>
+#news .nw-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:12px;margin-top:8px}
+#news .nw-item{display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;color:inherit;text-decoration:none}
+#news .nw-item:hover{border-color:var(--mint-dim)}
+#news .nw-item b{display:block;color:var(--text);font-size:16px;line-height:1.3}
+#news .nw-item p{color:var(--muted);font-size:14px;line-height:1.45;margin-top:6px}
+#news .nw-item span{display:block;color:var(--muted);font-size:12px;margin-top:8px}
+#news .nw-credit{color:var(--muted);font-size:13px;margin-top:14px}
+</style>
 <script src="nav.js?v=1"></script>
 </head>
 <body class="no-js">
@@ -200,6 +209,15 @@
       </div>
       <span class="btn btn-mint">Open odds</span>
     </a>
+  </div>
+</section>
+
+<section id="news" hidden>
+  <div class="wrap">
+    <div class="mono">NBA news</div>
+    <h2>Latest from <span class="g">around the league</span></h2>
+    <div class="nw-list" id="newsList"></div>
+    <p class="nw-credit">Headlines provided by ESPN. Tap a story to read it on espn.com.</p>
   </div>
 </section>
 
@@ -577,6 +595,22 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb()});
   resL.forEach(a=>a.addEventListener('click',()=>set(true)));
   window.addEventListener('scroll',check,{passive:true}); window.addEventListener('hashchange',check);
   check();
+})();
+</script>
+<script>
+// NBA news: ESPN's official RSS headlines, shown exactly as ESPN publishes them (headline, summary,
+// date), each linking to its espn.com URL, credited to ESPN, no ads. See scripts/news.py.
+(function(){
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const safe=u=>/^https:\/\/([a-z0-9-]+\.)*espn\.com\//i.test(u)?u:null;
+  const when=d=>{const t=new Date(d);return isNaN(t)?'':t.toLocaleString('en-AU',{timeZone:'Australia/Sydney',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});};
+  fetch('https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/news-data/news.json?t='+Math.floor(Date.now()/600000))
+    .then(r=>r.ok?r.json():null).then(d=>{
+      const xs=((d&&d.items)||[]).filter(i=>safe(i.link)).slice(0,6);
+      if(!xs.length) return;
+      document.getElementById('newsList').innerHTML=xs.map(i=>`<a class="nw-item" href="${esc(safe(i.link))}" target="_blank" rel="noopener"><b>${esc(i.title)}</b>${i.summary?`<p>${esc(i.summary)}</p>`:''}<span>ESPN · ${esc(when(i.date))}</span></a>`).join('');
+      document.getElementById('news').hidden=false;
+    }).catch(()=>{});
 })();
 </script>
 </body>
