@@ -62,6 +62,7 @@
 .hs-pill.inj-out{background:#5a1f1f;color:#ffb3b3}.hs-pill.inj-q{background:#4a431c;color:#f5e39a}.hs-pill.inj-dbt{background:#5a3a1f;color:#ffd0a3}
 .hs-pill.inj-p{background:#16201d;color:#a8f7cf}.hs-pill.start{background:#123325;color:#a8f7cf}
 .hs-card.out{opacity:.55}
+.hs-track{color:var(--mint);font-weight:700}
 @media(max-width:420px){.hs-grid{grid-template-columns:1fr}}
 </style>
 <script src="nav.js?v=1"></script>
@@ -79,6 +80,7 @@
       <a href="odds.html" class="hot">Odds</a>
     <a href="hot.html" class="on" aria-current="page">Hot stats</a>
     <a href="lineups.html">Lineups</a>
+    <a href="tracker.html">Bet tracker</a>
     <a href="previews/">Previews</a>
       <a href="membership.html">Membership</a>
       <a href="index.html#results">Results</a>
@@ -94,6 +96,7 @@
     <a href="odds.html" class="hot">Odds</a>
     <a href="hot.html" class="on" aria-current="page">Hot stats</a>
     <a href="lineups.html">Lineups</a>
+    <a href="tracker.html">Bet tracker</a>
     <a href="previews/">Previews</a>
     <a href="membership.html">Membership</a>
     <a href="index.html#results">Results</a>
@@ -198,7 +201,7 @@ function card(it,val){
     ${chart(it)}
     <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b>. $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
-    <div class="hs-game">${esc(it.game)} · ${when(it.start)}</div>
+    <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;
 }
 function draw(){
