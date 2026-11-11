@@ -8,6 +8,7 @@
     '.sbx-side{position:fixed;top:0;left:0;bottom:0;width:236px;z-index:45;background:#0a0e0d;border-right:1px solid #1b2523;display:flex;flex-direction:column;padding:20px 14px 18px;overflow-y:auto;font-family:Archivo,system-ui,sans-serif}',
     '.sbx-side .brand{display:flex;align-items:center;gap:9px;font-family:"Space Mono",monospace;font-weight:700;letter-spacing:.24em;font-size:13px;white-space:nowrap;padding:2px 6px 18px;text-decoration:none}',
     '.sbx-side .brand img{height:30px;width:auto}',
+    '.sbx-side .brand img.brand-logo{height:64px}',
     '.sbx-side .brand .wm-o{color:#a8f7cf}.sbx-side .brand .wm-t{color:#efd38f}',
     '.sbx-links{display:flex;flex-direction:column;gap:3px}',
     '.sbx-links a{display:block;padding:10px 12px;border-radius:11px;color:#87978f;font-size:15px;font-weight:600;text-decoration:none;transition:background .15s,color .15s}',

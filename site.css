@@ -22,6 +22,7 @@
   .brand .wm-o{color:var(--mint2)}
   .brand .wm-t{background:linear-gradient(180deg,var(--gold),var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}
   .brand-mark{height:32px;width:auto;display:block}
+  .brand .brand-logo{height:44px;width:auto;display:block}
   .navlinks{display:flex;gap:4px;font-size:14px;color:var(--muted);align-items:center}
   .navlinks a:not(.btn){padding:8px 10px;border-radius:999px;white-space:nowrap;transition:color .2s,background .2s}
   .navlinks a:not(.btn):hover{color:var(--text);background:var(--panel)}
