@@ -15,6 +15,7 @@ Supported Markdown: ## / ### headings, paragraphs, - bullet lists, | pipe | tabl
 Run:  python3 scripts/build_previews.py
 Writes previews/<slug>.html, previews/index.html and the previews entries in sitemap.xml.
 """
+import json
 import html, os, re
 from datetime import date
 
@@ -250,6 +251,11 @@ def build():
 {items or '<p class="post-meta">First preview coming soon.</p>'}
   </div></div>
 </section>"""
+    # latest preview, shown as a featured card on the Overlay Wire (lineups) page
+    with open(os.path.join(OUT, "latest.json"), "w", encoding="utf-8") as f:
+        json.dump({"date": str(posts[0]["date"]), "nice": nice_date(posts[0]["date"]), "title": posts[0]["title"],
+                   "summary": posts[0]["summary"], "url": f"previews/{posts[0]['slug']}.html"} if posts else {}, f)
+
     with open(os.path.join(OUT, "index.html"), "w", encoding="utf-8") as f:
         f.write(page("Previews | Daily NBA betting previews | Overlay Tips",
                      "Daily previews: best prices, value picks and in-form players for today's games.",

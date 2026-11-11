@@ -29,6 +29,12 @@
 <link rel="stylesheet" href="plain.css?v=6">
 <style>
 .wire-tabs{display:inline-flex;gap:4px;padding:4px;margin:0 0 18px;background:#0e1312;border:1px solid #1b2523;border-radius:999px}.wire-tabs a{padding:8px 18px;border-radius:999px;color:#87978f;font-weight:700;font-size:15px;text-decoration:none}.wire-tabs a.on{background:var(--mint);color:#04130b}
+.lu-pv{display:block;position:relative;margin:0 0 22px;padding:18px 20px 18px;border-radius:18px;text-decoration:none;color:inherit;background:linear-gradient(135deg,#2a2208,#101716 60%);border:1px solid #6b5a22;box-shadow:0 0 0 1px rgba(239,211,143,.06),0 10px 30px rgba(0,0,0,.35)}
+.lu-pv .k{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.lu-pv b{display:block;color:#ecf5f1;font-size:22px;font-weight:900;margin:6px 0 6px;line-height:1.2}
+.lu-pv p{color:#c9d6d0;font-size:15px;margin:0 0 12px;line-height:1.5}
+.lu-pv .go{display:inline-block;background:var(--gold);color:#1a1305;font-weight:800;font-size:14px;padding:9px 16px;border-radius:999px}
+.lu-h2{font-size:22px!important;margin:0 0 10px!important;color:#ecf5f1}
 .lu-meta{color:#87978f;font-size:13px;margin-bottom:14px}
 .lu-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
 .lu-chips button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
@@ -99,16 +105,18 @@
   <div class="wrap">
     <nav class="wire-tabs" aria-label="Overlay Wire"><a href="lineups.html" class="on" aria-current="page">Lineups</a><a href="previews/">Previews</a></nav>
     <div class="mono">Free · NBA team news</div>
-    <h1>Lineups</h1>
-    <p>Today's starting fives and injury report for every NBA game. Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning.</p>
+    <h1>Overlay Wire</h1>
+    <p>Today's NBA preview, starting lineups and injury news in one spot.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
+    <a class="lu-pv" id="pv" href="previews/" hidden></a>
+    <h2 class="lu-h2">🏀 Today's lineups</h2>
     <div class="lu-meta" id="meta">Loading…</div>
     <div class="lu-chips" id="chips"></div>
     <div class="lu-grid" id="grid"></div>
-    <p class="lu-note">Data: BALLDONTLIE. Starters are listed PG, SG, SF, PF, C. Projected lineups can change before tip-off, so check for the Confirmed tag before you lock in a bet. Players marked Available are back off the injury list.</p>
+    <p class="lu-note">Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning. Data: BALLDONTLIE. Starters are listed PG, SG, SF, PF, C. Projected lineups can change before tip-off, so check for the Confirmed tag before you lock in a bet. Players marked Available are back off the injury list.</p>
   </div>
 </section>
 </main>
@@ -145,6 +153,10 @@ function render(){
   const gs=(D.games||[]).filter(g=>view==='all'||(view==='conf'?(g.away.status==='confirmed'||g.home.status==='confirmed'):(g.away.status!=='confirmed'||g.home.status!=='confirmed')));
   $('grid').innerHTML=gs.length?gs.map(g=>`<article class="lu-game"><div class="lu-gh"><b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><span>${/Final/i.test(g.status)?'Final':tm(g.tip)}</span></div><div class="lu-teams">${team(g.away)}${team(g.home)}</div></article>`).join(''):'<div class="lu-empty">No games here right now.</div>';
 }
+fetch('previews/latest.json?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{}).then(p=>{if(!p||!p.title)return;
+  const today=new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Melbourne'})===p.date;
+  const el=$('pv'); el.href=p.url; el.hidden=false;
+  el.innerHTML=`<div class="k">📰 ${today?"Today's preview":'Latest preview'} · ${esc(p.nice)}</div><b>${esc(p.title)}</b><p>${esc(p.summary)}</p><span class="go">Read the preview →</span>`;}).catch(()=>{});
 fetch(SRC+'?t='+Math.floor(Date.now()/120000)).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>{
   D=d; const n=(d.games||[]).length, c=(d.games||[]).reduce((a,g)=>a+(g.away.status==='confirmed')+(g.home.status==='confirmed'),0);
   $('meta').textContent=n?`${n} games · ${c} of ${n*2} lineups confirmed · updated ${tm(d.updated)}`:`No NBA games today · updated ${tm(d.updated)}`;
