@@ -22,6 +22,7 @@ STAT = {  # game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, t
     "player_points_assists": ("Pts + Ast", lambda g: g[4] + g[6]),
     "player_rebounds_assists": ("Reb + Ast", lambda g: g[5] + g[6]),
 }
+ROUND5 = {"player_points_rebounds_assists"}
 SKIP_BOOKS = {"betfair_ex_au", "pinnacle"}
 MIN_GAMES, MIN_HIT, MIN_PRICE, MAX_PRICE = 6, 0.8, 1.30, 4.0
 LIMIT, PER_PLAYER = 30, 2
@@ -65,6 +66,8 @@ def build(prop_events, stats, now, ts):
         for (mk, desc, pt), (price, book, ladder) in best.items():
             if not (MIN_PRICE <= price <= MAX_PRICE):
                 continue
+            if mk in ROUND5 and int(pt + 0.5) % 5:
+                continue   # PRA: only 15+, 20+, 25+, 30+ ...
             p = players.get(by.get(desc, ""))
             if not p:
                 continue
