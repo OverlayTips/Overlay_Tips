@@ -352,6 +352,16 @@ def main():
     except Exception as e:
         print("hot stats failed:", type(e).__name__, e)
 
+    # ---- main prop lines for the free Live page (lines only, no prices: odds-data/lines.json) ----
+    try:
+        import lines
+        lj = lines.build(list(props.values()), NOW, TS)
+        with open(os.path.join(OUT, "lines.json"), "w") as f:
+            json.dump(lj, f, separators=(",", ":"))
+        print(f"prop lines: {sum(len(g['players']) for g in lj['games'])} players in {len(lj['games'])} games")
+    except Exception as e:
+        print("prop lines failed:", type(e).__name__, e)
+
     bundle = {
         "stats": stats,
         "racing": racing,
