@@ -79,8 +79,6 @@
       <a href="index.html">Home</a>
       <a href="odds.html" class="hot">Odds</a>
     <a href="hot.html" class="on" aria-current="page">Hot stats</a>
-    <a href="live.html">Live</a>
-    <a href="lineups.html">Lineups</a>
     <a href="tracker.html">Bet tracker</a>
     <a href="previews/">Previews</a>
       <a href="membership.html">Membership</a>
@@ -96,8 +94,6 @@
     <a href="index.html">Home</a>
     <a href="odds.html" class="hot">Odds</a>
     <a href="hot.html" class="on" aria-current="page">Hot stats</a>
-    <a href="live.html">Live</a>
-    <a href="lineups.html">Lineups</a>
     <a href="tracker.html">Bet tracker</a>
     <a href="previews/">Previews</a>
     <a href="membership.html">Membership</a>
@@ -157,18 +153,8 @@ document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SRC=new URLSearchParams(location.search).get('data')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json';
-let ITEMS=[], VALUE=[], stat='All', sort='value', book='all', LU={};
-const LSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-data/lineups.json';
-// same as scripts/lineups.py key(): accents, dots, apostrophes, Jr/Sr/II and spaces off
-const norm=n=>String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[.'’`]/g,'').replace(/-/g,' ').split(/\s+/).filter(t=>t&&!['jr','sr','ii','iii','iv','v'].includes(t)).join(' ');
-const INJ={'Out':['inj-out','❌ Out'],'Doubtful':['inj-dbt','⚠️ Doubtful'],'Questionable':['inj-q','⚠️ Questionable'],'Day-To-Day':['inj-q','⚠️ Day-to-day'],'Probable':['inj-p','Probable']};
-function status(it){
-  const p=LU[norm(it.player).replace(/ /g,'')];
-  if(!p) return {cls:'',pill:''};
-  if(INJ[p.status]) return {cls:p.status==='Out'?'out':'',pill:`<a href="lineups.html" class="hs-pill ${INJ[p.status][0]}">${INJ[p.status][1]}</a>`};
-  if(p.starter&&p.confirmed) return {cls:'',pill:'<a href="lineups.html" class="hs-pill start">✅ Starting</a>'};
-  return {cls:'',pill:''};
-}
+let ITEMS=[], VALUE=[], stat='All', sort='value', book='all';
+function status(){return {cls:'',pill:''};}   // injury badges removed (no licensed source)
 try{book=localStorage.getItem('hs-book')||'all';}catch(e){}
 // price/value at the chosen bookie (value = our chance x their price - 1); null if they don't price it
 function atBook(i){
@@ -222,7 +208,6 @@ function draw(){
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
 $('book').onchange=e=>{book=e.target.value;try{localStorage.setItem('hs-book',book);}catch(_){}draw();};
-fetch(LSRC+'?t='+Math.floor(Date.now()/120000)).then(r=>r.ok?r.json():{}).then(d=>{LU=d.players||{}; if(ITEMS.length||VALUE.length) draw();}).catch(()=>{});
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
   ITEMS=d.items||[]; VALUE=d.value||[]; $('meta').textContent=`${ITEMS.length} hot props · updated ${ago(d.updated)}`; draw();
 }).catch(()=>{ $('meta').textContent=''; $('grid').innerHTML='<div class="hs-empty"><h3>Hot stats are loading soon</h3>The first batch lands with the next odds update.</div>'; });

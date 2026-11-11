@@ -352,16 +352,6 @@ def main():
     except Exception as e:
         print("hot stats failed:", type(e).__name__, e)
 
-    # ---- main prop lines for the members' Live page (lines only, encrypted with the page password) ----
-    try:
-        import lines
-        lj = lines.build(list(props.values()), NOW, TS)
-        with open(os.path.join(OUT, "lines.json"), "w") as f:
-            json.dump(encrypt(lj), f, separators=(",", ":"))
-        print(f"prop lines: {sum(len(g['players']) for g in lj['games'])} players in {len(lj['games'])} games")
-    except Exception as e:
-        print("prop lines failed:", type(e).__name__, e)
-
     bundle = {
         "stats": stats,
         "racing": racing,
