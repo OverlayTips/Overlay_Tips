@@ -1,13 +1,14 @@
 name: NBA alerts
 
 # Confirmed starting lineups + injury news -> push to Jayden's phone (ntfy app), with a
-# "Share to WhatsApp" button on each alert. Every 10 min from ~6am to ~4pm Sydney time (AEDT),
-# which covers the US injury reports and every tip-off. Uses BALLDONTLIE only (no Odds API credits).
+# "Share to WhatsApp" button on each alert. GitHub only fires the cron roughly hourly, so each run
+# loops for ~55 min, checking every 5 min (public repo, so Actions minutes are free). Covers ~6am-4pm
+# Sydney time (AEDT): the US injury reports and every tip-off. Also publishes lineups.json for the site. Uses BALLDONTLIE only (no Odds API credits).
 # Needs secrets: NBA_STATS_KEY (already set) and NTFY_TOPIC.
 # "Run workflow" with test ticked sends a test push.
 on:
   schedule:
-    - cron: "*/10 19-23,0-4 * * *"
+    - cron: "0 19-23,0-4 * * *"
   workflow_dispatch:
     inputs:
       test:
@@ -19,47 +20,43 @@ permissions:
   contents: write
 
 concurrency:
-  group: nba-alerts
-  cancel-in-progress: false
+  group: nba-alerts-${{ inputs.test && 'test' || 'live' }}
+  cancel-in-progress: true   # a newer run takes over the polling loop
 
 jobs:
   alerts:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
-
-      - name: Load previous state
-        run: |
-          mkdir -p st
-          git fetch -q --depth=1 origin alerts-state && git show FETCH_HEAD:state.json > st/state.json || echo "no state yet"
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Check for news + push
+      - name: Check for news + push (every 5 min for ~55 min)
         env:
           NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           STATE: st/state.json
           TEST: ${{ inputs.test && '1' || '0' }}
-        run: python scripts/nba_alerts.py
-
-      - name: Save state
-        if: ${{ !inputs.test && hashFiles('st/state.json') != '' }}
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
         run: |
-          cd st && git init -q -b alerts-state .
-          git config user.name "odds-bot"
-          git config user.email "odds-bot@users.noreply.github.com"
-          git add state.json && git commit -qm "Alerts state $(date -u +%FT%TZ)"
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" alerts-state:alerts-state
-
-      - name: Publish lineups for the website
-        if: ${{ !inputs.test && hashFiles('st/lineups.json') != '' }}
-        run: |
-          mkdir -p ld && cp st/lineups.json ld/ && cd ld && git init -q -b lineups-data .
-          git config user.name "odds-bot"
-          git config user.email "odds-bot@users.noreply.github.com"
-          git add lineups.json && git commit -qm "Lineups snapshot $(date -u +%FT%TZ)"
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" lineups-data:lineups-data
+          publish() {   # $1 = file in st/, $2 = branch
+            rm -rf pub && mkdir pub && cp "st/$1" pub/ && cd pub && git init -q -b "$2" .
+            git config user.name "odds-bot"; git config user.email "odds-bot@users.noreply.github.com"
+            git add "$1" && git commit -qm "$2 $(date -u +%FT%TZ)" && git push -qf "$REPO_URL" "$2:$2"
+            cd ..
+          }
+          mkdir -p st
+          git fetch -q --depth=1 origin alerts-state && git show FETCH_HEAD:state.json > st/state.json || echo "no state yet"
+          if [ "$TEST" = "1" ]; then python scripts/nba_alerts.py; exit 0; fi
+          end=$(( $(date +%s) + 55*60 ))
+          while :; do
+            python scripts/nba_alerts.py || echo "::warning::check failed, retrying next loop"
+            [ -f st/state.json ] && publish state.json alerts-state || true
+            [ -f st/lineups.json ] && publish lineups.json lineups-data || true
+            H=$(TZ=Australia/Sydney date +%H)
+            if [ $(( $(date +%s) + 300 )) -ge $end ] || [ "$H" -ge 16 ] || [ "$H" -lt 6 ]; then break; fi
+            sleep 300
+          done
