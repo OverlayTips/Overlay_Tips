@@ -203,6 +203,10 @@
   .rc-no{display:inline-block;min-width:22px;color:var(--muted);font-size:12px}
   @media(max-width:640px){.ev table.rct th,.ev table.rct td{padding:9px 5px;font-size:13px}.ev table.rct th:first-child,.ev table.rct td:first-child{min-width:118px;width:auto}.rct .rc-move .bk{display:none}}
   [hidden]{display:none!important}
+  .rgfoot{position:relative;z-index:1;padding-top:28px;padding-bottom:36px}
+  .rgfoot .rg{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;color:var(--muted);font-size:13px;line-height:1.65}
+  .rgfoot .rg b{color:var(--mint2)}
+  .rgfoot .rg a{text-decoration:underline}
 </style>
 <link rel="stylesheet" href="plain.css?v=6">
 </head>
@@ -267,6 +271,15 @@
   <div class="legend" id="legend"></div>
   <div class="list" id="list"></div>
 </main>
+
+<footer class="rgfoot wrap">
+  <div class="rg">
+    <b>18+ only. Gamble responsibly.</b> Odds, overlays, arbs and movers here are price signals, not tips or sure things.
+    Prices change fast and bookies can void, limit or reprice bets, so check every price before you bet and only bet what you can afford to lose.
+    Need help? Call Gambling Help Online on <b>1800 858 858</b> or visit <a href="https://www.gamblinghelponline.org.au" target="_blank" rel="noopener">gamblinghelponline.org.au</a>.
+    You can self-exclude from all Australian bookmakers at <a href="https://www.betstop.gov.au" target="_blank" rel="noopener">betstop.gov.au</a>.
+  </div>
+</footer>
 
 <script>
 const REPO = 'overlaytips/Overlay_Tips';
@@ -1167,7 +1180,7 @@ function arbsHTML(evs,q){
       <td class="c-game"><span class="leg">${esc(a.ev.home_team)} v ${esc(a.ev.away_team)}</span><span class="bk">${esc(a.ev.sport_title)} · ${esc(MKT_LABEL[a.mk]||PROP_LABEL[a.mk]||a.mk)} · ${when(a.ev.commence_time)}</span></td></tr>`;
   }).join('');
   return `<div class="ev topev"><div class="ev-head"><div><div class="ev-title">Arbitrage plays${myBook==='all'?'':esc(' with a '+(BOOK_NAMES[myBook]||SHORT[myBook]||myBook)+' leg')}</div>
-    <div class="ev-meta">Guaranteed profit if every leg is still there. ${arbs.length} found · stakes for $${T.toFixed(0)} total</div></div></div>
+    <div class="ev-meta">Profit locked in only if every leg is still available at these prices. Bookies can void or limit bets. ${arbs.length} found · stakes for $${T.toFixed(0)} total</div></div></div>
     <div class="tbl-wrap"><table class="bb arbt"><tr><th>Profit</th><th>Bets (split your stake)</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 $('views').querySelectorAll('button').forEach(b=>b.onclick=()=>{view=b.dataset.v;store.set('view',view);sport='all';$('q').value='';render();});
