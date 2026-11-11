@@ -1,23 +1,28 @@
-"""NBA player game logs from ESPN's public API, for the players that have props.
+"""NBA player game logs from BALLDONTLIE (licensed, paid API), for the players that have props.
 
-Output (goes into the encrypted bundle as bundle["stats"]["nba"]):
-  {"updated": TS,
-   "teams": {"Los Angeles Lakers": "LAL", ...},
+Needs the NBA_STATS_KEY secret (a BALLDONTLIE key). Their terms allow commercial use; the key must
+never be shared or put in a web page, so this only ever runs on GitHub's servers.
+Docs: https://docs.balldontlie.io  (Authorization header = the key; cursor pagination)
+
+Output (goes into the encrypted bundle as bundle["stats"]["nba"], same shape hot.py has always used):
+  {"updated": TS, "src": "balldontlie",
+   "teams": {"Los Angeles Lakers": "LAL", ...},               # Odds API team name -> abbreviation
    "by": {bookie name as written: player key},
-   "players": {norm(bookie name): {"n": ESPN name, "id": ESPN id, "team": "LAL", "f": TS fetched,
-                                   "g": [[date, opp, "@"|"vs", min, pts, reb, ast, 3pm, blk, stl, tov], ...]}}}
-Games are newest first, this season's regular season + playoffs only (no preseason).
+   "players": {norm(name): {"n": name, "id": BDL id, "team": "LAL", "f": TS fetched, "s": TS last seen,
+                            "g": [[date, opp, "@"|"vs", min, pts, reb, ast, 3pm, blk, stl, tov], ...]}}}
+Games are newest first, this season only (regular season + playoffs), games he actually played.
 Everything here is best effort: any failure keeps the previous stats and never stops the odds run.
 """
-import json, re, time, unicodedata, urllib.request
+import json, os, re, time, unicodedata, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta
 
-SITE = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
-WEB = "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba"
+API = "https://api.balldontlie.io/v1"
+KEY = os.environ.get("NBA_STATS_KEY", "").strip()
 REFRESH = timedelta(hours=6)     # re-pull a player's log at most this often
 KEEP = timedelta(days=4)         # drop players who haven't had props for this long
-MAX_CALLS = 320
-COLS = ["minutes", "totalRebounds", "assists", "blocks", "steals", "turnovers", "points"]
+BATCH = 25                       # players per /stats request
+MAX_CALLS = 200                  # GOAT allows 600/min; stay well under
+ALIASES = {"LA Clippers": "Los Angeles Clippers", "Los Angeles Clippers": "LA Clippers"}
 
 
 def norm(name):
@@ -28,45 +33,66 @@ def norm(name):
     return " ".join(toks)
 
 
-def _get(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (overlay-tips-odds)"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.load(r)
+class _Api:
+    def __init__(self):
+        self.calls = 0
 
-
-def _num(x):
-    try:
-        return float(x)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def parse_gamelog(gl):
-    names = gl.get("names") or []
-    idx = {n: i for i, n in enumerate(names)}
-    tp = next((i for i, n in enumerate(names) if n.startswith("threePointFieldGoalsMade")), None)
-    meta = gl.get("events") or {}
-    rows = []
-    for st in gl.get("seasonTypes") or []:
-        if "preseason" in (st.get("displayName") or "").lower():
-            continue
-        for cat in st.get("categories") or []:
-            for e in cat.get("events") or []:
-                m, s = meta.get(str(e.get("eventId"))), e.get("stats") or []
-                if not m or len(s) < len(names):
+    def get(self, path, params=()):
+        url = f"{API}{path}" + ("?" + urllib.parse.urlencode(list(params)) if params else "")
+        req = urllib.request.Request(url, headers={"Authorization": KEY, "Accept": "application/json"})
+        for attempt in range(3):
+            try:
+                self.calls += 1
+                with urllib.request.urlopen(req, timeout=25) as r:
+                    return json.load(r)
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt < 2:   # rate limited: back off and retry
+                    time.sleep(5 * (attempt + 1))
                     continue
-                g = {c: _num(s[idx[c]]) if c in idx else 0.0 for c in COLS}
-                tpm = _num(str(s[tp]).split("-")[0]) if tp is not None else 0.0
-                when = datetime.fromisoformat(m["gameDate"].replace("Z", "+00:00")) - timedelta(hours=6)  # US date
-                rows.append([when.date().isoformat(), (m.get("opponent") or {}).get("abbreviation", ""),
-                             m.get("atVs", ""), round(g["minutes"]), int(g["points"]), int(g["totalRebounds"]),
-                             int(g["assists"]), int(tpm), int(g["blocks"]), int(g["steals"]), int(g["turnovers"])])
-    rows.sort(key=lambda r: r[0], reverse=True)
-    return rows
+                raise
+
+    def pages(self, path, params=(), limit=50):
+        cursor, out = None, []
+        for _ in range(limit):
+            p = list(params) + [("per_page", 100)] + ([("cursor", cursor)] if cursor else [])
+            j = self.get(path, p)
+            out += j.get("data") or []
+            cursor = (j.get("meta") or {}).get("next_cursor")
+            if not cursor:
+                break
+        return out
+
+
+def _mins(m):
+    m = str(m or "0").split(":")[0]
+    try:
+        return int(float(m))
+    except ValueError:
+        return 0
+
+
+def _season(now):
+    return now.year if now.month >= 9 else now.year - 1   # NBA season "2026" = 2026-27
+
+
+def rows_from_stats(stats, abbr_by_id):
+    """BDL /stats rows for ONE player -> our game rows, newest first, played + finished games only."""
+    rows = {}
+    for s in stats:
+        g = s.get("game") or {}
+        if not str(g.get("status", "")).startswith("Final") or _mins(s.get("min")) <= 0:
+            continue
+        tid = (s.get("team") or {}).get("id")
+        home = g.get("home_team_id") == tid
+        opp = abbr_by_id.get(g.get("visitor_team_id") if home else g.get("home_team_id"), "")
+        n = lambda k: int(s.get(k) or 0)
+        rows[g.get("id")] = [str(g.get("date", ""))[:10], opp, "vs" if home else "@", _mins(s.get("min")),
+                             n("pts"), n("reb"), n("ast"), n("fg3m"), n("blk"), n("stl"), n("turnover")]
+    return sorted(rows.values(), key=lambda r: r[0], reverse=True)
 
 
 def _match(desc, roster):
-    """roster: {norm name: athlete}. Exact name first, then first initial + surname."""
+    """roster: {norm name: player}. Exact name first, then first initial + surname."""
     n = norm(desc)
     if n in roster:
         return roster[n]
@@ -80,38 +106,45 @@ def _match(desc, roster):
 
 def update(prev, prop_events, now, ts):
     """prev: previous bundle["stats"]["nba"] (or None). prop_events: NBA prop events (Odds API format)."""
-    out = {"updated": ts, "teams": dict((prev or {}).get("teams") or {}), "players": dict((prev or {}).get("players") or {})}
+    prev = prev if (prev or {}).get("src") == "balldontlie" else None   # don't mix in old ESPN data
+    out = {"updated": ts, "src": "balldontlie", "teams": dict((prev or {}).get("teams") or {}),
+           "players": dict((prev or {}).get("players") or {})}
     nba = [e for e in prop_events if e.get("sport_key") == "basketball_nba"]
+    if not KEY:
+        return out, "NBA_STATS_KEY secret not set: no player stats (Hot stats stays empty)"
     if not nba:
         return out, "no NBA props"
-    calls, fails = 0, 0
-    teams = _get(f"{SITE}/teams")
-    calls += 1
-    tid = {}
-    for t in teams["sports"][0]["leagues"][0]["teams"]:
-        t = t["team"]
-        out["teams"][t["displayName"]] = t["abbreviation"]
-        tid[t["displayName"]] = t["id"]
-    # every roster, so traded players still match; cached for a day
+    api, fails = _Api(), 0
+
+    teams = api.get("/teams").get("data") or []
+    abbr_by_id = {}
+    for t in teams:
+        if not t.get("conference"):          # BDL also lists historic franchises without a conference
+            continue
+        abbr_by_id[t["id"]] = t["abbreviation"]
+        for nm in {t.get("full_name"), ALIASES.get(t.get("full_name"))} - {None}:
+            out["teams"][nm] = t["abbreviation"]
+
+    # every active player, so traded players still match; cached for a day
     ids = (prev or {}).get("ids") or {}
     if not ids.get("map") or now - datetime.fromisoformat(ids["f"].replace("Z", "+00:00")) > timedelta(hours=20):
-        m = {}
-        for name, i in tid.items():
-            try:
-                ro = _get(f"{SITE}/teams/{i}/roster")
-                calls += 1
-                for a in ro.get("athletes", []):
-                    m[norm(a.get("displayName") or a.get("fullName"))] = [a["id"], out["teams"][name], a.get("displayName")]
-            except Exception:
-                fails += 1
-        if len(m) > 300:
-            ids = {"f": ts, "map": m}
+        try:
+            m = {}
+            for p in api.pages("/players/active", limit=12):
+                nm = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
+                m[norm(nm)] = [p["id"], (p.get("team") or {}).get("abbreviation", ""), nm]
+            if len(m) > 300:
+                ids = {"f": ts, "map": m}
+        except Exception as e:
+            fails += 1
+            print("  active players failed:", type(e).__name__, e)
     out["ids"] = ids
-    roster = {k: {"id": v[0], "_team": v[1], "displayName": v[2]} for k, v in (ids.get("map") or {}).items()}
-    seen, unmatched, by = set(), [], {}
+    roster = {k: {"id": v[0], "team": v[1], "n": v[2]} for k, v in (ids.get("map") or {}).items()}
+
+    seen, unmatched, by, todo = set(), [], {}, {}
     for ev in nba:
-        descs = {o.get("description") for b in ev.get("bookmakers", []) for m in b.get("markets", [])
-                 for o in m.get("outcomes", []) if o.get("description")}
+        descs = {o.get("description") for b in ev.get("bookmakers", []) for mk in b.get("markets", [])
+                 for o in mk.get("outcomes", []) if o.get("description")}
         for d in sorted(descs):
             key = norm(d)
             by[d] = key
@@ -125,26 +158,41 @@ def update(prev, prop_events, now, ts):
             a = _match(d, roster)
             if not a:
                 unmatched.append(d)
-                continue
-            if calls >= MAX_CALLS:
-                break
-            try:
-                gl = _get(f"{WEB}/athletes/{a['id']}/gamelog")
-                calls += 1
-                out["players"][key] = {"n": a.get("displayName"), "id": a["id"], "team": a["_team"],
-                                       "f": ts, "s": ts, "g": parse_gamelog(gl)}
-            except Exception:
-                fails += 1
                 if old:
                     old["s"] = ts
-            time.sleep(0.05)
+                continue
+            todo[a["id"]] = (key, a)
+
+    # game logs, BATCH players per request
+    season, items = _season(now), list(todo.items())
+    for i in range(0, len(items), BATCH):
+        if api.calls >= MAX_CALLS:
+            break
+        chunk = items[i:i + BATCH]
+        try:
+            stats = api.pages("/stats", [("seasons[]", season)] + [("player_ids[]", pid) for pid, _ in chunk], limit=20)
+        except Exception as e:
+            fails += 1
+            print("  stats batch failed:", type(e).__name__, e)
+            for _, (key, _) in chunk:
+                if key in out["players"]:
+                    out["players"][key]["s"] = ts
+            continue
+        per = {}
+        for s in stats:
+            per.setdefault((s.get("player") or {}).get("id"), []).append(s)
+        for pid, (key, a) in chunk:
+            out["players"][key] = {"n": a["n"], "id": pid, "team": a["team"], "f": ts, "s": ts,
+                                   "g": rows_from_stats(per.get(pid, []), abbr_by_id)}
+        time.sleep(0.2)
+
     # forget players who haven't had props for a while
     cut = now - KEEP
     out["players"] = {k: v for k, v in out["players"].items()
                       if datetime.fromisoformat(v.get("s", v["f"]).replace("Z", "+00:00")) > cut}
     out["by"] = {d: k for d, k in by.items() if k in out["players"]}
     out["by"].update({d: k for d, k in ((prev or {}).get("by") or {}).items() if k in out["players"] and d not in out["by"]})
-    note = f"{len(seen)} NBA prop players, {calls} ESPN calls, {fails} failed"
+    note = f"{len(seen)} NBA prop players, {len(todo)} refreshed, {api.calls} BALLDONTLIE calls, {fails} failed"
     if unmatched:
         note += f", unmatched: {', '.join(unmatched[:12])}"
     return out, note

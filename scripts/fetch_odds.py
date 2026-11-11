@@ -331,7 +331,7 @@ def main():
     except Exception as e:
         print("racing failed:", type(e).__name__, e)
 
-    # ---- NBA player game logs (ESPN, free) for the players with props ----
+    # ---- NBA player game logs (BALLDONTLIE, licensed: NBA_STATS_KEY secret) for the players with props ----
     stats = prev.get("stats") or {}
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
