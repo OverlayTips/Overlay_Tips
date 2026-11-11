@@ -23,7 +23,7 @@ POSTS = os.path.join(ROOT, "previews", "posts")
 OUT = os.path.join(ROOT, "previews")
 SITE = "https://overlay.tips"
 
-NAV = [("index.html", "Home", ""), ("odds.html", "Odds", "hot"), ("hot.html", "Hot stats", ""), ("tracker.html", "Bet tracker", ""),
+NAV = [("index.html", "Home", ""), ("odds.html", "Odds", "hot"), ("hot.html", "Hot stats", ""), ("live.html", "Live", ""), ("tracker.html", "Bet tracker", ""),
        ("previews/", "Previews", ""), ("membership.html", "Membership", ""), ("index.html#results", "Results", ""),
        ("calculator.html", "Bonus bet calc", ""), ("giveaway.html", "Giveaway", ""), ("merch.html", "Merch", ""),
        ("about.html", "About", "")]
