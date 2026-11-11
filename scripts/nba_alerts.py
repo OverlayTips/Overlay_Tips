@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 
 API = "https://api.balldontlie.io/v1"
 KEY = os.environ.get("NBA_STATS_KEY", "").strip()
-TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
+TOPIC = re.sub(r"[^A-Za-z0-9_-]", "", os.environ.get("NTFY_TOPIC", ""))  # drop stray chars from copy-paste
 STATE = os.environ.get("STATE", "state.json")
 ET, SYD = ZoneInfo("America/New_York"), ZoneInfo("Australia/Sydney")
 FOOT = "Overlay Tips | 18+ Gamble responsibly"
