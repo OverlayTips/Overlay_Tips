@@ -103,12 +103,12 @@
       <div class="chart-top">
         <div>
           <div class="mono">November · month to date</div>
-          <div class="big" id="bigNum">+73.40U</div>
-          <div class="sub"><b>$734 profit</b> for a $10 unit punter</div>
+          <div class="big" id="bigNum">+76.14U</div>
+          <div class="sub"><b>$761 profit</b> for a $10 unit punter</div>
         </div>
         <span class="live"><span class="dot"></span>TRACKED</span>
       </div>
-      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Cumulative profit in units across November: from 0 to plus 73.40 units over nine days">
+      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Cumulative profit in units across November: from 0 to plus 76.14 units over ten days">
         <defs>
           <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#62f0a8" stop-opacity=".28"/>
@@ -231,6 +231,7 @@
       <button class="shot" data-src="res-sun.jpg"><img src="res-sun.jpg" alt="Sun 8 Nov results: +0.26U on the day, NBL 1/1, NBA 2/4, rugby league 0/1"><span>Sun · NBA + NBL · +0.26U</span></button>
       <button class="shot" data-src="res-mon.jpg"><img src="res-mon.jpg" alt="Mon 9 Nov results: −2.22U on the day, NFL 4/5 +5.88U, NBA 1/5 −8.09U"><span>Mon · NFL + NBA · −2.22U</span></button>
       <button class="shot" data-src="res-tue10.jpg"><img src="res-tue10.jpg" alt="Tue 10 Nov results: −5.05U on the day, NFL 3/5 +2.00U, NBA 1/5 −7.05U"><span>Tue · NFL + NBA · −5.05U</span></button>
+      <button class="shot" data-src="res-wed11.jpg"><img src="res-wed11.jpg" alt="Wed 11 Nov results: +2.74U on the day, racing 1/2 +2.56U, NBL 1/1 +2.50U, NBA 4/9 −2.32U"><span>Wed · Racing + NBA + NBL · +2.74U</span></button>
     </div>
   </div>
 </section>
@@ -341,7 +342,7 @@
 </div>
 
 <div class="sticky" id="sticky">
-  <small><b>+73.40U this month</b>Free for the first 500</small>
+  <small><b>+76.14U this month</b>Free for the first 500</small>
   <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
 </div>
 
@@ -376,6 +377,9 @@ const days = [
       ['Josh Allen Anytime TD','Didn\'t find the end zone.'],
       ['Jefferson O77.5','Got past 50 for the SGM leg but well short of 77.5. The Vikings offence still isn\'t feeding him.']],
       changes:['Smaller units on coin-flip props','Injury news has to be confirmed, not "potentially out"','Fewer NBA props on one slate']}},
+  {d:'Wed', n:'11 Nov', what:'Racing 1-1 · NBL 1-0 · NBA 4-5', sub:'Cosmic Jinks @ $3.78 (TAB pump) · Doyle O10.5 cashed in Q1 @ 2.00 · NBA −2.32U (Tatum, Hartenstein, McCain & Josh Green cashed)', u:2.74, staked:28.00, bets:12, won:6, img:'res-wed11.jpg',
+    legs:[['M. Doyle O10.5 Pts','2.00',2.5,1],['J. Tatum U7.5 Reb','1.95',2.5,1],['Hartenstein U22.5 PRA','1.80',2.5,1],['McCain O15.5 Pts+Reb','1.80',2.5,1],['Josh Green U7.5 Pts','1.72',2.5,1],['J. Brown 30+ PRA','1.76',2.5,0],['J. Brown 35+ PRA','2.95',1,0],['KAT U1.5 Threes','1.91',2,0],['Jalen Green U1.5 Threes','1.96',2.5,0],['Klay O15.5 Pts+Reb','1.80',2.5,0],['Cosmic Jinks (R6 Scone)','3.78',2,1],['Hansadios (R1 Belmont)','2.05',3,0]],
+    sp:{'Horse Racing':[2.56,1,2], NBL:[2.50,1,1], NBA:[-2.32,4,9]}},
   /* legs (optional): [bet, odds, units, 1 = won / 0 = lost]   img (optional): results card image
      sp (optional): per-sport split for the "By sport" tracker: {Sport:[units, won, bets]} (won/bets null if unknown) */
 ];
@@ -384,7 +388,8 @@ const winners = [
   ['Savvy Spy','2.70'],['Horseshoe Hill','2.50'],['Harden 3+ threes','2.25'],['Barrett 35+ PRA','1.86'],
   ['Dybantsa 6+ reb','1.81'],['Doolittle + Roma SGM','✓'],['Henry & Hill','TNF'],['K. Davis 25+ pts','2.10'],['Braun U6.5 R+A','2.05'],
   ['K. Walker III 90+','1.80'],['McGowan O25.5','1.88'],['CMC 60+ rush','1.85'],['LaMelo O21.5','1.96'],
-  ['G. Allen 15+ pts','2.10'],['Cook 100+ yds','2.20'],['Wentz U1.5 TDs','1.90'],['JJ / Cook SGM','1.70']
+  ['G. Allen 15+ pts','2.10'],['Cook 100+ yds','2.20'],['Wentz U1.5 TDs','1.90'],['JJ / Cook SGM','1.70'],
+  ['Cosmic Jinks','3.78'],['Doyle O10.5 pts','2.00'],['Tatum U7.5 reb','1.95'],['Hartenstein U22.5','1.80'],['McCain O15.5','1.80']
 ];
 
 const fmt = u => (u>=0?'+':'−')+Math.abs(u).toFixed(2)+'U';
