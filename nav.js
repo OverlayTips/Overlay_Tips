@@ -28,6 +28,17 @@
     '.sbx-x{display:block}.sbx-menu{display:inline-flex}',
     'html.sbx nav .navlinks a:not(.btn){display:none!important}',
     'html.sbx-open .sbx-side{transform:none}html.sbx-open .sbx-dim{opacity:1;pointer-events:auto}html.sbx-open body{overflow:hidden}}'
+    ,'.sbx-acct{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px 0 6px;margin-left:8px;border-radius:999px;border:1px solid #1b2523;background:#0e1312;color:#ecf5f1;font:700 14px Archivo,system-ui,sans-serif;text-decoration:none;white-space:nowrap;flex:none}'
+    ,'.sbx-acct:hover{border-color:#1d5a3f}'
+    ,'.sbx-acct .av{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#a8f7cf;color:#04140c;font-weight:900;font-size:13px}'
+    ,'.sbx-acct.out{padding:0 16px}.sbx-acct.out .av{display:none}'
+    ,'.sbx-acct .nm{max-width:110px;overflow:hidden;text-overflow:ellipsis}'
+    ,'.sbx-acct-fix{display:none}'
+    ,'html.sbx-member nav .navlinks a.btn{display:none!important}'
+    ,'@media(max-width:380px){.sbx-acct.out{padding:0 10px;font-size:13px}nav .navlinks a.btn{padding-left:12px!important;padding-right:12px!important}}'
+    ,'@media(min-width:1024px){.sbx-acct-fix{display:inline-flex;position:fixed;top:16px;right:22px;z-index:46;margin:0}}'
+    ,'@media(max-width:1023px){html.sbx nav .navlinks a.sbx-acct{display:inline-flex!important}}'
+    ,'@media(max-width:480px){.sbx-acct .nm{max-width:64px}.sbx-acct{padding:0 10px 0 5px;gap:6px}.sbx-acct.out{padding:0 12px}}'
   ].join('\n');
   var st = d.createElement('style'); st.textContent = css; d.head.appendChild(st);
 
@@ -56,6 +67,37 @@
     btn.type = 'button'; btn.className = 'sbx-menu'; btn.setAttribute('aria-label', 'Open menu');
     btn.setAttribute('aria-controls', 'sbxSide'); btn.setAttribute('aria-expanded', 'false');
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+    // account button (top right): your name when you're logged in to the members portal, otherwise "Log in"
+    var home = (nav.querySelector('.brand') || {}).getAttribute ? nav.querySelector('.brand').getAttribute('href') || 'index.html' : 'index.html';
+    var portal = home.replace(/index\.html.*$/, '') + 'portal.html';
+    var who = null;
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (/^sb-.*-auth-token$/.test(k)) {
+          var t = JSON.parse(localStorage.getItem(k)); t = t && (t.currentSession || t);
+          var u = t && t.user;
+          if (u && (!t.expires_at || t.expires_at * 1000 > Date.now() - 7 * 864e5)) {
+            who = ((u.user_metadata && u.user_metadata.name) || (u.email || '').split('@')[0] || 'Member').trim();
+          }
+        }
+      }
+    } catch (e) {}
+    function acct(cls) {
+      var a = d.createElement('a'); a.href = portal; a.className = 'sbx-acct ' + cls + (who ? '' : ' out');
+      if (who) {
+        var first = who.split(/\s+/)[0];
+        a.innerHTML = '<span class="av"></span><span class="nm"></span>';
+        a.querySelector('.av').textContent = first.charAt(0).toUpperCase();
+        a.querySelector('.nm').textContent = first;
+        a.title = 'Members portal: ' + who;
+      } else { a.textContent = 'Log in'; a.title = 'Members portal'; }
+      if (/portal\.html$/.test(location.pathname)) a.setAttribute('aria-current', 'page');
+      return a;
+    }
+    if (who) root.classList.add('sbx-member');   // members don't need the "Join free" button
+    links.appendChild(acct(''));
+    d.body.appendChild(acct('sbx-acct-fix'));
     links.appendChild(btn);
     d.body.appendChild(dim); d.body.appendChild(side);
     function set(open) {
