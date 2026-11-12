@@ -247,7 +247,7 @@
     <div class="mono">Members only</div>
       <h2>The odds tracker is for VIP members</h2>
       <p>Sign up and go VIP to see every Aussie bookie side by side. VIP members just log in and it unlocks.</p>
-      <div class="og-tiers"><div class="og-t v"><b>VIP <span>$89/month</span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
+      <div class="og-tiers"><div class="og-t v"><b>VIP <span data-plan="vip-month"></span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
       <div class="cta"><a class="p" href="membership.html">See memberships</a><a class="s" href="portal.html">Log in</a></div>
       <details><summary>Already a member with a password?</summary>
     <input type="text" name="username" value="overlay-odds" autocomplete="username" hidden>
@@ -1259,5 +1259,12 @@ $('movers').onchange=e=>{movers=e.target.checked;store.set('movers',movers);rend
 $('q').oninput=render;
 </script>
 <div class="gmodal" id="gmodal" hidden></div>
+<script>
+/* gate price tags: live prices from Stripe via the billing worker */
+fetch('https://overlay-billing.borgjayden005.workers.dev/plans').then(r => r.json()).then(({plans}) => {
+  document.querySelectorAll('span[data-plan]').forEach(el => { const p = plans && plans[el.dataset.plan];
+    if (p) el.textContent = '$' + (p.amount % 1 ? p.amount.toFixed(2) : p.amount) + '/' + p.interval; });
+}).catch(() => {});
+</script>
 </body>
 </html>

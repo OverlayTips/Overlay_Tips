@@ -177,7 +177,7 @@
       <div class="mono">Members only</div>
       <h2>Live is for Daily card and VIP members</h2>
       <p>Sign up and grab a membership to watch every NBA game live, track your bets and follow the play-by-play. Members just log in and it unlocks.</p>
-      <div class="og-tiers"><div class="og-t"><b>Daily card <span>$39/month</span></b><ul><li>Every tip in WhatsApp, with units and reasoning</li><li>Live bet tracking: your stat vs the line, on court or bench</li><li>Live page: every game, props and play-by-play</li></ul></div><div class="og-t v"><b>VIP <span>$89/month</span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
+      <div class="og-tiers"><div class="og-t"><b>Daily card <span data-plan="core-month">$19.99/month</span></b><ul><li>Every tip in WhatsApp, with units and reasoning</li><li>Live bet tracking: your stat vs the line, on court or bench</li><li>Live page: every game, props and play-by-play</li></ul></div><div class="og-t v"><b>VIP <span data-plan="vip-month"></span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
       <div class="cta"><a class="p" href="membership.html">See memberships</a><a class="s" href="portal.html">Log in</a></div>
       <details><summary>Already a member with a password?</summary>
       <input type="text" name="username" value="overlay-live" autocomplete="username" hidden>
@@ -430,6 +430,13 @@ setInterval(()=>{if(PW){BUNDLE=null;unlock(PW,true);}},10*60*1000);
   if(!PW&&window.OTKeys){OTKeys.reset();const k=await OTKeys.get('live');let res=null;if(k){res=await unlock(k,true);if(res===true)store.set('live',k);}
     if(!PW){const i=await OTKeys.info();if(i.loggedIn){const why=i.err||(typeof i.tier!=='string'||!['core','vip','founder','pending'].includes(i.tier)?'tier lookup failed ('+i.tier+')':!['core','vip'].includes(i.tier)?'your tier is '+i.tier+' (Daily card or VIP needed)':!Array.isArray(i.keys)?'member keys not set up ('+i.keys+')':!i.keys.includes('live')?'no live key saved in Supabase':res==='bad'?'the live password saved in Supabase doesn\'t match LIVE_PASSWORD in Cloudflare':res===false?'couldn\'t reach live scores':'');
       if(why){$('gateErr').textContent='Logged in as '+(i.email||'?')+': '+why;$('gateErr').closest('details')&&($('gateErr').closest('details').open=true);}}}}})();   // members: unlocked by their portal login   // keep it on a network blip
+</script>
+<script>
+/* gate price tags: live prices from Stripe via the billing worker */
+fetch('https://overlay-billing.borgjayden005.workers.dev/plans').then(r => r.json()).then(({plans}) => {
+  document.querySelectorAll('span[data-plan]').forEach(el => { const p = plans && plans[el.dataset.plan];
+    if (p) el.textContent = '$' + (p.amount % 1 ? p.amount.toFixed(2) : p.amount) + '/' + p.interval; });
+}).catch(() => {});
 </script>
 </body>
 </html>
