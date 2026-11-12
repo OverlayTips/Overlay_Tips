@@ -80,6 +80,15 @@
 .tr-plays li.me{background:rgba(98,240,168,.07)}
 .tr-plays li mark{background:none;color:var(--mint);font-weight:800}
 .tr-plays .e{display:block;color:#87978f;padding:10px 2px;font-size:13px}
+.tr-score{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-2px 0 12px;padding:0 0 10px;border-bottom:1px solid #16201d;font-size:15px;color:#87978f}
+.tr-score .tm{font-weight:700;letter-spacing:.02em}
+.tr-score .tm b{font-size:22px;font-weight:900;color:#c9d6d0;font-variant-numeric:tabular-nums;margin:0 2px}
+.tr-score .tm.w b{color:#ecf5f1}
+.tr-score .dash{color:#5f6f68}
+.tr-score .st{font-size:13px;font-weight:700;color:#87978f;display:inline-flex;align-items:center;gap:6px}
+.tr-score.in .st{color:#ffb3b3}
+.tr-score .st i{width:7px;height:7px;border-radius:50%;background:#ff6b6b;display:inline-block}
+.tr-score .tr-game{margin-left:auto}
 .tr-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-acts button.w{color:var(--mint)}.tr-acts button.l{color:#ff8a8a}
@@ -334,6 +343,12 @@ async function fetchPlays(gid){
   }catch(e){PLAYS_ERR[gid]="couldn't reach live scores";}
   drawList();
 }
+function scoreTop(b){
+  const L=b.live; if(b.kind!=='prop'||!L||!L.a||L.state==='pre') return '';
+  const as=+L.a.s, hs=+L.h.s, lead=as>hs?'a':hs>as?'h':'';
+  const st=L.state==='post'?'Final':(L.clock||'Live');
+  return `<div class="tr-score ${L.state==='in'?'in':''}"><span class="tm ${lead==='a'?'w':''}">${esc(L.a.t)} <b>${L.a.s??''}</b></span><span class="dash">–</span><span class="tm ${lead==='h'?'w':''}"><b>${L.h.s??''}</b> ${esc(L.h.t)}</span><span class="st">${L.state==='in'?'<i></i>':''}${esc(st)}</span>${L.gid?`<button type="button" class="tr-game" data-g="${esc(L.gid)}"><i>${OPEN_PBP.has(String(L.gid))?'Hide plays ▴':'Plays ▾'}</i></button>`:''}</div>`;
+}
 function boxLine(x){
   if(!x||L_STATE_SKIP(x)) return '';
   const n=v=>v==null||v===''?null:+v, c=[];
@@ -354,7 +369,7 @@ function prog(b){
   const hit=over?L.v>b.line:L.v<b.line, need=Math.max(0,Math.floor(b.line)+1-L.v);
   const cls=over?(hit?'hit':''):(hit?(L.state==='post'?'hit':''):'bust');
   const note=L.state==='post'?(L.dnp?'Did not play':'Final'):L.state==='in'?(over?(hit?'Cleared ✅':`Needs ${need} more`):(hit?`${(b.line-L.v).toFixed(1).replace('.0','')} to spare`:'Gone over ❌')):'Not started';
-    return `<div class="tr-prog"><div class="tr-row"><span>${L.gid&&L.state!=='pre'?`<button type="button" class="tr-game" data-g="${esc(L.gid)}">${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''} <i>${OPEN_PBP.has(String(L.gid))?'Hide plays ▴':'Plays ▾'}</i></button>`:esc(L.game||'')+(L.clock?' · '+esc(L.clock):'')}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div>${boxLine(L.box)}${L.gid&&OPEN_PBP.has(String(L.gid))?playsBox(b,L.gid):''}</div>`;
+    return `<div class="tr-prog"><div class="tr-row"><span>${L.a?esc(b.stat):esc(L.game||'')+(L.clock?' · '+esc(L.clock):'')}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div>${boxLine(L.box)}${L.gid&&OPEN_PBP.has(String(L.gid))?playsBox(b,L.gid):''}</div>`;
 }
 function drawList(){
   let xs=BETS.slice();
@@ -371,7 +386,7 @@ function drawList(){
     const st=b.stake>0;
     const right=!st?`<b>$${b.odds.toFixed(2)}</b><span>odds · no stake</span>`:b.result==='open'?`<b>${money(b.stake*b.odds-(b.bonus?b.stake:0))}</b><span>returns · $${b.odds.toFixed(2)}</span>`:`<b class="${p>0?'pos':p<0?'neg':''}">${pm(p)}</b><span>$${b.odds.toFixed(2)} · ${money(b.stake)}${b.bonus?' bonus':''}</span>`;
     const sub=[fmtDay(b.date),b.book,b.event,b.result==='open'&&st?money(b.stake)+(b.bonus?' bonus bet':''):''].filter(Boolean).map(esc).join(' · ');
-    return `<article class="tr-bet ${b.result}"><div class="tr-top"><div><div class="tr-pick">${esc(label(b))}${tag}</div><div class="tr-sub">${sub}</div></div><div class="tr-money">${right}</div></div>${prog(b)}
+    return `<article class="tr-bet ${b.result}">${scoreTop(b)}<div class="tr-top"><div><div class="tr-pick">${esc(label(b))}${tag}</div><div class="tr-sub">${sub}</div></div><div class="tr-money">${right}</div></div>${prog(b)}
       <div class="tr-acts">${b.result==='open'?`<button type="button" class="w" data-r="won" data-id="${b.id}">Won</button><button type="button" class="l" data-r="lost" data-id="${b.id}">Lost</button><button type="button" data-r="void" data-id="${b.id}">Void</button>`:`<button type="button" data-r="open" data-id="${b.id}">Reopen</button>`}<button type="button" data-edit="${b.id}">Edit</button><button type="button" class="del" data-del="${b.id}">Delete</button></div></article>`;
   }).join('');
 }
@@ -509,7 +524,7 @@ async function tick(){
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
-    b.live={court,gid:g.id,box:m.pl,game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
+    b.live={court,gid:g.id,box:m.pl,a:{t:g.away.abbr,s:g.away.score},h:{t:g.home.abbr,s:g.home.score},game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
     if(g.state==='in') anyLive=true;
     if(g.state==='post'&&!b.hold){
       const res=dnp?'void':v===+b.line?'void':(b.side==='Over'?v>b.line:v<b.line)?'won':'lost';
