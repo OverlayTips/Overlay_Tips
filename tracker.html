@@ -39,6 +39,8 @@
 .tr-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 12px}
 .tr-chips{display:flex;flex-wrap:wrap;gap:8px}
 .tr-chips button,.tr-btn{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
+.tr-bookf{background:#0e1312;border:1px solid #1b2523;color:#ecf5f1;border-radius:999px;padding:7px 12px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
+.tr-bookf.on{border-color:var(--mint);color:var(--mint)}
 .tr-chips button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
 .tr-btn.main{background:var(--mint);border-color:var(--mint);color:#04130b;font-weight:800}
 .tr-btn:disabled{opacity:.5;cursor:default}
@@ -195,6 +197,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         
+        <select id="bookF" class="tr-bookf" aria-label="Filter by bookie" hidden><option value="">All bookies</option></select>
         <button type="button" class="tr-btn main" id="addBtn">+ Add bet</button>
       </div>
     </div>
@@ -311,10 +314,22 @@ const legLabel=l=>`${l.player} ${l.side} ${l.line} ${l.stat}`;
 const profit=b=>!(b.stake>0)?0:b.result==='won'?b.stake*(b.odds-1):b.result==='lost'?(b.bonus?0:-b.stake):0;
 
 /* ---------- stats + chart ---------- */
+let BOOK=''; try{BOOK=localStorage.getItem('ot-book-filter')||'';}catch(e){}
+const bookKey=b=>String(b||'').trim().toLowerCase();
+const inBook=b=>!BOOK||bookKey(b.book)===BOOK;
+function bookOptions(){
+  const m=new Map(); for(const b of BETS){const k=bookKey(b.book); if(k&&!m.has(k)) m.set(k,b.book.trim());}
+  const sel=$('bookF'); if(BOOK&&!m.has(BOOK)) BOOK='';
+  sel.hidden=m.size<2&&!BOOK;
+  sel.innerHTML='<option value="">All bookies</option>'+[...m].sort((a,b)=>a[1].localeCompare(b[1])).map(([k,n])=>`<option value="${esc(k)}">${esc(n)}</option>`).join('');
+  sel.value=BOOK; sel.classList.toggle('on',!!BOOK);
+}
 function drawStats(){
-  const set=BETS.filter(b=>b.result!=='open'), wl=set.filter(b=>b.result==='won'||b.result==='lost');
+  bookOptions();
+  const ALL=BETS.filter(inBook);
+  const set=ALL.filter(b=>b.result!=='open'), wl=set.filter(b=>b.result==='won'||b.result==='lost');
   const won=wl.filter(b=>b.result==='won').length, pl=set.reduce((s,b)=>s+profit(b),0);
-  const staked=wl.filter(b=>!b.bonus).reduce((s,b)=>s+(b.stake||0),0), open=BETS.filter(b=>b.result==='open');
+  const staked=wl.filter(b=>!b.bonus).reduce((s,b)=>s+(b.stake||0),0), open=ALL.filter(b=>b.result==='open');
   const roi=staked?pl/staked*100:0, cls=n=>n>0.005?'pos':n<-0.005?'neg':'';
   $('stats').innerHTML=[
     ['Profit',`<b class="${cls(pl)}">${pm(pl)}</b>`],
@@ -407,8 +422,8 @@ function prog(b){
     return `<div class="tr-prog"><div class="tr-row"><span>${L.a?esc(b.stat):esc(L.game||'')+(L.clock?' · '+esc(L.clock):'')}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div>${boxLine(L.box)}${L.gid&&OPEN_PBP.has(String(L.gid))?playsBox(b,L.gid):''}</div>`;
 }
 function drawList(){
-  let xs=BETS.slice();
-  const nl=BETS.filter(isLive).length; const ln=$('liveN'); if(ln) ln.textContent=nl?`(${nl})`:'';
+  let xs=BETS.filter(inBook);
+  const nl=BETS.filter(b=>inBook(b)&&isLive(b)).length; const ln=$('liveN'); if(ln) ln.textContent=nl?`(${nl})`:'';
   if(!PICKED&&nl&&FILTER==='open'){FILTER='live';$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.f==='live'));}
   if(FILTER==='live') xs=xs.filter(isLive);
   else if(FILTER==='open') xs=xs.filter(b=>b.result==='open'&&!isLive(b)); else if(FILTER==='settled') xs=xs.filter(b=>b.result!=='open');
@@ -444,6 +459,7 @@ $('list').onclick=e=>{
 };
 $('filt').onclick=e=>{const t=e.target.closest('button');if(!t)return;FILTER=t.dataset.f;PICKED=true;$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===t));drawList();};
 function draw(){drawStats();drawList();liveBar();}
+$('bookF').onchange=e=>{BOOK=e.target.value;try{localStorage.setItem('ot-book-filter',BOOK);}catch(_){} draw();};
 
 /* ---------- add / edit ---------- */
 let KIND='prop', EDIT=null;
