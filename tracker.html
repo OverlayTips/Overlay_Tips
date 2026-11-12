@@ -153,6 +153,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
     <div class="tr-chart" id="chartWrap" hidden><div class="cap">Profit over time</div><div id="chart"></div></div>
     <div class="tr-bar">
       <div class="tr-chips" id="filt">
+        <button type="button" data-f="live">Live <span id="liveN"></span></button>
         <button type="button" data-f="open" class="on">Open</button>
         <button type="button" data-f="settled">Settled</button>
         <button type="button" data-f="all">All</button>
@@ -294,7 +295,8 @@ function drawStats(){
 }
 
 /* ---------- list ---------- */
-let FILTER='open';
+let FILTER='open', PICKED=false;
+const isLive=b=>b.result==='open'&&b.live&&b.live.state==='in';
 function prog(b){
   const L=b.live; if(b.kind!=='prop'||!L||L.v==null) return '';
   const over=b.side==='Over', max=Math.max(b.line*1.35,L.v,1), pct=Math.min(100,L.v/max*100), lp=Math.min(100,b.line/max*100);
@@ -305,9 +307,12 @@ function prog(b){
 }
 function drawList(){
   let xs=BETS.slice();
-  if(FILTER==='open') xs=xs.filter(b=>b.result==='open'); else if(FILTER==='settled') xs=xs.filter(b=>b.result!=='open');
-  xs.sort((a,b)=>FILTER==='open'?a.date.localeCompare(b.date)||a.created-b.created:b.date.localeCompare(a.date)||b.created-a.created);
-  if(!xs.length){$('list').innerHTML=`<div class="tr-empty"><h3>${BETS.length?'Nothing here':'No bets yet'}</h3>${BETS.length?'Try another filter.':'Tap <b>+ Add bet</b> to log one.'}</div>`;return;}
+  const nl=BETS.filter(isLive).length; const ln=$('liveN'); if(ln) ln.textContent=nl?`(${nl})`:'';
+  if(!PICKED&&nl&&FILTER==='open'){FILTER='live';$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.f==='live'));}
+  if(FILTER==='live') xs=xs.filter(isLive);
+  else if(FILTER==='open') xs=xs.filter(b=>b.result==='open'&&!isLive(b)); else if(FILTER==='settled') xs=xs.filter(b=>b.result!=='open');
+  xs.sort((a,b)=>(FILTER==='open'||FILTER==='live')?a.date.localeCompare(b.date)||a.created-b.created:b.date.localeCompare(a.date)||b.created-a.created);
+  if(!xs.length){$('list').innerHTML=`<div class="tr-empty"><h3>${FILTER==='live'&&BETS.length?'No live bets right now':BETS.length?'Nothing here':'No bets yet'}</h3>${FILTER==='live'&&BETS.length?'Open NBA props show here once the game tips off (members, live tracking on).':BETS.length?'Try another filter.':'Tap <b>+ Add bet</b> to log one.'}</div>`;return;}
   $('list').innerHTML=xs.map(b=>{
     const p=profit(b), live=b.result==='open'&&b.live&&b.live.state==='in';
     const court=live&&b.live.court?`<span class="tr-court ${b.live.court}">${b.live.court==='on'?'On court':'Bench'}</span>`:'';
@@ -327,7 +332,7 @@ $('list').onclick=e=>{
   else if(t.dataset.del){if(!confirm(`Delete "${label(b)}"?`))return;BETS=BETS.filter(x=>x!==b);}
   save();draw();
 };
-$('filt').onclick=e=>{const t=e.target.closest('button');if(!t)return;FILTER=t.dataset.f;$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===t));drawList();};
+$('filt').onclick=e=>{const t=e.target.closest('button');if(!t)return;FILTER=t.dataset.f;PICKED=true;$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===t));drawList();};
 function draw(){drawStats();drawList();liveBar();}
 
 /* ---------- add / edit ---------- */
