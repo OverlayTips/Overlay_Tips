@@ -543,10 +543,17 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden) tick();})
 
 /* ---------- start ---------- */
 load(); draw(); tick();
-fetch(HSRC+'?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{}).then(h=>{
-  const names=new Set((h.items||[]).concat(h.value||[]).map(i=>i.player));
-  $('players').innerHTML=[...names].sort().map(n=>`<option value="${esc(n)}">`).join('');
-}).catch(()=>{});
+// player search: every active NBA player (published with the lineups) plus anyone on Hot stats
+const PSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-data/players.json';
+Promise.all([
+  fetch(HSRC+'?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{}).catch(()=>({})),
+  fetch(PSRC+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({}))
+]).then(([h,pl])=>{
+  const names=new Map();
+  for(const p of pl.players||[]) names.set(p.n,p.t);
+  for(const i of (h.items||[]).concat(h.value||[])) if(i.player&&!names.has(i.player)) names.set(i.player,'');
+  $('players').innerHTML=[...names].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
+});
 if(Q.get('add')){
   openForm(null,{kind:'prop',player:Q.get('player')||'',stat:Q.get('stat')||'Points',side:Q.get('side')||'Over',line:Q.get('line')||'',odds:Q.get('odds')||'',book:Q.get('book')||''});
   history.replaceState(null,'',location.pathname);
