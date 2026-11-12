@@ -39,6 +39,9 @@
     ,'@media(min-width:1024px){.sbx-acct-fix{display:inline-flex;position:fixed;top:16px;right:22px;z-index:46;margin:0}}'
     ,'@media(max-width:1023px){html.sbx nav .navlinks a.sbx-acct{display:inline-flex!important}}'
     ,'@media(max-width:480px){.sbx-acct .nm{max-width:64px}.sbx-acct{padding:0 10px 0 5px;gap:6px}.sbx-acct.out{padding:0 12px}}'
+    ,'.sbx-acct .fd{display:none;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:linear-gradient(180deg,#ffe28a,#efbe3b);color:#1a1204;font:700 10.5px "Space Mono",monospace;letter-spacing:.08em;text-transform:uppercase}'
+    ,'.sbx-acct.founder .fd{display:inline-flex}.sbx-acct.founder{border-color:#5a4a1d}.sbx-acct.founder .av{box-shadow:0 0 0 2px #efbe3b}'
+    ,'@media(max-width:480px){.sbx-acct .fd .tx{display:none}.sbx-acct .fd{padding:3px 6px}}'
   ].join('\n');
   var st = d.createElement('style'); st.textContent = css; d.head.appendChild(st);
 
@@ -70,7 +73,7 @@
     // account button (top right): your name when you're logged in to the members portal, otherwise "Log in"
     var home = (nav.querySelector('.brand') || {}).getAttribute ? nav.querySelector('.brand').getAttribute('href') || 'index.html' : 'index.html';
     var portal = home.replace(/index\.html.*$/, '') + 'portal.html';
-    var who = null;
+    var who = null, tok = null, uid = null;
     try {
       for (var i = 0; i < localStorage.length; i++) {
         var k = localStorage.key(i);
@@ -79,6 +82,7 @@
           var u = t && t.user;
           if (u && (!t.expires_at || t.expires_at * 1000 > Date.now() - 7 * 864e5)) {
             who = ((u.user_metadata && u.user_metadata.name) || (u.email || '').split('@')[0] || 'Member').trim();
+            uid = u.id; if (t.access_token && (!t.expires_at || t.expires_at * 1000 > Date.now() + 30000)) tok = t.access_token;
           }
         }
       }
@@ -87,7 +91,7 @@
       var a = d.createElement('a'); a.href = portal; a.className = 'sbx-acct ' + cls + (who ? '' : ' out');
       if (who) {
         var first = who.split(/\s+/)[0];
-        a.innerHTML = '<span class="av"></span><span class="nm"></span>';
+        a.innerHTML = '<span class="av"></span><span class="nm"></span><span class="fd" title="Founding member">★<span class="tx">Founder</span></span>';
         a.querySelector('.av').textContent = first.charAt(0).toUpperCase();
         a.querySelector('.nm').textContent = first;
         a.title = 'Members portal: ' + who;
@@ -96,8 +100,23 @@
       return a;
     }
     if (who) root.classList.add('sbx-member');   // members don't need the "Join free" button
-    links.appendChild(acct(''));
-    d.body.appendChild(acct('sbx-acct-fix'));
+    var accts = [acct(''), acct('sbx-acct-fix')];
+    links.appendChild(accts[0]);
+    d.body.appendChild(accts[1]);
+    // founder tag: gold "★ Founder" pill on the account button for founding members.
+    // Shows the last known tier straight away, then checks it with Supabase.
+    function tag(tier) { accts.forEach(function (a) { a.classList.toggle('founder', tier === 'founder'); }); }
+    if (who && uid) {
+      var TK = 'ot-tier-' + uid;
+      try { tag(localStorage.getItem(TK)); } catch (e) {}
+      if (tok) {
+        fetch('https://enldqvdxygppxwrauqlw.supabase.co/rest/v1/rpc/my_tier', { method: 'POST', body: '{}',
+          headers: { apikey: 'sb_publishable_Zznc-4Nv6Ibb_SyE55jn6A_IqSxnYW8', Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (t) { if (typeof t === 'string') { tag(t); try { localStorage.setItem(TK, t); } catch (e) {} } })
+          .catch(function () {});
+      }
+    }
     links.appendChild(btn);
     d.body.appendChild(dim); d.body.appendChild(side);
     function set(open) {

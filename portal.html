@@ -15,7 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css?v=20261111a">
 <link rel="stylesheet" href="plain.css?v=6">
-<script src="nav.js?v=2"></script>
+<script src="nav.js?v=3"></script>
 </head>
 <body>
 <nav>
@@ -77,6 +77,7 @@
   .pt-top h1{font-size:30px}
   .pt-tier{display:inline-block;border:1px solid var(--mint-dim,#17573a);color:var(--mint,#24c17b);border-radius:999px;padding:3px 10px;font:700 12px "Space Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
   .pt-tier.vip{border-color:var(--gold,#efbe3b);color:var(--gold,#efbe3b)}
+  .pt-tier.founder{border:0;background:linear-gradient(180deg,#ffe28a,#efbe3b);color:#1a1204;padding:4px 11px}
   .pt-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px;scrollbar-width:none}
   .pt-tabs button{flex:0 0 auto;background:var(--panel,#0e1312);border:1px solid var(--line,#1b2523);color:var(--muted,#87978f);border-radius:999px;padding:8px 15px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
   .pt-tabs button.on{color:#04140c;background:var(--mint,#24c17b);border-color:var(--mint,#24c17b)}
@@ -301,8 +302,9 @@ async function boot(){
   const tier = prof.is_admin ? 'vip' : prof.tier, member = tier!=='pending';
   show('vAuth',false); show('vApp');
   $('hiName').textContent = prof.name || prof.email.split('@')[0];
-  $('tierBadge').textContent = prof.is_admin ? 'Admin' : TIER_NAME[tier];
-  $('tierBadge').className = 'pt-tier' + (tier==='vip' ? ' vip' : '');
+  $('tierBadge').textContent = prof.is_admin ? 'Admin' : tier==='founder' ? '★ Founder' : TIER_NAME[tier];
+  $('tierBadge').className = 'pt-tier' + (tier==='vip' ? ' vip' : tier==='founder' ? ' founder' : '');
+  try { localStorage.setItem('ot-tier-' + prof.id, tier); } catch(e) {}
   $('pendEmail').textContent = prof.email; show('vPending', !member);
   const tabs = member ? [['tTips',"Today's tips"],['tStats','Results & stats'],['tGroup','Group']] : [['tGroup','Refer a mate']];
   if (prof.is_admin) tabs.push(['tAdmin','Admin']);
