@@ -389,7 +389,7 @@ function drawList(){
     const right=!st?`<b>$${b.odds.toFixed(2)}</b><span>odds · no stake</span>`:b.result==='open'?`<b>${money(b.stake*b.odds-(b.bonus?b.stake:0))}</b><span>returns · $${b.odds.toFixed(2)}</span>`:`<b class="${p>0?'pos':p<0?'neg':''}">${pm(p)}</b><span>$${b.odds.toFixed(2)} · ${money(b.stake)}${b.bonus?' bonus':''}</span>`;
     const sub=[fmtDay(b.date),b.book,b.event,b.result==='open'&&st?money(b.stake)+(b.bonus?' bonus bet':''):''].filter(Boolean).map(esc).join(' · ');
     return `<article class="tr-bet ${b.result}">${scoreTop(b)}<div class="tr-top"><div><div class="tr-pick">${esc(label(b))}${tag}</div><div class="tr-sub">${sub}</div></div><div class="tr-money">${right}</div></div>${prog(b)}
-      <div class="tr-acts">${b.result==='open'?`<button type="button" class="w" data-r="won" data-id="${b.id}">Won</button><button type="button" class="l" data-r="lost" data-id="${b.id}">Lost</button><button type="button" data-r="void" data-id="${b.id}">Void</button>`:`<button type="button" data-r="open" data-id="${b.id}">Reopen</button>`}<button type="button" data-edit="${b.id}">Edit</button><button type="button" class="del" data-del="${b.id}">Delete</button></div></article>`;
+      <div class="tr-acts">${b.result==='open'?`<button type="button" class="w" data-r="won" data-id="${b.id}">Won</button><button type="button" class="l" data-r="lost" data-id="${b.id}">Lost</button><button type="button" data-r="void" data-id="${b.id}">Void</button>`:`<button type="button" data-r="open" data-id="${b.id}">Reopen</button>`}<button type="button" data-edit="${b.id}">Edit</button><button type="button" data-copy="${b.id}" title="New bet with the same player, bookie and stake">Copy</button><button type="button" class="del" data-del="${b.id}">Delete</button></div></article>`;
   }).join('');
 }
 $('list').onclick=e=>{
@@ -397,7 +397,13 @@ $('list').onclick=e=>{
   if(sb&&sb.classList.contains('tr-score')){location.href=`live.html#g=${encodeURIComponent(sb.dataset.g)}&v=pbp`;return;}
   const t=e.target.closest('button'); if(!t) return;
   if(t.dataset.g){const g=t.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]) fetchPlays(g);} drawList(); return;}
-  const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del)); if(!b) return;
+  const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del||t.dataset.copy)); if(!b) return;
+  if(t.dataset.copy){
+    openForm(null,{kind:b.kind,player:b.player,stat:b.stat,side:b.side,event:b.event,book:b.book,stake:b.stake,bonus:b.bonus,date:sydDate()});
+    $('dlgTitle').textContent='Add a bet (copied)';
+    setTimeout(()=>(b.kind==='prop'?$('fStat'):$('fDesc')).focus(),60);
+    return;
+  }
   if(t.dataset.r){b.result=t.dataset.r;b.auto=false;b.settled=t.dataset.r==='open'?null:new Date().toISOString();if(t.dataset.r==='open')b.hold=true;}
   else if(t.dataset.edit){openForm(b);return;}
   else if(t.dataset.del){if(!confirm(`Delete "${label(b)}"?`))return;BETS=BETS.filter(x=>x!==b);}
