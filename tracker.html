@@ -116,6 +116,16 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
 .tr-seg{display:flex;gap:6px}
 .tr-seg button{flex:1;background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:10px;padding:9px;font:700 14px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-seg button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
+.tr-leg{border:1px solid #1b2523;border-radius:12px;padding:10px 10px 12px;margin-bottom:10px;position:relative}
+.tr-leg .lh{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800;color:#87978f;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.tr-leg .lh button{background:none;border:0;color:#87978f;font-size:18px;cursor:pointer;line-height:1}
+.tr-legs{margin-top:12px;display:grid;gap:10px}
+.tr-lg{border-top:1px solid #16201d;padding-top:10px}
+.tr-lg:first-child{border-top:0;padding-top:0}
+.tr-lg .ln{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:800;color:#ecf5f1;margin-bottom:6px;align-items:center;flex-wrap:wrap}
+.tr-lg .ln .st{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;text-transform:uppercase;letter-spacing:.04em}
+.tr-lg .st.won{background:#123325;color:#a8f7cf}.tr-lg .st.lost{background:#5a1f1f;color:#ffb3b3}.tr-lg .st.pend{background:#16201d;color:#87978f}.tr-lg .st.void{background:#16201d;color:#c9d6d0}
+.tr-lg .tr-prog{margin-top:0}
 .tr-form .foot{display:flex;gap:8px;justify-content:space-between;align-items:center}
 .tr-form .ret{color:#87978f;font-size:13px}
 .tr-form .err{color:#ff8a8a;font-size:13px;min-height:1em}
@@ -217,6 +227,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
     <h2 id="dlgTitle">Add a bet</h2>
     <div class="tr-seg" id="kind">
       <button type="button" data-k="prop" class="on">NBA player prop</button>
+      <button type="button" data-k="sgm">NBA SGM</button>
       <button type="button" data-k="other">Any other bet</button>
     </div>
     <div id="propF">
@@ -227,6 +238,10 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
         <label>Over / Under<select id="fSide"><option>Over</option><option>Under</option></select></label>
         <label>Line<input id="fLine" type="number" step="0.5" inputmode="decimal" placeholder="24.5"></label>
       </div>
+    </div>
+    <div id="sgmF" hidden>
+      <div id="legs"></div>
+      <button type="button" class="tr-btn" id="addLeg" style="margin-top:10px">+ Add leg</button>
     </div>
     <div id="otherF" hidden>
       <label>Bet<input id="fDesc" placeholder="e.g. Celtics H2H, Multi, Melbourne Cup"></label>
@@ -291,7 +306,8 @@ const addDays=(s,n)=>{const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate
 let BETS=[];
 function load(){try{BETS=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(BETS))BETS=[];}catch(e){BETS=[];}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(BETS));return true;}catch(e){alert("Couldn't save in this browser (private mode?). Export a backup so you don't lose it.");return false;}}
-const label=b=>b.kind==='prop'?`${b.player} ${b.side} ${b.line} ${b.stat}`:b.desc;
+const label=b=>b.kind==='prop'?`${b.player} ${b.side} ${b.line} ${b.stat}`:b.kind==='sgm'?`SGM · ${(b.legs||[]).length} legs`:b.desc;
+const legLabel=l=>`${l.player} ${l.side} ${l.line} ${l.stat}`;
 const profit=b=>!(b.stake>0)?0:b.result==='won'?b.stake*(b.odds-1):b.result==='lost'?(b.bonus?0:-b.stake):0;
 
 /* ---------- stats + chart ---------- */
@@ -346,7 +362,7 @@ async function fetchPlays(gid){
   drawList();
 }
 function scoreTop(b){
-  const L=b.live; if(b.kind!=='prop'||!L||!L.a||L.state==='pre') return '';
+  const L=b.live; if((b.kind!=='prop'&&b.kind!=='sgm')||!L||!L.a||L.state==='pre') return '';
   const as=+L.a.s, hs=+L.h.s, lead=as>hs?'a':hs>as?'h':'';
   const st=L.state==='post'?'Final':(L.clock||'Live');
   return `<div class="tr-score ${L.state==='in'?'in':''}" ${L.gid?`data-g="${esc(L.gid)}" role="button" tabindex="0"`:''}><span class="tm ${lead==='a'?'w':''}">${esc(L.a.t)} <b>${L.a.s??''}</b></span><span class="dash">–</span><span class="tm ${lead==='h'?'w':''}"><b>${L.h.s??''}</b> ${esc(L.h.t)}</span><span class="st">${L.state==='in'?'<i></i>':''}${esc(st)}</span>${L.gid?`<span class="tr-game"><i>Play-by-play →</i></span>`:''}</div>`;
@@ -365,6 +381,23 @@ function boxLine(x){
   return `<div class="tr-box">${c.join('')}</div>`;
 }
 const L_STATE_SKIP=x=>typeof x!=='object';
+function legState(l){
+  const L=l.live; if(!L||L.v==null) return 'pend';
+  const over=l.side==='Over';
+  if(L.state==='post') return L.dnp||L.v===+l.line?'void':(over?L.v>l.line:L.v<l.line)?'won':'lost';
+  if(over&&L.v>l.line) return 'won';
+  if(!over&&L.v>l.line) return 'lost';
+  return 'pend';
+}
+function sgmLegs(b){
+  const legs=b.legs||[];
+  return `<div class="tr-legs">${legs.map(l=>{
+    const st=legState(l), L=l.live;
+    const court=L&&L.state==='in'&&L.court?`<span class="tr-court ${L.court}">${L.court==='on'?'On court':'Bench'}</span>`:'';
+    const tag=`<span class="st ${st}">${st==='won'?'Hit':st==='lost'?'Missed':st==='void'?'Void':L&&L.state==='in'?'Live':'Pending'}</span>`;
+    return `<div class="tr-lg"><div class="ln"><span>${esc(legLabel(l))}${court}</span>${tag}</div>${prog({...l,kind:'prop'}).replace(/<div class="tr-box">[\s\S]*?<\/div>/,'')}</div>`;
+  }).join('')}</div>`;
+}
 function prog(b){
   const L=b.live; if(b.kind!=='prop'||!L||L.v==null) return '';
   const over=b.side==='Over', max=Math.max(b.line*1.35,L.v,1), pct=Math.min(100,L.v/max*100), lp=Math.min(100,b.line/max*100);
@@ -383,12 +416,12 @@ function drawList(){
   if(!xs.length){$('list').innerHTML=`<div class="tr-empty"><h3>${FILTER==='live'&&BETS.length?'No live bets right now':BETS.length?'Nothing here':'No bets yet'}</h3>${FILTER==='live'&&BETS.length?'Open NBA props show here once the game tips off (members, live tracking on).':BETS.length?'Try another filter.':'Tap <b>+ Add bet</b> to log one.'}</div>`;return;}
   $('list').innerHTML=xs.map(b=>{
     const p=profit(b), live=b.result==='open'&&b.live&&b.live.state==='in';
-    const court=live&&b.live.court?`<span class="tr-court ${b.live.court}">${b.live.court==='on'?'On court':'Bench'}</span>`:'';
+    const court=live&&b.kind!=='sgm'&&b.live.court?`<span class="tr-court ${b.live.court}">${b.live.court==='on'?'On court':'Bench'}</span>`:'';
     const tag=b.result==='open'?(live?'<span class="tr-tag live">● Live</span>'+court:'<span class="tr-tag open">Open</span>'):`<span class="tr-tag ${b.result}">${b.result==='void'?'Void':b.result==='won'?'Won':'Lost'}${b.auto?' · auto':''}</span>`;
     const st=b.stake>0;
     const right=!st?`<b>$${b.odds.toFixed(2)}</b><span>odds · no stake</span>`:b.result==='open'?`<b>${money(b.stake*b.odds-(b.bonus?b.stake:0))}</b><span>returns · $${b.odds.toFixed(2)}</span>`:`<b class="${p>0?'pos':p<0?'neg':''}">${pm(p)}</b><span>$${b.odds.toFixed(2)} · ${money(b.stake)}${b.bonus?' bonus':''}</span>`;
     const sub=[fmtDay(b.date),b.book,b.event,b.result==='open'&&st?money(b.stake)+(b.bonus?' bonus bet':''):''].filter(Boolean).map(esc).join(' · ');
-    return `<article class="tr-bet ${b.result}">${scoreTop(b)}<div class="tr-top"><div><div class="tr-pick">${esc(label(b))}${tag}</div><div class="tr-sub">${sub}</div></div><div class="tr-money">${right}</div></div>${prog(b)}
+    return `<article class="tr-bet ${b.result}">${scoreTop(b)}<div class="tr-top"><div><div class="tr-pick">${esc(label(b))}${tag}</div><div class="tr-sub">${sub}</div></div><div class="tr-money">${right}</div></div>${b.kind==='sgm'?sgmLegs(b):prog(b)}
       <div class="tr-acts">${b.result==='open'?`<button type="button" class="w" data-r="won" data-id="${b.id}">Won</button><button type="button" class="l" data-r="lost" data-id="${b.id}">Lost</button><button type="button" data-r="void" data-id="${b.id}">Void</button>`:`<button type="button" data-r="open" data-id="${b.id}">Reopen</button>`}<button type="button" data-edit="${b.id}">Edit</button><button type="button" data-copy="${b.id}" title="New bet with the same player, bookie and stake">Copy</button><button type="button" class="del" data-del="${b.id}">Delete</button></div></article>`;
   }).join('');
 }
@@ -399,7 +432,7 @@ $('list').onclick=e=>{
   if(t.dataset.g){const g=t.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]) fetchPlays(g);} drawList(); return;}
   const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del||t.dataset.copy)); if(!b) return;
   if(t.dataset.copy){
-    openForm(null,{kind:b.kind,player:b.player,stat:b.stat,side:b.side,event:b.event,book:b.book,stake:b.stake,bonus:b.bonus,date:sydDate()});
+    openForm(null,{kind:b.kind,player:b.player,stat:b.stat,side:b.side,event:b.event,book:b.book,stake:b.stake,bonus:b.bonus,date:sydDate(),legs:b.kind==='sgm'?(b.legs||[]).map(l=>({player:l.player,stat:l.stat,side:l.side})):undefined});
     $('dlgTitle').textContent='Add a bet (copied)';
     setTimeout(()=>(b.kind==='prop'?$('fStat'):$('fDesc')).focus(),60);
     return;
@@ -414,11 +447,28 @@ function draw(){drawStats();drawList();liveBar();}
 
 /* ---------- add / edit ---------- */
 let KIND='prop', EDIT=null;
-function setKind(k){KIND=k;$('kind').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===k));$('propF').hidden=k!=='prop';$('otherF').hidden=k==='prop';}
+function setKind(k){KIND=k;$('kind').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===k));$('propF').hidden=k!=='prop';$('sgmF').hidden=k!=='sgm';$('otherF').hidden=k!=='other';
+  if(k==='sgm'&&!$('legs').children.length){addLegRow();addLegRow();}}
+function addLegRow(l={}){
+  const d=document.createElement('div'); d.className='tr-leg';
+  d.innerHTML=`<div class="lh"><span>Leg</span><button type="button" aria-label="Remove leg">×</button></div>
+    <label>Player<input class="lp" list="players" autocomplete="off" placeholder="e.g. Jayson Tatum"></label>
+    <div class="three" style="margin-top:8px"><label>Stat<select class="ls">${Object.keys(STATS).map(s=>`<option>${esc(s)}</option>`).join('')}</select></label>
+    <label>Over / Under<select class="lo"><option>Over</option><option>Under</option></select></label>
+    <label>Line<input class="ll" type="number" step="0.5" inputmode="decimal" placeholder="24.5"></label></div>`;
+  d.querySelector('.lp').value=l.player||''; d.querySelector('.ls').value=STATS[l.stat]?l.stat:'Points';
+  d.querySelector('.lo').value=l.side==='Under'?'Under':'Over'; d.querySelector('.ll').value=l.line??'';
+  d.querySelector('.lh button').onclick=()=>{d.remove();numberLegs();};
+  $('legs').appendChild(d); numberLegs(); return d;
+}
+function numberLegs(){[...$('legs').children].forEach((d,i)=>d.querySelector('.lh span').textContent='Leg '+(i+1));}
+$('addLeg').onclick=()=>addLegRow().querySelector('.lp').focus();
+function readLegs(){return [...$('legs').children].map(d=>({player:d.querySelector('.lp').value.trim(),stat:d.querySelector('.ls').value,side:d.querySelector('.lo').value,line:d.querySelector('.ll').value===''?NaN:+d.querySelector('.ll').value}));}
 $('kind').onclick=e=>{const t=e.target.closest('button');if(t)setKind(t.dataset.k);};
 function openForm(b,pre){
   EDIT=b||null; const v=b||pre||{};
   $('dlgTitle').textContent=b?'Edit bet':'Add a bet'; $('fSave').textContent=b?'Save changes':'Save bet';
+  $('legs').innerHTML=''; (v.legs||[]).forEach(l=>addLegRow(l));
   setKind(v.kind||'prop');
   $('fPlayer').value=v.player||''; $('fStat').value=STATS[v.stat]?v.stat:'Points'; $('fSide').value=v.side==='Under'?'Under':'Over';
   $('fLine').value=v.line??''; $('fDesc').value=v.desc||''; $('fEvent').value=v.event||'';
@@ -438,6 +488,11 @@ $('form').onsubmit=e=>{
   if(KIND==='prop'&&!$('fPlayer').value.trim()) return err('Add the player.');
   if(KIND==='prop'&&!isFinite(line)) return err('Add the line, e.g. 24.5.');
   if(KIND==='other'&&!$('fDesc').value.trim()) return err('Say what the bet is.');
+  const legs=KIND==='sgm'?readLegs().filter(l=>l.player||isFinite(l.line)):[];
+  if(KIND==='sgm'){
+    if(legs.length<2) return err('An SGM needs at least 2 legs.');
+    const bad=legs.findIndex(l=>!l.player||!isFinite(l.line)); if(bad>=0) return err(`Leg ${bad+1}: add the player and the line.`);
+  }
   if(!(odds>1)) return err('Odds need to be more than 1.00.');
   if($('fStake').value!==''&&!(stake>0)) return err('Stake needs to be more than $0, or leave it blank.');
   const b=EDIT||{id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),created:Date.now(),result:'open'};
@@ -445,6 +500,8 @@ $('form').onsubmit=e=>{
   Object.assign(b,{kind:KIND,player:KIND==='prop'?$('fPlayer').value.trim():'',stat:$('fStat').value,side:$('fSide').value,line:KIND==='prop'?line:null,
     desc:KIND==='other'?$('fDesc').value.trim():'',event:KIND==='other'?$('fEvent').value.trim():'',book:$('fBook').value.trim(),
     odds:Math.round(odds*100)/100,stake:stake>0?Math.round(stake*100)/100:0,date:$('fDate').value||sydDate(),bonus:!!$('fBonus').value});
+  if(KIND==='sgm'){const old=JSON.stringify((b.legs||[]).map(legLabel)); b.legs=legs.map(l=>({player:l.player,stat:l.stat,side:l.side,line:l.line})); if(EDIT&&old!==JSON.stringify(b.legs.map(legLabel))){b.live=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}}
+  else delete b.legs;
   if(changed){b.live=null;b.pre=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}
   if(!EDIT) BETS.push(b);
   try{if(b.book)localStorage.setItem('ot-last-book',b.book);}catch(e){}
@@ -481,7 +538,8 @@ const API=Q.get('api')||'https://overlay-live.borgjayden005.workers.dev';
 const pwGet=()=>{try{return JSON.parse(localStorage.getItem('odds.pw'));}catch(e){return null;}};
 const pwSet=v=>{try{v?localStorage.setItem('odds.pw',JSON.stringify(v)):localStorage.removeItem('odds.pw');}catch(e){}};
 let LIVE_ERR='', LIVE_AT=null, liveTimer=null;
-const trackable=()=>{const lo=addDays(sydDate(),-2);return BETS.filter(b=>b.result==='open'&&b.kind==='prop'&&b.date>=lo&&b.date<=sydDate());};
+const trackable=()=>{const lo=addDays(sydDate(),-2);return BETS.filter(b=>b.result==='open'&&(b.kind==='prop'||b.kind==='sgm')&&b.date>=lo&&b.date<=sydDate());};
+const legsOf=b=>b.kind==='sgm'?(b.legs||[]):[b];
 function liveBar(){
   const el=$('liveBar'), n=trackable().length;
   if(!n){el.hidden=true;return;}
@@ -512,7 +570,7 @@ async function tick(){
   }
   // on court or bench: replay the play-by-play ("X enters the game for Y"; anyone named in a play is on the floor)
   const COURT={}, need=new Set(), gameOf={};
-  for(const b of bets){const m=rows[key(b.player)]; if(m&&m.g.state==='in'){need.add(m.g.id); gameOf[key(b.player)]=m.g.id;}}
+  for(const b of bets) for(const l of legsOf(b)){const m=rows[key(l.player)]; if(m&&m.g.state==='in'){need.add(m.g.id); gameOf[key(l.player)]=m.g.id;}}
   await Promise.all([...need].map(async id=>{
     try{
       const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(id)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
@@ -529,13 +587,31 @@ async function tick(){
     }catch(e){}
   }));
   let changed=false, anyLive=false;
-  for(const b of bets){
-    const m=rows[key(b.player)]; if(!m||!STATS[b.stat]) continue;
+  const legLive=b=>{
+    const m=rows[key(b.player)]; if(!m||!STATS[b.stat]) return false;
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
     b.live={court,gid:g.id,box:m.pl,a:{t:g.away.abbr,s:g.away.score},h:{t:g.home.abbr,s:g.home.score},game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
     if(g.state==='in') anyLive=true;
+    return true;
+  };
+  for(const b of bets){
+    if(b.kind==='sgm'){
+      let any=false; for(const l of b.legs||[]) if(legLive(l)) any=true;
+      if(!any) continue;
+      const ls=(b.legs||[]).filter(l=>l.live);
+      b.live=(ls.find(l=>l.live.state==='in')||ls[0]).live;
+      if(!b.hold){
+        const st=(b.legs||[]).map(legState);
+        // any missed leg kills it straight away; all legs hit = won. Voided legs are left for you to settle (bookies differ).
+        const res=st.includes('lost')?'lost':st.every(x=>x==='won')?'won':null;
+        if(res){b.result=res;b.auto=true;b.settled=new Date().toISOString();}
+      }
+      changed=true; continue;
+    }
+    if(!legLive(b)) continue;
+    const v=b.live.v, g={state:b.live.state}, dnp=b.live.dnp;
     if(g.state==='post'&&!b.hold){
       const res=dnp?'void':v===+b.line?'void':(b.side==='Over'?v>b.line:v<b.line)?'won':'lost';
       b.result=res;b.auto=true;b.settled=new Date().toISOString();
