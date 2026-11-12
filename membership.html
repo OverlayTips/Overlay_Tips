@@ -14,18 +14,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Overlay">
 <script src="/pwa.js" defer></script>
-<meta name="description" content="Overlay Tips memberships are coming: Core and VIP tiers for daily analysed tips in WhatsApp. First 500 followers get in free for life. Join the waitlist.">
+<meta name="description" content="Overlay Tips memberships: Daily card and VIP plans for daily analysed tips in WhatsApp, live bet tracking and the odds tracker. First 500 members get in free for life.">
 <link rel="canonical" href="https://overlay.tips/membership.html">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overlay Tips">
 <meta property="og:title" content="Membership | Overlay Tips">
-<meta property="og:description" content="Overlay Tips memberships are coming: Core and VIP tiers for daily analysed tips in WhatsApp. First 500 followers get in free for life. Join the waitlist.">
+<meta property="og:description" content="Overlay Tips memberships: Daily card and VIP plans for daily analysed tips in WhatsApp, live bet tracking and the odds tracker. First 500 members get in free for life.">
 <meta property="og:url" content="https://overlay.tips/membership.html">
 <meta property="og:image" content="https://overlay.tips/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Membership | Overlay Tips">
-<meta name="twitter:description" content="Overlay Tips memberships are coming: Core and VIP tiers for daily analysed tips in WhatsApp. First 500 followers get in free for life. Join the waitlist.">
+<meta name="twitter:description" content="Overlay Tips memberships: Daily card and VIP plans for daily analysed tips in WhatsApp, live bet tracking and the odds tracker. First 500 members get in free for life.">
 <meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
 <meta name="theme-color" content="#060807">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,9 +79,9 @@
 <main>
 <header class="page-head">
   <div class="wrap">
-    <div class="mono">Membership · coming soon</div>
+    <div class="mono">Membership</div>
     <h1>Pick your <span class="g">edge.</span></h1>
-    <p>Paid memberships open once we hit 500 followers. Get on the waitlist to hear first and lock in launch pricing.</p>
+    <p>Join free as a Founding member while spots last, or go Daily card or VIP for live tracking and the odds tracker. Cancel anytime.</p>
     <p style="margin-top:14px"><a class="btn btn-mint" href="portal.html">Members portal: log in →</a></p>
     <div class="spots mem-spots" data-followers="21" data-cap="500"><div class="spots-top"><span><b class="spots-left">479</b> free spots left</span><span class="spots-count">21 / 500 taken</span></div><div class="spots-bar"><i></i></div><div class="spots-sub">First 500 members get in free for life</div></div>
   </div>
@@ -117,10 +117,10 @@
         <a class="btn btn-mint" href="portal.html?signup">Sign up free</a>
       </div>
       <div class="tier reveal">
-        <div class="mono">Core</div>
+        <div class="mono">Daily card</div>
         <h3>The daily card</h3>
-        <div class="price">$39<small>/month</small></div>
-        <div class="alt">or $12/week · $390/year</div>
+        <div class="price" data-plan="core-month">$19.99<small>/month</small></div>
+        <div class="alt" data-plan="core-week">or $7.99/week</div>
         <ul>
           <li>Everything in Founding</li>
           <li>Live bet tracking: scores, your stat vs the line, on court or bench</li>
@@ -128,13 +128,13 @@
           <li>Play-by-play for every game</li>
           <li>Unit sizes and the reasoning for each play</li>
         </ul>
-        <a class="btn btn-ghost waitlist" href="https://tally.so/r/WJrQJN?src=core" target="_blank" rel="noopener">Join the waitlist</a>
+        <a class="btn btn-ghost" href="portal.html?signup">Get the Daily card</a>
       </div>
       <div class="tier vip reveal">
         <div class="mono">VIP</div>
         <h3>First to the price</h3>
-        <div class="price">$89<small>/month</small></div>
-        <div class="alt">or $25/week · $890/year</div>
+        <div class="price" data-plan="vip-month">&nbsp;</div>
+        <div class="alt" data-plan="vip-week">&nbsp;</div>
         <ul>
           <li>Everything in the Daily card</li>
           <li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li>
@@ -144,17 +144,16 @@
           <li>DM us about bets you're looking at</li>
           <li>Monthly breakdown of what's working</li>
         </ul>
-        <a class="btn btn-mint waitlist" href="https://tally.so/r/WJrQJN?src=vip" target="_blank" rel="noopener">Join the VIP waitlist</a>
+        <a class="btn btn-mint" href="portal.html?signup">Go VIP</a>
       </div>
     </div>
 
 
     <div class="mem-extra reveal">
-      <div><b>7-day trial</b><span>$5 to see the quality before you commit</span></div>
       <div><b>Refer a mate</b><span>Mates get 50% off their first month with your code. You get a week free for every mate who joins</span></div>
       <div><b>Cancel anytime</b><span>No lock-in on weekly or monthly plans</span></div>
     </div>
-    <p class="reveal" style="color:var(--muted);margin-top:22px;max-width:720px;font-size:14px">Prices are planned launch prices and may change before memberships open. Analysed tips, not guaranteed wins. Every result is tracked publicly, wins and losses. 18+ only.</p>
+    <p class="reveal" style="color:var(--muted);margin-top:22px;max-width:720px;font-size:14px">Sign up free, then pick a plan in the members portal. Payments by Stripe. Analysed tips, not guaranteed wins. Every result is tracked publicly, wins and losses. 18+ only.</p>
   </div>
 </section>
 </main>
@@ -184,6 +183,16 @@ document.querySelectorAll('.spots').forEach(el=>{const f=+el.dataset.followers,c
 /* reveal */
 const io='IntersectionObserver' in window ? new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12}) : null;
 document.querySelectorAll('.reveal').forEach(r=>{ if(io) io.observe(r); else r.classList.add('in'); });
+</script>
+<script>
+/* live prices from Stripe via the billing worker (cloudflare/billing-worker.js) */
+fetch('https://overlay-billing.borgjayden005.workers.dev/plans').then(r => r.json()).then(({plans}) => {
+  const m = n => '$' + (n % 1 ? n.toFixed(2) : n);
+  document.querySelectorAll('[data-plan]').forEach(el => {
+    const p = plans && plans[el.dataset.plan]; if (!p) return;
+    el.innerHTML = el.classList.contains('price') ? `${m(p.amount)}<small>/${p.interval}</small>` : `or ${m(p.amount)}/${p.interval}`;
+  });
+}).catch(() => {});
 </script>
 </body>
 </html>
