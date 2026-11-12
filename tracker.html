@@ -65,6 +65,9 @@
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-acts button.w{color:var(--mint)}.tr-acts button.l{color:#ff8a8a}
 .tr-acts button.del{margin-left:auto;color:#87978f}
+.tr-btn.reset{color:#ff8a8a;border-color:#4a2222}
+.tr-btn.danger{background:#c43c3c;border-color:#c43c3c;color:#fff}
+.tr-warn{background:#2a1212;border:1px solid #5a1f1f;color:#ffb3b3;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.45;margin:10px 0 16px}
 .tr-tag{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:2px}
 .tr-tag.won{background:var(--mint);color:#04130b}.tr-tag.lost{background:#5a1f1f;color:#ffb3b3}.tr-tag.void{background:#16201d;color:#87978f}
 .tr-tag.open{background:#16201d;color:var(--gold)}.tr-tag.live{background:#5a1f1f;color:#ffb3b3}
@@ -159,11 +162,23 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <button type="button" class="tr-btn" id="expBtn">Export backup</button>
       <button type="button" class="tr-btn" id="csvBtn">Download CSV</button>
       <label class="tr-btn" style="cursor:pointer">Restore backup<input type="file" id="impFile" accept=".json,application/json" hidden></label>
+      <button type="button" class="tr-btn reset" id="resetBtn">Reset tracker</button>
     </div>
     <p class="tr-note">Your bets are saved in this browser only, on this device. Nobody else can see them. Export a backup now and then, or to move them to another phone. Settle each bet with the Won, Lost or Void buttons once it's decided. <a href="hot.html">Hot stats →</a></p>
   </div>
 </section>
 </main>
+
+<dialog class="tr-dlg" id="resetDlg">
+  <h2>Reset your tracker?</h2>
+  <div class="tr-warn"><b>FYI: this can't be undone.</b> Every bet you've logged and all your stats (profit, units, hit rate) will be deleted from this device.</div>
+  <p class="tr-note" style="margin:0 0 16px">Want to keep a copy? Hit <b>Export backup</b> first, then you can restore it later.</p>
+  <span style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+    <button type="button" class="tr-btn" id="resetExp">Export backup first</button>
+    <button type="button" class="tr-btn" id="resetCancel">Cancel</button>
+    <button type="button" class="tr-btn danger" id="resetGo">Yes, reset everything</button>
+  </span>
+</dialog>
 
 <dialog class="tr-dlg" id="dlg">
   <form class="tr-form" id="form" method="dialog">
@@ -343,6 +358,11 @@ $('form').onsubmit=e=>{
 /* ---------- backup ---------- */
 function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 $('expBtn').onclick=()=>dl(`overlay-bets-${sydDate()}.json`,JSON.stringify({v:1,bets:BETS},null,1),'application/json');
+$('resetBtn').onclick=()=>{const d=$('resetDlg'); if(d.showModal) d.showModal(); else if(confirm("Reset your tracker? This deletes every bet and your stats. FYI this can't be undone.")) doReset();};
+function doReset(){BETS=[];try{localStorage.removeItem(KEY);}catch(e){} draw(); const d=$('resetDlg'); if(d.open) d.close();}
+$('resetCancel').onclick=()=>$('resetDlg').close();
+$('resetExp').onclick=()=>$('expBtn').click();
+$('resetGo').onclick=doReset;
 $('csvBtn').onclick=()=>{
   const q=s=>`"${String(s??'').replace(/"/g,'""')}"`;
   const rows=[['Date','Bet','Event','Bookie','Odds','Stake','Bonus','Result','Profit']].concat(BETS.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(b=>[b.date,label(b),b.live&&b.live.game||b.event||'',b.book,b.odds,b.stake>0?b.stake:'',b.bonus?'yes':'',b.result,b.stake>0?profit(b).toFixed(2):'']));
