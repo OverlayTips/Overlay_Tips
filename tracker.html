@@ -310,7 +310,7 @@ function drawList(){
   if(!xs.length){$('list').innerHTML=`<div class="tr-empty"><h3>${BETS.length?'Nothing here':'No bets yet'}</h3>${BETS.length?'Try another filter.':'Tap <b>+ Add bet</b> to log one.'}</div>`;return;}
   $('list').innerHTML=xs.map(b=>{
     const p=profit(b), live=b.result==='open'&&b.live&&b.live.state==='in';
-    const court=live&&b.live.court?`<span class="tr-court ${b.live.court}">${b.live.court==='on'?'🟢 On court':'🪑 Bench'}</span>`:'';
+    const court=live&&b.live.court?`<span class="tr-court ${b.live.court}">${b.live.court==='on'?'On court':'Bench'}</span>`:'';
     const tag=b.result==='open'?(live?'<span class="tr-tag live">● Live</span>'+court:'<span class="tr-tag open">Open</span>'):`<span class="tr-tag ${b.result}">${b.result==='void'?'Void':b.result==='won'?'Won':'Lost'}${b.auto?' · auto':''}</span>`;
     const st=b.stake>0;
     const right=!st?`<b>$${b.odds.toFixed(2)}</b><span>odds · no stake</span>`:b.result==='open'?`<b>${money(b.stake*b.odds-(b.bonus?b.stake:0))}</b><span>returns · $${b.odds.toFixed(2)}</span>`:`<b class="${p>0?'pos':p<0?'neg':''}">${pm(p)}</b><span>$${b.odds.toFixed(2)} · ${money(b.stake)}${b.bonus?' bonus':''}</span>`;
