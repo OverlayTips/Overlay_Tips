@@ -70,6 +70,16 @@
 .tr-box span{background:#0e1312;border:1px solid #1b2523;border-radius:7px;padding:3px 7px;font-size:12px;color:#87978f;font-variant-numeric:tabular-nums;white-space:nowrap}
 .tr-box span b{color:#ecf5f1;font-weight:800;margin-left:3px}
 .tr-pbp{display:inline-block;margin-top:8px;font-size:13px;font-weight:700;color:var(--mint)}
+.tr-game{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:left;display:inline-flex;align-items:center;gap:6px}
+.tr-game i{font-style:normal;font-size:11.5px;font-weight:800;color:var(--mint);border:1px solid #1d5a3f;border-radius:6px;padding:1px 7px}
+.tr-plays{list-style:none;margin:10px 0 0;padding:0;border-top:1px solid #16201d;max-height:320px;overflow-y:auto}
+.tr-plays li{display:grid;grid-template-columns:58px 1fr auto;gap:8px;padding:6px 2px;border-bottom:1px solid #16201d;font-size:13px;color:#c9d6d0}
+.tr-plays li .t{color:#87978f;font-size:12px;font-variant-numeric:tabular-nums}
+.tr-plays li .s{color:#87978f;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tr-plays li.sc{color:#ecf5f1}.tr-plays li.sc .s{color:#ecf5f1}
+.tr-plays li.me{background:rgba(98,240,168,.07)}
+.tr-plays li mark{background:none;color:var(--mint);font-weight:800}
+.tr-plays .e{display:block;color:#87978f;padding:10px 2px;font-size:13px}
 .tr-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-acts button.w{color:var(--mint)}.tr-acts button.l{color:#ff8a8a}
@@ -301,6 +311,25 @@ function drawStats(){
 /* ---------- list ---------- */
 let FILTER='open', PICKED=false;
 const isLive=b=>b.result==='open'&&b.live&&b.live.state==='in';
+const OPEN_PBP=new Set(), PLAYS_BY={};
+function playsBox(b,gid){
+  const ps=PLAYS_BY[gid];
+  if(!ps) return '<ul class="tr-plays"><span class="e">Loading plays…</span></ul>';
+  if(!ps.length) return '<ul class="tr-plays"><span class="e">No plays yet.</span></ul>';
+  const k=key(b.player), nm=new RegExp('('+esc(b.player).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  const rows=ps.slice(-25).reverse().map(p=>{
+    const me=key(p.text).includes(k), sc=p.scoring;
+    const q=p.period>4?`OT${p.period-4}`:`Q${p.period}`;
+    return `<li class="${sc?'sc':''} ${me?'me':''}"><span class="t">${q} ${esc(p.clock||'')}</span><span>${p.team?`<b>${esc(p.team)}</b> `:''}${esc(p.text).replace(nm,'<mark>$1</mark>')}</span><span class="s">${p.away!=null?`${p.away}-${p.home}`:''}</span></li>`;
+  }).join('');
+  return `<ul class="tr-plays">${rows}</ul><a class="tr-pbp" href="live.html#g=${encodeURIComponent(gid)}&v=pbp">Full play-by-play →</a>`;
+}
+async function fetchPlays(gid){
+  const pw=pwGet(); if(!pw) return;
+  try{const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(gid)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
+    PLAYS_BY[gid]=r.ok?((await r.json()).plays||[]):[];}catch(e){PLAYS_BY[gid]=[];}
+  drawList();
+}
 function boxLine(x){
   if(!x||L_STATE_SKIP(x)) return '';
   const n=v=>v==null||v===''?null:+v, c=[];
@@ -321,7 +350,7 @@ function prog(b){
   const hit=over?L.v>b.line:L.v<b.line, need=Math.max(0,Math.floor(b.line)+1-L.v);
   const cls=over?(hit?'hit':''):(hit?(L.state==='post'?'hit':''):'bust');
   const note=L.state==='post'?(L.dnp?'Did not play':'Final'):L.state==='in'?(over?(hit?'Cleared ✅':`Needs ${need} more`):(hit?`${(b.line-L.v).toFixed(1).replace('.0','')} to spare`:'Gone over ❌')):'Not started';
-    return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div>${boxLine(L.box)}${L.state!=='pre'&&L.gid?`<a class="tr-pbp" href="live.html#g=${encodeURIComponent(L.gid)}&v=pbp">Play-by-play →</a>`:''}</div>`;
+    return `<div class="tr-prog"><div class="tr-row"><span>${L.gid&&L.state!=='pre'?`<button type="button" class="tr-game" data-g="${esc(L.gid)}">${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''} <i>${OPEN_PBP.has(String(L.gid))?'Hide plays ▴':'Plays ▾'}</i></button>`:esc(L.game||'')+(L.clock?' · '+esc(L.clock):'')}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div>${boxLine(L.box)}${L.gid&&OPEN_PBP.has(String(L.gid))?playsBox(b,L.gid):''}</div>`;
 }
 function drawList(){
   let xs=BETS.slice();
@@ -344,6 +373,7 @@ function drawList(){
 }
 $('list').onclick=e=>{
   const t=e.target.closest('button'); if(!t) return;
+  if(t.dataset.g){const g=t.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]) fetchPlays(g);} drawList(); return;}
   const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del)); if(!b) return;
   if(t.dataset.r){b.result=t.dataset.r;b.auto=false;b.settled=t.dataset.r==='open'?null:new Date().toISOString();if(t.dataset.r==='open')b.hold=true;}
   else if(t.dataset.edit){openForm(b);return;}
@@ -457,7 +487,7 @@ async function tick(){
   await Promise.all([...need].map(async id=>{
     try{
       const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(id)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
-      if(!r.ok) return; const j=await r.json(), st={};
+      if(!r.ok) return; const j=await r.json(), st={}; PLAYS_BY[String(id)]=j.plays||[];
       for(const p of j.plays||[]){
         const t=String(p.text||''), sub=t.match(/^(.+?) enters the game for (.+?)\.?\s*$/);
         if(sub){st[key(sub[1])]='on'; st[key(sub[2])]='off'; continue;}
