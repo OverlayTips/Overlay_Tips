@@ -12,7 +12,8 @@
 // -> {"updated", "games": [{"id", "start", "state": "pre"|"in"|"post", "status", "period", "clock",
 //                           "home": TEAM, "away": TEAM}]}
 //    TEAM = {"abbr", "name", "score", "players": [{"name", "min", "pts", "reb", "ast", "fg3m",
-//                                                  "stl", "blk", "tov", "pf"}]}
+//                                                  "stl", "blk", "tov", "pf", "fgm", "fga", "fg3a",
+//                                                  "ftm", "fta", "oreb", "dreb", "pm"}]}
 // GET /plays?game_id=N   header X-Members-Password   (play-by-play, BALLDONTLIE GOAT tier)
 // -> {"updated", "game_id", "plays": [{"n", "period", "clock", "text", "team", "home", "away",
 //                                      "scoring", "value"}]}   oldest first
@@ -135,6 +136,8 @@ function team(t, score, rows) {
       name: `${(p.player && p.player.first_name) || ""} ${(p.player && p.player.last_name) || ""}`.trim(),
       min: p.min ?? "", pts: p.pts ?? 0, reb: p.reb ?? 0, ast: p.ast ?? 0, fg3m: p.fg3m ?? 0,
       stl: p.stl ?? 0, blk: p.blk ?? 0, tov: p.turnover ?? 0, pf: p.pf ?? 0,
+      fgm: p.fgm ?? 0, fga: p.fga ?? 0, fg3a: p.fg3a ?? 0, ftm: p.ftm ?? 0, fta: p.fta ?? 0,
+      oreb: p.oreb ?? 0, dreb: p.dreb ?? 0, pm: p.plus_minus ?? null,
     })),
   };
 }
