@@ -349,7 +349,7 @@ function scoreTop(b){
   const L=b.live; if(b.kind!=='prop'||!L||!L.a||L.state==='pre') return '';
   const as=+L.a.s, hs=+L.h.s, lead=as>hs?'a':hs>as?'h':'';
   const st=L.state==='post'?'Final':(L.clock||'Live');
-  return `<div class="tr-score ${L.state==='in'?'in':''}" ${L.gid?`data-g="${esc(L.gid)}" role="button" tabindex="0"`:''}><span class="tm ${lead==='a'?'w':''}">${esc(L.a.t)} <b>${L.a.s??''}</b></span><span class="dash">–</span><span class="tm ${lead==='h'?'w':''}"><b>${L.h.s??''}</b> ${esc(L.h.t)}</span><span class="st">${L.state==='in'?'<i></i>':''}${esc(st)}</span>${L.gid?`<button type="button" class="tr-game"><i>${OPEN_PBP.has(String(L.gid))?'Hide plays ▴':'Plays ▾'}</i></button>`:''}</div>`;
+  return `<div class="tr-score ${L.state==='in'?'in':''}" ${L.gid?`data-g="${esc(L.gid)}" role="button" tabindex="0"`:''}><span class="tm ${lead==='a'?'w':''}">${esc(L.a.t)} <b>${L.a.s??''}</b></span><span class="dash">–</span><span class="tm ${lead==='h'?'w':''}"><b>${L.h.s??''}</b> ${esc(L.h.t)}</span><span class="st">${L.state==='in'?'<i></i>':''}${esc(st)}</span>${L.gid?`<span class="tr-game"><i>Play-by-play →</i></span>`:''}</div>`;
 }
 function boxLine(x){
   if(!x||L_STATE_SKIP(x)) return '';
@@ -394,7 +394,7 @@ function drawList(){
 }
 $('list').onclick=e=>{
   const sb=e.target.closest('[data-g]');
-  if(sb){const g=sb.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]&&!PLAYS_ERR[g]) fetchPlays(g);} drawList(); return;}
+  if(sb&&sb.classList.contains('tr-score')){location.href=`live.html#g=${encodeURIComponent(sb.dataset.g)}&v=pbp`;return;}
   const t=e.target.closest('button'); if(!t) return;
   if(t.dataset.g){const g=t.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]) fetchPlays(g);} drawList(); return;}
   const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del)); if(!b) return;
