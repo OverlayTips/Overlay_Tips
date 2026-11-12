@@ -18,6 +18,7 @@
 //   events: checkout.session.completed, customer.subscription.created,
 //           customer.subscription.updated, customer.subscription.deleted
 //
+// GET  /check                      -> which settings are set / missing (no values shown)
 // GET  /plans                      -> {"plans": {"core-month": {"amount", "currency", "interval"}, ...}}
 // POST /checkout {"plan"}          header Authorization: Bearer <Supabase access token>  -> {"url"} (Stripe Checkout)
 // POST /manage                     header Authorization: Bearer <Supabase access token>  -> {"url"} (Stripe customer portal)
@@ -47,11 +48,18 @@ export default {
       "Vary": "Origin",
     };
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+
+    // public: prices are shown on the website anyway; /check says which settings are missing (never their values)
+    if (url.pathname === "/check") return json(check(env), 200, { "Content-Type": "application/json" });
+    if (url.pathname === "/plans" && req.method === "GET") {
+      try { return json({ plans: await plans(env) }, 200, { ...cors, "Access-Control-Allow-Origin": "*", "Cache-Control": "max-age=300" }); }
+      catch (e) { return json({ error: String(e && e.message || e).slice(0, 300) }, 500, { ...cors, "Access-Control-Allow-Origin": "*" }); }
+    }
+
     if (!ORIGINS.includes(origin)) return json({ error: "forbidden" }, 403, cors);
     if (!env.STRIPE_SECRET_KEY || !env.SUPABASE_SERVICE_KEY || !env.SUPABASE_URL) return json({ error: "not set up" }, 500, cors);
 
     try {
-      if (url.pathname === "/plans" && req.method === "GET") return json({ plans: await plans(env) }, 200, { ...cors, "Cache-Control": "max-age=300" });
       if (req.method !== "POST") return json({ error: "not found" }, 404, cors);
       const user = await whoami(req, env);
       if (!user) return json({ error: "Log in first." }, 401, cors);
@@ -68,18 +76,27 @@ export default {
 
 /* ---------- portal endpoints ---------- */
 
+function check(env) {
+  const keys = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SUPABASE_SERVICE_KEY", "SUPABASE_URL", ...Object.values(PLANS)];
+  const out = Object.fromEntries(keys.map((k) => [k, env[k] ? "set" : "MISSING"]));
+  out.stripe_mode = !env.STRIPE_SECRET_KEY ? "-" : env.STRIPE_SECRET_KEY.startsWith("sk_test_") ? "test" : env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "live" : "doesn't look like a secret key (should start sk_test_)";
+  Object.values(PLANS).forEach((k) => { if (env[k] && !env[k].trim().startsWith("price_")) out[k] = "should start with price_ (looks like a product ID or typo)"; });
+  return out;
+}
+
 async function plans(env) {
+  if (!env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is missing");
   const out = {};
   await Promise.all(Object.entries(PLANS).map(async ([plan, key]) => {
     if (!env[key]) return;
-    const p = await stripe(env, "GET", `prices/${env[key]}`);
+    const p = await stripe(env, "GET", `prices/${env[key].trim()}`);
     out[plan] = { amount: p.unit_amount / 100, currency: p.currency, interval: p.recurring && p.recurring.interval };
   }));
   return out;
 }
 
 async function checkout(env, prof, body) {
-  const price = PLANS[body.plan] && env[PLANS[body.plan]];
+  const price = PLANS[body.plan] && (env[PLANS[body.plan]] || "").trim();
   if (!price) throw new Error("Unknown plan.");
   if (prof.is_admin) throw new Error("Admins already have everything.");
   if (prof.stripe_sub_id && LIVE.includes(prof.sub_status)) throw new Error("You already have a plan. Use Manage plan to switch or cancel.");
@@ -159,7 +176,7 @@ async function syncSubscription(env, sub) {
   if (prof.stripe_sub_id && prof.stripe_sub_id !== sub.id && LIVE.includes(prof.sub_status) && !LIVE.includes(sub.status)) return;
 
   const priceId = sub.items && sub.items.data[0] && sub.items.data[0].price.id;
-  const plan = Object.keys(PLANS).find((p) => env[PLANS[p]] === priceId) || null;
+  const plan = Object.keys(PLANS).find((p) => (env[PLANS[p]] || "").trim() === priceId) || null;
   const paidTier = plan ? plan.split("-")[0] : null;
   const end = sub.current_period_end || (sub.items && sub.items.data[0] && sub.items.data[0].current_period_end) || null;
   const patch = {
