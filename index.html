@@ -38,6 +38,15 @@
 </script>
 <link rel="stylesheet" href="site.css?v=20261111a">
 <link rel="stylesheet" href="plain.css?v=6">
+<style>
+.wire-card{border-color:#6b5a22!important;background:linear-gradient(135deg,#2a2208,#0e1312 55%)!important}
+.wire-card h3 .g{color:var(--gold)!important}
+.wire-live{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.wire-row{font-size:15px;color:#c9d6d0}
+.wire-row b{color:#ecf5f1}
+.wire-row .k{display:inline-block;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:3px 8px;border-radius:6px;margin-right:8px;background:var(--gold);color:#1a1305}
+.wire-row .k.m{background:var(--mint);color:#04130b}
+</style>
 <script src="nav.js?v=1"></script>
 </head>
 <body class="no-js">
@@ -132,6 +141,23 @@
     </div>
   </div>
 </header>
+
+<section id="wire" style="padding-top:28px;padding-bottom:8px">
+  <div class="wrap">
+    <a class="tool-card wire-card reveal" href="lineups.html">
+      <div>
+        <div class="mono"><span class="dot" style="display:inline-block;margin-right:8px;vertical-align:middle"></span>Free · updated every 5 mins</div>
+        <h3>📰 Overlay <span class="g">Wire</span></h3>
+        <p>Today's NBA preview, every starting lineup and the injury report in one spot.</p>
+        <div class="wire-live" id="wireLive" hidden>
+          <div class="wire-row" id="wirePv"></div>
+          <div class="wire-row" id="wireLu"></div>
+        </div>
+      </div>
+      <span class="btn btn-mint">Open Overlay Wire →</span>
+    </a>
+  </div>
+</section>
 
 <section id="tracker">
   <div class="wrap">
@@ -583,6 +609,21 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb()});
   resL.forEach(a=>a.addEventListener('click',()=>set(true)));
   window.addEventListener('scroll',check,{passive:true}); window.addEventListener('hashchange',check);
   check();
+})();
+</script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let shown=false; const show=()=>{if(!shown){$('wireLive').hidden=false;shown=true;}};
+  fetch('previews/latest.json?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{}).then(p=>{if(!p||!p.title)return;
+    const today=new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Melbourne'})===p.date;
+    $('wirePv').innerHTML=`<span class="k">${today?'Today':'Latest'}</span><b>${esc(p.title)}</b>`; show();}).catch(()=>{});
+  fetch('https://api.github.com/repos/OverlayTips/Overlay_Tips/commits/lineups-data',{headers:{Accept:'application/vnd.github.sha'}})
+    .then(r=>r.ok?r.text():'').then(sha=>fetch(/^[0-9a-f]{40}$/.test(sha.trim())?`https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/${sha.trim()}/lineups.json`:'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-data/lineups.json?t='+Date.now()))
+    .then(r=>r.ok?r.json():null).then(d=>{if(!d||!d.games||!d.games.length)return;
+      const n=d.games.length, c=d.games.reduce((a,g)=>a+(g.away.status==='confirmed')+(g.home.status==='confirmed'),0);
+      const out=d.games.reduce((a,g)=>a+g.away.injuries.filter(i=>i.s==='Out').length+g.home.injuries.filter(i=>i.s==='Out').length,0);
+      $('wireLu').innerHTML=`<span class="k m">Lineups</span><b>${c} of ${n*2}</b> confirmed · ${n} games · ${out} players out`; show();}).catch(()=>{});
 })();
 </script>
 </body>
