@@ -198,6 +198,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         
         <select id="bookF" class="tr-bookf" aria-label="Filter by bookie" hidden><option value="">All bookies</option></select>
+        <select id="typeF" class="tr-bookf" aria-label="Filter by prop type" hidden><option value="">All prop types</option></select>
         <button type="button" class="tr-btn main" id="addBtn">+ Add bet</button>
       </div>
     </div>
@@ -316,7 +317,16 @@ const profit=b=>!(b.stake>0)?0:b.result==='won'?b.stake*(b.odds-1):b.result==='l
 /* ---------- stats + chart ---------- */
 let BOOK=''; try{BOOK=localStorage.getItem('ot-book-filter')||'';}catch(e){}
 const bookKey=b=>String(b||'').trim().toLowerCase();
-const inBook=b=>!BOOK||bookKey(b.book)===BOOK;
+let PTYPE=''; try{PTYPE=localStorage.getItem('ot-type-filter')||'';}catch(e){}
+const typeOf=b=>b.kind==='prop'?b.stat:b.kind==='sgm'?'SGM':'Other bets';
+const inBook=b=>(!BOOK||bookKey(b.book)===BOOK)&&(!PTYPE||typeOf(b)===PTYPE);
+function typeOptions(){
+  const order=Object.keys(STATS).concat(['SGM','Other bets']), have=new Set(BETS.map(typeOf));
+  const sel=$('typeF'); if(PTYPE&&!have.has(PTYPE)) PTYPE='';
+  sel.hidden=have.size<2&&!PTYPE;
+  sel.innerHTML='<option value="">All prop types</option>'+order.filter(t=>have.has(t)).map(t=>`<option>${esc(t)}</option>`).join('');
+  sel.value=PTYPE; sel.classList.toggle('on',!!PTYPE);
+}
 function bookOptions(){
   const m=new Map(); for(const b of BETS){const k=bookKey(b.book); if(k&&!m.has(k)) m.set(k,b.book.trim());}
   const sel=$('bookF'); if(BOOK&&!m.has(BOOK)) BOOK='';
@@ -325,7 +335,7 @@ function bookOptions(){
   sel.value=BOOK; sel.classList.toggle('on',!!BOOK);
 }
 function drawStats(){
-  bookOptions();
+  bookOptions(); typeOptions();
   const ALL=BETS.filter(inBook);
   const set=ALL.filter(b=>b.result!=='open'), wl=set.filter(b=>b.result==='won'||b.result==='lost');
   const won=wl.filter(b=>b.result==='won').length, pl=set.reduce((s,b)=>s+profit(b),0);
@@ -459,6 +469,7 @@ $('list').onclick=e=>{
 };
 $('filt').onclick=e=>{const t=e.target.closest('button');if(!t)return;FILTER=t.dataset.f;PICKED=true;$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===t));drawList();};
 function draw(){drawStats();drawList();liveBar();}
+$('typeF').onchange=e=>{PTYPE=e.target.value;try{localStorage.setItem('ot-type-filter',PTYPE);}catch(_){} draw();};
 $('bookF').onchange=e=>{BOOK=e.target.value;try{localStorage.setItem('ot-book-filter',BOOK);}catch(_){} draw();};
 
 /* ---------- add / edit ---------- */
