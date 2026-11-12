@@ -77,6 +77,11 @@
   .pt-top h1{font-size:30px}
   .pt-tier{display:inline-block;border:1px solid var(--mint-dim,#17573a);color:var(--mint,#24c17b);border-radius:999px;padding:3px 10px;font:700 12px "Space Mono",monospace;letter-spacing:.08em;text-transform:uppercase}
   .pt-tier.vip{border-color:var(--gold,#efbe3b);color:var(--gold,#efbe3b)}
+  .pt-edit{background:none;border:1px solid var(--line,#1b2523);color:var(--muted,#87978f);border-radius:9px;width:30px;height:30px;font-size:15px;cursor:pointer;vertical-align:middle;margin-left:4px}
+  .pt-edit:hover{color:var(--text,#ecf5f1);border-color:var(--mint-dim,#17573a)}
+  .pt-nameform{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .pt-nameform input{background:var(--panel,#0e1312);border:1px solid var(--line,#1b2523);border-radius:10px;padding:8px 12px;color:var(--text,#ecf5f1);font:inherit;font-size:16px;width:170px;max-width:100%}
+  .pt-nameform .pt-msg{margin:0;min-height:0}
   .pt-tier.founder{border:0;background:linear-gradient(180deg,#ffe28a,#efbe3b);color:#1a1204;padding:4px 11px}
   .pt-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px;scrollbar-width:none}
   .pt-tabs button{flex:0 0 auto;background:var(--panel,#0e1312);border:1px solid var(--line,#1b2523);color:var(--muted,#87978f);border-radius:999px;padding:8px 15px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
@@ -123,7 +128,7 @@
     <h2 id="authTitle">Log in</h2>
     <p class="pt-sub" id="authSub">Welcome back.</p>
     <form id="authForm">
-      <label class="pt-field" id="nameRow" hidden>Name<input id="aName" autocomplete="name" maxlength="60"></label>
+      <label class="pt-field" id="nameRow" hidden>Name or nickname <span style="color:#87978f;font-weight:500">(what we call you on the site)</span><input id="aName" autocomplete="nickname" maxlength="40"></label>
       <label class="pt-field" id="refRow" hidden>Mate's referral code <span style="color:#87978f;font-weight:500">(optional, 50% off your first month)</span><input id="aRef" autocomplete="off" maxlength="20" placeholder="e.g. 3f9a2c1b" style="text-transform:lowercase"></label>
       <label class="pt-field">Email<input id="aEmail" type="email" autocomplete="email" required></label>
       <label class="pt-field" id="pwRow">Password<input id="aPw" type="password" autocomplete="current-password" minlength="8"></label>
@@ -137,7 +142,8 @@
   <!-- signed in -->
   <div id="vApp" hidden>
     <div class="pt-top">
-      <div><div class="mono">Members</div><h1>G'day, <span class="g" id="hiName"></span></h1></div>
+      <div><div class="mono">Members</div><h1>G'day, <span class="g" id="hiName"></span> <button class="pt-edit" id="nameEdit" type="button" aria-label="Change your name" title="Change your name">✎</button></h1>
+        <form id="nameForm" class="pt-nameform" hidden><input id="nameIn" maxlength="40" autocomplete="nickname" placeholder="Name or nickname" required><button class="pt-btn sm" type="submit">Save</button><button class="pt-btn ghost sm" type="button" id="nameCancel">Cancel</button><span class="pt-msg" id="nameMsg"></span></form></div>
       <div><span class="pt-tier" id="tierBadge"></span> <button class="pt-btn ghost sm" id="logoutBtn" type="button">Log out</button></div>
     </div>
 
@@ -302,6 +308,17 @@ async function boot(){
   const tier = prof.is_admin ? 'vip' : prof.tier, member = tier!=='pending';
   show('vAuth',false); show('vApp');
   $('hiName').textContent = prof.name || prof.email.split('@')[0];
+  $('nameEdit').onclick = () => { $('nameIn').value = prof.name || ''; show('nameForm'); $('nameMsg').textContent=''; $('nameIn').focus(); };
+  $('nameCancel').onclick = () => show('nameForm', false);
+  $('nameForm').onsubmit = async e => {
+    e.preventDefault(); const name = $('nameIn').value.trim().slice(0,40); if (!name) return;
+    const { error } = await sb.from('profiles').update({name}).eq('id', prof.id);
+    if (error) { $('nameMsg').className='pt-msg err'; $('nameMsg').textContent = error.message; return; }
+    await sb.auth.updateUser({data:{name}});   // keeps the name on the account button in step
+    prof.name = name; $('hiName').textContent = name; show('nameForm', false);
+    document.querySelectorAll('.sbx-acct .nm').forEach(n => n.textContent = name.split(/\s+/)[0]);
+    document.querySelectorAll('.sbx-acct .av').forEach(n => n.textContent = name.charAt(0).toUpperCase());
+  };
   $('tierBadge').textContent = prof.is_admin ? 'Admin' : tier==='founder' ? '★ Founder' : TIER_NAME[tier];
   $('tierBadge').className = 'pt-tier' + (tier==='vip' ? ' vip' : tier==='founder' ? ' founder' : '');
   try { localStorage.setItem('ot-tier-' + prof.id, tier); } catch(e) {}
