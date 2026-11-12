@@ -89,6 +89,8 @@
 .tr-score.in .st{color:#ffb3b3}
 .tr-score .st i{width:7px;height:7px;border-radius:50%;background:#ff6b6b;display:inline-block}
 .tr-score .tr-game{margin-left:auto}
+.tr-score[data-g]{cursor:pointer;border-radius:10px;transition:background .15s}
+.tr-score[data-g]:hover{background:#121a18}
 .tr-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-acts button.w{color:var(--mint)}.tr-acts button.l{color:#ff8a8a}
@@ -347,7 +349,7 @@ function scoreTop(b){
   const L=b.live; if(b.kind!=='prop'||!L||!L.a||L.state==='pre') return '';
   const as=+L.a.s, hs=+L.h.s, lead=as>hs?'a':hs>as?'h':'';
   const st=L.state==='post'?'Final':(L.clock||'Live');
-  return `<div class="tr-score ${L.state==='in'?'in':''}"><span class="tm ${lead==='a'?'w':''}">${esc(L.a.t)} <b>${L.a.s??''}</b></span><span class="dash">–</span><span class="tm ${lead==='h'?'w':''}"><b>${L.h.s??''}</b> ${esc(L.h.t)}</span><span class="st">${L.state==='in'?'<i></i>':''}${esc(st)}</span>${L.gid?`<button type="button" class="tr-game" data-g="${esc(L.gid)}"><i>${OPEN_PBP.has(String(L.gid))?'Hide plays ▴':'Plays ▾'}</i></button>`:''}</div>`;
+  return `<div class="tr-score ${L.state==='in'?'in':''}" ${L.gid?`data-g="${esc(L.gid)}" role="button" tabindex="0"`:''}><span class="tm ${lead==='a'?'w':''}">${esc(L.a.t)} <b>${L.a.s??''}</b></span><span class="dash">–</span><span class="tm ${lead==='h'?'w':''}"><b>${L.h.s??''}</b> ${esc(L.h.t)}</span><span class="st">${L.state==='in'?'<i></i>':''}${esc(st)}</span>${L.gid?`<button type="button" class="tr-game"><i>${OPEN_PBP.has(String(L.gid))?'Hide plays ▴':'Plays ▾'}</i></button>`:''}</div>`;
 }
 function boxLine(x){
   if(!x||L_STATE_SKIP(x)) return '';
@@ -391,6 +393,8 @@ function drawList(){
   }).join('');
 }
 $('list').onclick=e=>{
+  const sb=e.target.closest('[data-g]');
+  if(sb){const g=sb.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]&&!PLAYS_ERR[g]) fetchPlays(g);} drawList(); return;}
   const t=e.target.closest('button'); if(!t) return;
   if(t.dataset.g){const g=t.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]) fetchPlays(g);} drawList(); return;}
   const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del)); if(!b) return;
