@@ -166,11 +166,6 @@
         <a class="pt-btn" id="waBtn" style="display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener">Join the group</a>
       </div>
       <div class="pt-card pt-sec">
-        <h3 class="pt-h3">Ticket giveaway 🎟️</h3>
-        <div class="stats" style="margin-bottom:8px"><div class="stat"><b id="gEntries">0</b><span>entries this month</span></div></div>
-        <p class="pt-sub" id="gTxt" style="margin:0"></p>
-      </div>
-      <div class="pt-card pt-sec">
         <h3 class="pt-h3">Refer a mate</h3>
         <p class="pt-sub">Send your link. You get a week free for every mate who joins.</p>
         <div class="pt-copy"><input id="refLink" readonly><button class="pt-btn sm" id="refCopy" type="button">Copy</button></div>
@@ -210,9 +205,9 @@
         <div class="pt-scroll"><table class="pt-t" id="memTbl"></table></div>
       </div>
       <div class="pt-card pt-sec">
-        <h3 class="pt-h3">Group &amp; giveaway settings</h3>
+        <h3 class="pt-h3">Group settings</h3>
         <label class="pt-field">WhatsApp invite link<input id="sWa" placeholder="https://chat.whatsapp.com/..."></label>
-        <label class="pt-field">Giveaway note<textarea id="sGive"></textarea></label>
+        <label class="pt-field" hidden>Giveaway note<textarea id="sGive"></textarea></label>
         <button class="pt-btn" id="saveSet" type="button">Save</button>
         <div class="pt-msg" id="setMsg"></div>
       </div>
@@ -306,7 +301,7 @@ async function boot(){
   $('tierBadge').textContent = prof.is_admin ? 'Admin' : TIER_NAME[tier];
   $('tierBadge').className = 'pt-tier' + (tier==='vip' ? ' vip' : '');
   $('pendEmail').textContent = prof.email; show('vPending', !member);
-  const tabs = member ? [['tTips',"Today's tips"],['tStats','Results & stats'],['tGroup','Group & giveaway']] : [['tGroup','Refer a mate']];
+  const tabs = member ? [['tTips',"Today's tips"],['tStats','Results & stats'],['tGroup','Group']] : [['tGroup','Refer a mate']];
   if (prof.is_admin) tabs.push(['tAdmin','Admin']);
   $('tabs').innerHTML = tabs.map(([id,l]) => `<button type="button" data-t="${id}">${l}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => openTab(b.dataset.t));
@@ -372,13 +367,11 @@ async function loadGroup(member, tier){
   $('refCopy').onclick = async () => { try { await navigator.clipboard.writeText(link); $('refCopy').textContent='Copied'; } catch(e) { $('refLink').select(); } };
   const { data:rc } = await sb.rpc('my_referrals');
   const c = rc && rc[0]; $('refCount').textContent = c ? `${c.total} mate${c.total===1?'':'s'} signed up with your link, ${c.active} active.` : '';
-  $('waBtn').parentElement.hidden = !member; $('gEntries').closest('.pt-card').hidden = !member;
+  $('waBtn').parentElement.hidden = !member;
   if (!member) return;
   const { data:s } = await sb.from('settings').select('*');
   const S = Object.fromEntries((s||[]).map(r => [r.key, r.value]));
   if (S.whatsapp) { $('waBtn').href = S.whatsapp; $('waBtn').hidden = false; } else { $('waBtn').hidden = true; $('waTxt').textContent = 'The group link is coming. DM @overlay_tips if you need it now.'; }
-  $('gEntries').textContent = ENTRIES[tier] || 0;
-  $('gTxt').textContent = S.giveaway || '';
   $('sWa').value = S.whatsapp || ''; $('sGive').value = S.giveaway || '';
 }
 
