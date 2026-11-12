@@ -42,10 +42,12 @@ jobs:
           TEST: ${{ inputs.test && '1' || '0' }}
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
         run: |
-          publish() {   # $1 = file in st/, $2 = branch
-            rm -rf pub && mkdir pub && cp "st/$1" pub/ && cd pub && git init -q -b "$2" .
+          publish() {   # $1 = branch, then the files in st/ to put on it
+            br="$1"; shift
+            rm -rf pub && mkdir pub && for f in "$@"; do [ -f "st/$f" ] && cp "st/$f" pub/; done
+            cd pub && git init -q -b "$br" .
             git config user.name "odds-bot"; git config user.email "odds-bot@users.noreply.github.com"
-            git add "$1" && git commit -qm "$2 $(date -u +%FT%TZ)" && git push -qf "$REPO_URL" "$2:$2"
+            git add -A && git commit -qm "$br $(date -u +%FT%TZ)" && git push -qf "$REPO_URL" "$br:$br"
             cd ..
           }
           mkdir -p st
@@ -54,8 +56,8 @@ jobs:
           end=$(( $(date +%s) + 55*60 ))
           while :; do
             python scripts/nba_alerts.py || echo "::warning::check failed, retrying next loop"
-            [ -f st/state.json ] && publish state.json alerts-state || true
-            [ -f st/lineups.json ] && publish lineups.json lineups-data || true
+            [ -f st/state.json ] && publish alerts-state state.json || true
+            [ -f st/lineups.json ] && publish lineups-data lineups.json players.json || true
             H=$(TZ=Australia/Sydney date +%H)
             if [ $(( $(date +%s) + 300 )) -ge $end ] || [ "$H" -ge 16 ] || [ "$H" -lt 6 ]; then break; fi
             sleep 300

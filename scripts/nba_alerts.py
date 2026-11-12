@@ -119,6 +119,22 @@ def write_site(day, games, lineups, injuries):
     json.dump(out, open(path, "w"), separators=(",", ":"))
 
 
+def write_players():
+    """players.json: every active NBA player, for the bet tracker's name search. Once per run is plenty."""
+    path = os.path.join(os.path.dirname(STATE) or ".", "players.json")
+    if os.path.exists(path):
+        return
+    out = []
+    for p in pages("/players/active", limit=12):
+        n = pname(p)
+        if n:
+            out.append({"n": n, "t": (p.get("team") or {}).get("abbreviation") or ""})
+    out.sort(key=lambda x: x["n"])
+    if len(out) > 100:   # don't publish a half-empty list if the API hiccups
+        json.dump({"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "players": out},
+                  open(path, "w"), separators=(",", ":"))
+
+
 def main():
     if not TOPIC:   # phone alerts not set up: still build the website's lineups page
         print("::warning::Add the NTFY_TOPIC secret to start sending alerts")
@@ -201,6 +217,10 @@ def main():
         push(title, body[:40])
 
     write_site(day, games, all_lineups, new)
+    try:
+        write_players()
+    except Exception as e:
+        print(f"::warning::player list skipped: {e}")
 
     state = {"day": day, "lineups": sent, "injuries": new,
              "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
