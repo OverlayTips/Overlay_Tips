@@ -27,7 +27,7 @@ SITE = "https://overlay.tips"
 NAV = [("index.html", "Home", ""), ("odds.html", "Odds", "hot"), ("hot.html", "Hot stats", ""), ("lineups.html", "Overlay Wire", ""), ("live.html", "Live", ""), ("tracker.html", "Bet tracker", ""),
        ("membership.html", "Membership", ""), ("index.html#results", "Results", ""),
        ("calculator.html", "Bonus bet calc", ""), ("giveaway.html", "Giveaway", ""), ("merch.html", "Merch", ""),
-       ("about.html", "About", "")]
+       ("about.html", "About", ""), ("contact.html", "Contact", "")]
 
 CSS = """
 .post{max-width:720px}
