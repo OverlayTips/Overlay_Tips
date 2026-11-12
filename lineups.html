@@ -157,13 +157,25 @@ fetch('previews/latest.json?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.js
   const today=new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Melbourne'})===p.date;
   const el=$('pv'); el.href=p.url; el.hidden=false;
   el.innerHTML=`<div class="k">📰 ${today?"Today's preview":'Latest preview'} · ${esc(p.nice)}</div><b>${esc(p.title)}</b><p>${esc(p.summary)}</p><span class="go">Read the preview →</span>`;}).catch(()=>{});
-fetch(SRC+'?t='+Math.floor(Date.now()/120000)).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>{
+// raw.githubusercontent caches the branch for ~5 min, so look up the latest commit and load that exact version
+async function dataUrl(){
+  try{const r=await fetch('https://api.github.com/repos/OverlayTips/Overlay_Tips/commits/lineups-data',{headers:{Accept:'application/vnd.github.sha'},cache:'no-store'});
+    if(r.ok){const sha=(await r.text()).trim(); if(/^[0-9a-f]{40}$/.test(sha)) return `https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/${sha}/lineups.json`;}}catch(e){}
+  return SRC+'?t='+Date.now();
+}
+let loading=false;
+async function load(){ if(loading) return; loading=true;
+dataUrl().then(u=>fetch(u,{cache:'no-store'})).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>{
   D=d; const n=(d.games||[]).length, c=(d.games||[]).reduce((a,g)=>a+(g.away.status==='confirmed')+(g.home.status==='confirmed'),0);
   $('meta').textContent=n?`${n} games · ${c} of ${n*2} lineups confirmed · updated ${tm(d.updated)}`:`No NBA games today · updated ${tm(d.updated)}`;
   $('chips').innerHTML=n?[['all','All games'],['conf','Confirmed'],['wait','Waiting']].map(([k,l])=>`<button data-v="${k}" class="${k===view?'on':''}">${l}</button>`).join(''):'';
   $('chips').onclick=e=>{const b=e.target.closest('button');if(!b)return;view=b.dataset.v;[...$('chips').children].forEach(x=>x.classList.toggle('on',x===b));render();};
   render();
-}).catch(()=>{$('meta').textContent='';$('grid').innerHTML='<div class="lu-empty">Couldn\'t load lineups. Refresh in a minute.</div>';});
+}).catch(()=>{if(!D){$('meta').textContent='';$('grid').innerHTML='<div class="lu-empty">Couldn\'t load lineups. Refresh in a minute.</div>';}}).finally(()=>{loading=false;});
+}
+load(); setInterval(load,120000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) load();});
+window.addEventListener('pageshow',e=>{if(e.persisted) load();});
 </script>
 </body>
 </html>
