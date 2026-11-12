@@ -76,6 +76,12 @@
   .pt-btn.ghost{background:none;border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1)}
   .pt-btn.sm{width:auto;padding:7px 12px;font-size:13px}
   .pt-btn:disabled{opacity:.6;cursor:default}
+  .pl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:12px 0}
+  .pl{border:1px solid var(--line,#1b2523);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px}
+  .pl.vip{border-color:var(--gold,#efbe3b)}
+  .pl h4{margin:0;font:800 17px Archivo,system-ui,sans-serif}
+  .pl .pl-what{color:var(--muted,#8fa29b);font-size:13px;margin:0 0 4px}
+  .pl .pt-btn small{font-weight:500;opacity:.8}
   .pt-msg{font-size:14px;margin-top:10px;min-height:20px}
   .pt-msg.err{color:var(--red,#ff6b6b)} .pt-msg.ok{color:var(--mint,#24c17b)}
   .pt-switch{background:none;border:0;color:var(--mint,#24c17b);cursor:pointer;font:600 14px Archivo,system-ui,sans-serif;padding:0}
@@ -156,7 +162,17 @@
     <!-- waiting for activation -->
     <div id="vPending" class="pt-card pt-sec" hidden>
       <h3 class="pt-h3">You're signed up 👋</h3>
-      <p class="pt-sub" style="margin:0">Your account isn't active yet. DM <b>"OVERLAY"</b> to <a href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">@overlay_tips</a> with the email you signed up with (<b id="pendEmail"></b>) and we'll switch you on.</p>
+      <p class="pt-sub" style="margin:0">Your account isn't active yet. Pick a plan below to get straight in, or DM <b>"OVERLAY"</b> to <a href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">@overlay_tips</a> with the email you signed up with (<b id="pendEmail"></b>).</p>
+    </div>
+
+    <!-- paid plans (Stripe) -->
+    <div id="vPlans" class="pt-card pt-sec" hidden>
+      <h3 class="pt-h3" id="planTitle">Upgrade</h3>
+      <p class="pt-sub" id="planSub"></p>
+      <div class="pl-grid" id="planGrid"></div>
+      <div id="planManage" hidden><button class="pt-btn" id="manageBtn" type="button">Manage or cancel plan</button></div>
+      <div class="pt-msg" id="planMsg"></div>
+      <p class="pt-sub" style="margin:10px 0 0;font-size:12px">Cancel anytime. Payments by Stripe. 18+ only. Analysed tips, not guaranteed wins.</p>
     </div>
 
     <div class="pt-tabs" id="tabs"></div>
@@ -255,7 +271,9 @@ const PORTAL = location.origin + location.pathname;
 const melDate = (d=new Date()) => d.toLocaleDateString('en-CA', {timeZone:'Australia/Melbourne'});
 const fmtDay = s => new Date(s+'T00:00:00').toLocaleDateString('en-AU', {weekday:'short', day:'numeric', month:'short'});
 const u = n => (n>0?'+':'') + n.toFixed(2) + 'U';
-const TIER_NAME = {pending:'Not active', founder:'Founding member', core:'Core', vip:'VIP'};
+const TIER_NAME = {pending:'Not active', founder:'Founding member', core:'Daily card', vip:'VIP'};
+/* billing worker (cloudflare/billing-worker.js): Stripe checkout + plan management */
+const BILLING = new URLSearchParams(location.search).get('billing') || 'https://overlay-billing.borgjayden005.workers.dev';
 const ENTRIES = {founder:1, core:1, vip:3};
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { show('vSetup'); throw new Error('portal not configured'); }
@@ -335,6 +353,7 @@ async function boot(){
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => openTab(b.dataset.t));
   if (member) await loadTips();
   await loadGroup(member, tier);
+  loadPlans(prof);
   if (prof.is_admin) initAdmin();
   openTab(tabs[0][0]);
 }
@@ -404,6 +423,61 @@ async function loadGroup(member, tier){
   $('sWa').value = S.whatsapp || ''; $('sGive').value = S.giveaway || '';
 }
 
+/* ---------- paid plans ---------- */
+const LIVE_SUB = ['active','trialing','past_due'];
+const PLAN_INFO = {core:['Daily card','WhatsApp tips, Overlay Wire, Hot Stats and live bet tracking'], vip:['VIP','Everything in the Daily card plus the odds tracker']};
+const money = n => '$' + (n % 1 ? n.toFixed(2) : n);
+async function billing(path, body){
+  const { data:{ session } } = await sb.auth.getSession();
+  const r = await fetch(BILLING + path, {method:'POST', headers:{'Authorization':'Bearer ' + session.access_token, 'Content-Type':'application/json'}, body:JSON.stringify(body||{})});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.url) throw new Error(j.error || 'Something went wrong. Try again.');
+  location.href = j.url;
+}
+async function loadPlans(prof){
+  if (prof.is_admin) return;
+  const msg = $('planMsg'), qs = new URLSearchParams(location.search);
+  const paid = prof.stripe_sub_id && LIVE_SUB.includes(prof.sub_status);
+  msg.className = 'pt-msg'; msg.textContent = ''; show('vPlans');
+  if (paid) {
+    const [name] = PLAN_INFO[(prof.sub_plan||prof.tier).split('-')[0]] || [TIER_NAME[prof.tier]];
+    const per = (prof.sub_plan||'').endsWith('week') ? 'weekly' : 'monthly';
+    $('planTitle').textContent = 'Your plan';
+    $('planSub').innerHTML = `<b>${esc(name)}</b>, billed ${per}` + (prof.paid_until ? ` · paid up to ${new Date(prof.paid_until).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}` : '') +
+      (prof.sub_status==='past_due' ? '<br><b style="color:var(--gold,#efbe3b)">Your last payment didn\'t go through. Update your card in Manage plan.</b>' : '') +
+      (prof.tier==='core' ? '<br>Want the odds tracker? Switch to VIP in Manage plan.' : '');
+    $('planGrid').innerHTML = ''; show('planManage');
+    $('manageBtn').onclick = async () => { $('manageBtn').disabled = true; try { await billing('/manage'); } catch(e) { msg.className='pt-msg err'; msg.textContent=e.message; $('manageBtn').disabled = false; } };
+    if (qs.has('paid')) { msg.className='pt-msg ok'; msg.textContent="You're in. Welcome aboard."; history.replaceState(null,'',location.pathname); }
+    return;
+  }
+  show('planManage', false);
+  $('planTitle').textContent = prof.tier==='founder' ? 'Upgrade' : 'Pick a plan';
+  const notes = [prof.tier==='founder' ? "You're a Founding member, free for life. Upgrade for live bet tracking and the odds tracker." : 'Pick a plan to get straight in.'];
+  if (prof.referred_by && !prof.referral_rewarded) notes.push("<b>Your mate's code gets you 50% off your first month.</b>");
+  if (prof.free_weeks > 0) notes.push(`<b>You've earned ${prof.free_weeks} free week${prof.free_weeks===1?'':'s'}</b> from referrals. Your plan starts with ${prof.free_weeks===1?'it':'them'} free.`);
+  $('planSub').innerHTML = notes.join('<br>');
+  if (qs.has('paid')) {   // back from Stripe: wait for the webhook to switch the tier on
+    msg.className='pt-msg ok'; msg.textContent='Payment received. Unlocking your plan…';
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const { data } = await sb.from('profiles').select('stripe_sub_id,sub_status').eq('id', prof.id).single();
+      if (data && data.stripe_sub_id && LIVE_SUB.includes(data.sub_status)) { history.replaceState(null,'',location.pathname+'?paid=1'); return boot(); }
+    }
+    msg.textContent = 'Payment received. It can take a minute to switch on, so refresh shortly. Still stuck? DM @overlay_tips.';
+    history.replaceState(null,'',location.pathname);
+  }
+  let P = {};
+  try { const r = await fetch(BILLING + '/plans'); P = (await r.json()).plans || {}; } catch(e) {}
+  const cards = ['core','vip'].filter(t => P[t+'-month'] || P[t+'-week']);
+  if (!cards.length) { $('planGrid').innerHTML = '<div class="pt-empty">Paid plans are opening soon.</div>'; return; }
+  $('planGrid').innerHTML = cards.map(t => `<div class="pl ${t}"><h4>${PLAN_INFO[t][0]}</h4><p class="pl-what">${PLAN_INFO[t][1]}</p>
+    ${['month','week'].filter(i => P[t+'-'+i]).map(i => `<button class="pt-btn${i==='week'?' ghost':''}" type="button" data-plan="${t}-${i}">${money(P[t+'-'+i].amount)} <small>/ ${i}</small></button>`).join('')}</div>`).join('');
+  $('planGrid').querySelectorAll('[data-plan]').forEach(b => b.onclick = async () => {
+    $('planGrid').querySelectorAll('button').forEach(x => x.disabled = true); msg.className='pt-msg'; msg.textContent='Opening secure checkout…';
+    try { await billing('/checkout', {plan:b.dataset.plan}); } catch(e) { msg.className='pt-msg err'; msg.textContent=e.message; $('planGrid').querySelectorAll('button').forEach(x => x.disabled = false); }
+  });
+}
 /* ---------- admin ---------- */
 let adminReady = false, MEMBERS = [];
 function initAdmin(){
