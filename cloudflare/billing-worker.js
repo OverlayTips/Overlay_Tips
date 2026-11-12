@@ -22,6 +22,7 @@
 // GET  /plans                      -> {"plans": {"core-month": {"amount", "currency", "interval"}, ...}}
 // POST /checkout {"plan"}          header Authorization: Bearer <Supabase access token>  -> {"url"} (Stripe Checkout)
 // POST /manage                     header Authorization: Bearer <Supabase access token>  -> {"url"} (Stripe customer portal)
+// POST /admin/remove {"id"}        admin only: cancels the member's plan and deletes their account
 // POST /webhook                    Stripe only (signature checked)
 //
 // Referrals: a mate who signs up with a code gets 50% off their first month (coupon OVERLAY-REF50, made automatically).
@@ -67,6 +68,7 @@ export default {
       if (!prof) return json({ error: "Account not found." }, 404, cors);
       if (url.pathname === "/checkout") return json(await checkout(env, prof, await req.json().catch(() => ({}))), 200, cors);
       if (url.pathname === "/manage") return json(await manage(env, prof), 200, cors);
+      if (url.pathname === "/admin/remove") return json(await removeMember(env, prof, await req.json().catch(() => ({}))), 200, cors);
       return json({ error: "not found" }, 404, cors);
     } catch (e) {
       return json({ error: String(e && e.message || e).slice(0, 300) }, 400, cors);
@@ -133,6 +135,20 @@ async function manage(env, prof) {
   if (!prof.stripe_customer_id) throw new Error("You don't have a paid plan yet.");
   const s = await stripe(env, "POST", "billing_portal/sessions", { customer: prof.stripe_customer_id, return_url: `${SITE}/portal.html` });
   return { url: s.url };
+}
+
+// admin only: cancel any paid plan straight away, then delete the login (the profile row goes with it)
+async function removeMember(env, admin, body) {
+  if (!admin.is_admin) throw new Error("Admins only.");
+  const id = String(body.id || "");
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("Bad member id.");
+  const m = (await sbGet(env, `profiles?id=eq.${id}&select=${FIELDS}`))[0];
+  if (!m) throw new Error("Member not found.");
+  if (m.is_admin) throw new Error("Can't remove an admin.");
+  if (m.stripe_sub_id && LIVE.includes(m.sub_status)) await stripe(env, "DELETE", `subscriptions/${m.stripe_sub_id}`);
+  const r = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${id}`, { method: "DELETE", headers: sbHeaders(env) });
+  if (!r.ok) throw new Error(`Supabase ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  return { ok: true };
 }
 
 async function customerFor(env, prof) {
