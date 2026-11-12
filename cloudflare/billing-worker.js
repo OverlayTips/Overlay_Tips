@@ -80,6 +80,8 @@ function check(env) {
   const keys = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SUPABASE_SERVICE_KEY", "SUPABASE_URL", ...Object.values(PLANS)];
   const out = Object.fromEntries(keys.map((k) => [k, env[k] ? "set" : "MISSING"]));
   out.stripe_mode = !env.STRIPE_SECRET_KEY ? "-" : env.STRIPE_SECRET_KEY.startsWith("sk_test_") ? "test" : env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "live" : "doesn't look like a secret key (should start sk_test_)";
+  const wh = (env.STRIPE_WEBHOOK_SECRET || "").trim();
+  if (wh) out.STRIPE_WEBHOOK_SECRET = wh.startsWith("whsec_") ? `set, ends in ...${wh.slice(-4)} (must match the end of Stripe's signing secret)` : "doesn't start with whsec_ (wrong key pasted?)";
   Object.values(PLANS).forEach((k) => { if (env[k] && !env[k].trim().startsWith("price_")) out[k] = "should start with price_ (looks like a product ID or typo)"; });
   return out;
 }
@@ -150,7 +152,7 @@ async function refCoupon(env) {
 
 async function webhook(req, env) {
   const body = await req.text();
-  if (!(await validSignature(body, req.headers.get("Stripe-Signature") || "", env.STRIPE_WEBHOOK_SECRET || ""))) return new Response("bad signature", { status: 400 });
+  if (!(await validSignature(body, req.headers.get("Stripe-Signature") || "", (env.STRIPE_WEBHOOK_SECRET || "").trim()))) return new Response("bad signature", { status: 400 });
   const event = JSON.parse(body);
   const o = event.data.object;
   try {
