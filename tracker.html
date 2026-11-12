@@ -66,6 +66,9 @@
 .tr-lb .e{color:#ff8a8a;width:100%;font-size:13px}
 .tr-court{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:800;margin-left:6px;vertical-align:1px}
 .tr-court.on{background:#123325;color:#a8f7cf}.tr-court.off{background:#16201d;color:#87978f}
+.tr-box{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:9px}
+.tr-box span{background:#0e1312;border:1px solid #1b2523;border-radius:7px;padding:3px 7px;font-size:12px;color:#87978f;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tr-box span b{color:#ecf5f1;font-weight:800;margin-left:3px}
 .tr-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-acts button.w{color:var(--mint)}.tr-acts button.l{color:#ff8a8a}
@@ -297,13 +300,27 @@ function drawStats(){
 /* ---------- list ---------- */
 let FILTER='open', PICKED=false;
 const isLive=b=>b.result==='open'&&b.live&&b.live.state==='in';
+function boxLine(x){
+  if(!x||L_STATE_SKIP(x)) return '';
+  const n=v=>v==null||v===''?null:+v, c=[];
+  const add=(k,v)=>{if(v!=null&&v!=='')c.push(`<span>${k}<b>${esc(v)}</b></span>`);};
+  add('MIN',String(x.min||'0').split(':')[0]);
+  if(x.fga!=null) add('FG',`${n(x.fgm)}/${n(x.fga)}`);
+  if(x.fg3a!=null) add('3PT',`${n(x.fg3m)}/${n(x.fg3a)}`); else add('3PM',n(x.fg3m));
+  if(x.fta!=null) add('FT',`${n(x.ftm)}/${n(x.fta)}`);
+  add('PTS',n(x.pts)); add('REB',n(x.reb)+(x.oreb!=null&&+x.oreb?` (${+x.oreb} off)`:''));
+  add('AST',n(x.ast)); add('STL',n(x.stl)); add('BLK',n(x.blk)); add('TO',n(x.tov)); add('PF',n(x.pf));
+  if(x.pm!=null) add('+/-',(+x.pm>0?'+':'')+(+x.pm));
+  return `<div class="tr-box">${c.join('')}</div>`;
+}
+const L_STATE_SKIP=x=>typeof x!=='object';
 function prog(b){
   const L=b.live; if(b.kind!=='prop'||!L||L.v==null) return '';
   const over=b.side==='Over', max=Math.max(b.line*1.35,L.v,1), pct=Math.min(100,L.v/max*100), lp=Math.min(100,b.line/max*100);
   const hit=over?L.v>b.line:L.v<b.line, need=Math.max(0,Math.floor(b.line)+1-L.v);
   const cls=over?(hit?'hit':''):(hit?(L.state==='post'?'hit':''):'bust');
   const note=L.state==='post'?(L.dnp?'Did not play':'Final'):L.state==='in'?(over?(hit?'Cleared ✅':`Needs ${need} more`):(hit?`${(b.line-L.v).toFixed(1).replace('.0','')} to spare`:'Gone over ❌')):'Not started';
-    return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div></div>`;
+    return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div>${boxLine(L.box)}</div>`;
 }
 function drawList(){
   let xs=BETS.slice();
@@ -431,7 +448,7 @@ async function tick(){
   LIVE_AT=new Date();
   const rows={};
   for(const g of d.games||[]) for(const side of ['away','home']) for(const pl of (g[side]&&g[side].players)||[]){
-    rows[key(pl.name)]={g,r:{pts:+pl.pts||0,reb:+pl.reb||0,ast:+pl.ast||0,tpm:+pl.fg3m||0,stl:+pl.stl||0,blk:+pl.blk||0,to:+pl.tov||0},min:pl.min};
+    rows[key(pl.name)]={g,pl,r:{pts:+pl.pts||0,reb:+pl.reb||0,ast:+pl.ast||0,tpm:+pl.fg3m||0,stl:+pl.stl||0,blk:+pl.blk||0,to:+pl.tov||0},min:pl.min};
   }
   // on court or bench: replay the play-by-play ("X enters the game for Y"; anyone named in a play is on the floor)
   const COURT={}, need=new Set(), gameOf={};
@@ -456,7 +473,7 @@ async function tick(){
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
-    b.live={court,game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
+    b.live={court,box:m.pl,game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
     if(g.state==='in') anyLive=true;
     if(g.state==='post'&&!b.hold){
       const res=dnp?'void':v===+b.line?'void':(b.side==='Over'?v>b.line:v<b.line)?'won':'lost';
