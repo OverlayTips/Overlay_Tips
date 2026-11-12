@@ -97,6 +97,21 @@
 .lv-pbp li.qtr{display:block;text-align:center;color:var(--gold);font:700 12px 'Space Mono',monospace;letter-spacing:.06em;text-transform:uppercase;background:#0d1211}
 @keyframes lvNew{from{background:rgba(62,232,160,.16)}to{background:transparent}}
 .lv-lock{background:none;border:0;color:#87978f;font:600 13px Archivo,system-ui,sans-serif;cursor:pointer;margin-left:8px;text-decoration:underline}
+
+.og-up{display:flex;flex-direction:column;gap:12px;text-align:left}
+.og-up h2{margin:0}
+.og-up .tiers{display:grid;gap:8px;margin:2px 0}
+.og-up .t{border:1px solid #1b2523;border-radius:14px;padding:12px 14px;background:#0b100f}
+.og-up .t.v{border-color:#6b5a22}
+.og-up .t b{display:flex;justify-content:space-between;color:#ecf5f1;font-size:16px}
+.og-up .t b span{color:#efd38f}
+.og-up .t ul{margin:6px 0 0 18px;padding:0;color:#c9d6d0;font-size:13.5px;line-height:1.5}
+.og-up .cta{display:flex;gap:8px;flex-wrap:wrap}
+.og-up .cta a{flex:1;text-align:center;padding:11px 14px;border-radius:999px;font-weight:800;font-size:15px;text-decoration:none;white-space:nowrap}
+.og-up .cta a.p{background:#62f0a8;color:#04140c}.og-up .cta a.s{border:1px solid #1d5a3f;color:#a8f7cf}
+.og-up details{border-top:1px solid #1b2523;padding-top:10px;color:#87978f;font-size:13.5px}
+.og-up details summary{cursor:pointer}
+.og-up details[open]{display:flex;flex-direction:column;gap:10px}
 </style>
 <script src="nav.js?v=2"></script>
 <script src="keys.js?v=1"></script>
@@ -152,15 +167,19 @@
 </header>
 <section class="page-sec" style="padding-top:0" id="gate">
   <div class="wrap lv-gate">
-    <form id="gateForm" autocomplete="on">
+    <form id="gateForm" class="og-up" autocomplete="on">
       <div class="mono">Members only</div>
-      <h2>Unlock Live</h2>
-      <p>Same password as the Odds board.</p>
-      <input type="text" name="username" value="overlay-odds" autocomplete="username" hidden>
-      <input type="password" id="pw" autocomplete="current-password" placeholder="Password" required>
+      <h2>Live is for Daily card and VIP members</h2>
+      <p>Sign up and grab a membership to watch every NBA game live, track your bets and follow the play-by-play. Members just log in and it unlocks.</p>
+      <div class="tiers"><div class="t"><b>Daily card <span>$39/month</span></b><ul><li>Every tip in WhatsApp, with units and reasoning</li><li>Live bet tracking: your stat vs the line, on court or bench</li><li>Live page: every game, props and play-by-play</li></ul></div><div class="t v"><b>VIP <span>$89/month</span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
+      <div class="cta"><a class="p" href="membership.html">See memberships</a><a class="s" href="portal.html">Log in</a></div>
+      <details><summary>Already a member with a password?</summary>
+      <input type="text" name="username" value="overlay-live" autocomplete="username" hidden>
+      <input type="password" id="pw" autocomplete="current-password" placeholder="Members password" required>
       <label><input type="checkbox" id="remember" checked> Remember on this device</label>
       <div class="err" id="gateErr"></div>
       <button id="gateBtn" type="submit">Unlock</button>
+      </details>
     </form>
   </div>
 </section>
@@ -375,9 +394,20 @@ async function decrypt(bundle,pw){
   return JSON.parse(await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
 }
 async function unlock(pw,quiet){
-  if(!BUNDLE){try{const r=await fetch(LINES+(LINES.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/120000));if(!r.ok)throw 0;BUNDLE=await r.json();}catch(e){if(!quiet)$('gateErr').textContent="Couldn't load. Check your connection and try again.";return false;}}
-  if(!BUNDLE.ct){if(!quiet)$('gateErr').textContent='Live unlocks after the next odds update.';return false;}
-  try{const d=await decrypt(BUNDLE,pw);LINESD=d&&d.games?d:{games:[]};}catch(e){if(!quiet)$('gateErr').textContent='Wrong password.';return 'bad';}
+  // the password is checked by the live scores worker (Daily card and VIP)
+  try{const r=await fetch(`${API}/nba?dates=${new Date().toISOString().slice(0,10)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
+    if(r.status===401){if(!quiet)$('gateErr').textContent='Wrong password.';return 'bad';}
+    if(!r.ok) throw 0;
+  }catch(e){if(!quiet)$('gateErr').textContent="Couldn't load. Check your connection and try again.";return false;}
+  // prop lines come from the odds update and are locked with the VIP odds password; without it the scores still work
+  if(!BUNDLE){try{const r=await fetch(LINES+(LINES.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/120000));if(r.ok)BUNDLE=await r.json();}catch(e){}}
+  LINESD={games:[]};
+  if(BUNDLE&&BUNDLE.ct){
+    let d=null; try{d=await decrypt(BUNDLE,pw);}catch(e){}
+    if(!d&&window.OTKeys){const k=await OTKeys.get('odds'); if(k){try{d=await decrypt(BUNDLE,k);}catch(e){}}}
+    if(!d){try{const o=JSON.parse(localStorage.getItem('odds.pw')); if(o) d=await decrypt(BUNDLE,o);}catch(e){}}
+    if(d&&d.games) LINESD=d;
+  }
   const first=!PW; PW=pw; $('gate').hidden=true; $('app').hidden=false; if(first) cycle(); else if(SEL) drawGame(); return true;
 }
 function lock(msg){store.del('live');PW=null;LINESD={games:[]};EVENTS=[];clearTimeout(timer);clearTimeout(pbpTimer);PLAYS={id:null,list:[],err:'',seen:0};$('app').hidden=true;$('gate').hidden=false;$('pw').value='';$('pBody').innerHTML='';$('games').innerHTML='';$('gateErr').textContent=msg||'';}
