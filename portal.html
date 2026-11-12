@@ -36,7 +36,7 @@
       <a href="giveaway.html">Giveaway</a>
       <a href="merch.html">Merch</a>
       <a href="about.html">About</a>
-      <a class="btn btn-mint" href="https://www.instagram.com/overlay_tips/" target="_blank" rel="noopener">Join free</a>
+      <a class="btn btn-mint" href="portal.html?signup">Join free</a>
     </div>
   </div>
   <div class="tabbar" aria-label="Site sections">
@@ -256,7 +256,7 @@ const ref = new URLSearchParams(location.search).get('ref');
 function setMode(m){
   mode = m; $('authMsg').textContent = ''; $('authMsg').className = 'pt-msg';
   const T = {login:['Log in','Welcome back.','Log in','New here?','Create an account'],
-             signup:['Create your account','Sign up, then DM us to get switched on.','Sign up','Already a member?','Log in'],
+             signup:['Join free','Free for the first 500 members. Sign up and you\'re straight in.','Sign up free','Already a member?','Log in'],
              reset:['Reset password',"We'll email you a link to set a new one.",'Send reset link','Remembered it?','Log in'],
              newpw:['Set a new password','Pick a new password for your account.','Save password','','']}[m];
   [$('authTitle').textContent, $('authSub').textContent, $('authBtn').textContent, $('switchTxt').textContent, $('switchBtn').textContent] = T;
@@ -266,7 +266,7 @@ function setMode(m){
 }
 $('switchBtn').onclick = () => setMode(mode==='login' ? 'signup' : 'login');
 $('forgotBtn').onclick = () => setMode('reset');
-if (ref) setMode('signup');
+if (ref || new URLSearchParams(location.search).has('signup')) setMode('signup');
 
 $('authForm').onsubmit = async e => {
   e.preventDefault();

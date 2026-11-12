@@ -16,11 +16,16 @@ create table if not exists public.profiles (
 -- new sign-up -> profile row (name + referral code come from the sign-up form)
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
+declare
+  active int;
 begin
-  insert into public.profiles (id, email, name, referred_by)
+  -- first 500 sign-ups are switched on automatically as Founding members
+  select count(*) into active from public.profiles where tier <> 'pending' and not is_admin;
+  insert into public.profiles (id, email, name, referred_by, tier)
   values (new.id, new.email,
           nullif(trim(new.raw_user_meta_data->>'name'), ''),
-          nullif(trim(new.raw_user_meta_data->>'ref'), ''));
+          nullif(trim(new.raw_user_meta_data->>'ref'), ''),
+          case when active < 500 then 'founder' else 'pending' end);
   return new;
 end $$;
 drop trigger if exists on_auth_user_created on auth.users;
