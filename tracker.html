@@ -64,6 +64,8 @@
 .tr-lb{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#0e1312;border:1px solid #1b2523;border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:14px;color:#c9d6d0}
 .tr-lb input{flex:1;min-width:140px;background:#060807;border:1px solid #1b2523;color:#ecf5f1;border-radius:8px;padding:8px 10px;font:inherit}
 .tr-lb .e{color:#ff8a8a;width:100%;font-size:13px}
+.tr-court{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:800;margin-left:6px;vertical-align:1px}
+.tr-court.on{background:#123325;color:#a8f7cf}.tr-court.off{background:#16201d;color:#87978f}
 .tr-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-acts button.w{color:var(--mint)}.tr-acts button.l{color:#ff8a8a}
@@ -299,7 +301,8 @@ function prog(b){
   const hit=over?L.v>b.line:L.v<b.line, need=Math.max(0,Math.floor(b.line)+1-L.v);
   const cls=over?(hit?'hit':''):(hit?(L.state==='post'?'hit':''):'bust');
   const note=L.state==='post'?(L.dnp?'Did not play':'Final'):L.state==='in'?(over?(hit?'Cleared ✅':`Needs ${need} more`):(hit?`${(b.line-L.v).toFixed(1).replace('.0','')} to spare`:'Gone over ❌')):'Not started';
-  return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div></div>`;
+  const court=L.state==='in'&&L.court?`<span class="tr-court ${L.court}">${L.court==='on'?'🟢 On court':'🪑 Bench'}</span>`:'';
+  return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}${court}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div></div>`;
 }
 function drawList(){
   let xs=BETS.slice();
@@ -425,12 +428,30 @@ async function tick(){
   for(const g of d.games||[]) for(const side of ['away','home']) for(const pl of (g[side]&&g[side].players)||[]){
     rows[key(pl.name)]={g,r:{pts:+pl.pts||0,reb:+pl.reb||0,ast:+pl.ast||0,tpm:+pl.fg3m||0,stl:+pl.stl||0,blk:+pl.blk||0,to:+pl.tov||0},min:pl.min};
   }
+  // on court or bench: replay the play-by-play ("X enters the game for Y"; anyone named in a play is on the floor)
+  const COURT={}, need=new Set(), gameOf={};
+  for(const b of bets){const m=rows[key(b.player)]; if(m&&m.g.state==='in'){need.add(m.g.id); gameOf[key(b.player)]=m.g.id;}}
+  await Promise.all([...need].map(async id=>{
+    try{
+      const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(id)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
+      if(!r.ok) return; const j=await r.json(), st={};
+      for(const p of j.plays||[]){
+        const t=String(p.text||''), sub=t.match(/^(.+?) enters the game for (.+?)\.?\s*$/);
+        if(sub){st[key(sub[1])]='on'; st[key(sub[2])]='off'; continue;}
+        for(const k of Object.keys(gameOf)) if(gameOf[k]===id&&!(k in st&&st[k]==='on')){
+          if(key(t).includes(k)) st[k]='on';
+        }
+      }
+      COURT[id]=st;
+    }catch(e){}
+  }));
   let changed=false, anyLive=false;
   for(const b of bets){
     const m=rows[key(b.player)]; if(!m||!STATS[b.stat]) continue;
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
-    b.live={game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
+    const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
+    b.live={court,game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
     if(g.state==='in') anyLive=true;
     if(g.state==='post'&&!b.hold){
       const res=dnp?'void':v===+b.line?'void':(b.side==='Over'?v>b.line:v<b.line)?'won':'lost';
