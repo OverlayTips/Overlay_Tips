@@ -61,6 +61,9 @@
 .tr-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--gold);transition:width .6s}
 .tr-fill.hit{background:var(--mint)}.tr-fill.bust{background:#ff6b6b}
 .tr-line{position:absolute;top:-4px;bottom:-4px;width:2px;background:#ecf5f1;border-radius:2px}
+.tr-lb{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#0e1312;border:1px solid #1b2523;border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:14px;color:#c9d6d0}
+.tr-lb input{flex:1;min-width:140px;background:#060807;border:1px solid #1b2523;color:#ecf5f1;border-radius:8px;padding:8px 10px;font:inherit}
+.tr-lb .e{color:#ff8a8a;width:100%;font-size:13px}
 .tr-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
 .tr-acts button.w{color:var(--mint)}.tr-acts button.l{color:#ff8a8a}
@@ -157,6 +160,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
         <button type="button" class="tr-btn main" id="addBtn">+ Add bet</button>
       </div>
     </div>
+    <div class="tr-lb" id="liveBar" hidden></div>
     <div class="tr-list" id="list"></div>
     <div class="tr-more">
       <button type="button" class="tr-btn" id="expBtn">Export backup</button>
@@ -164,7 +168,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <label class="tr-btn" style="cursor:pointer">Restore backup<input type="file" id="impFile" accept=".json,application/json" hidden></label>
       <button type="button" class="tr-btn reset" id="resetBtn">Reset tracker</button>
     </div>
-    <p class="tr-note">Your bets are saved in this browser only, on this device. Nobody else can see them. Export a backup now and then, or to move them to another phone. Settle each bet with the Won, Lost or Void buttons once it's decided. <a href="hot.html">Hot stats →</a></p>
+    <p class="tr-note">Your bets are saved in this browser only, on this device. Nobody else can see them. Export a backup now and then, or to move them to another phone. Members can turn on live tracking to follow open NBA props during the game; they settle themselves at full time. Anything else, settle with the Won, Lost or Void buttons. <a href="hot.html">Hot stats →</a></p>
   </div>
 </section>
 </main>
@@ -289,14 +293,21 @@ function drawStats(){
 
 /* ---------- list ---------- */
 let FILTER='open';
-function prog(){return '';}
+function prog(b){
+  const L=b.live; if(b.kind!=='prop'||!L||L.v==null) return '';
+  const over=b.side==='Over', max=Math.max(b.line*1.35,L.v,1), pct=Math.min(100,L.v/max*100), lp=Math.min(100,b.line/max*100);
+  const hit=over?L.v>b.line:L.v<b.line, need=Math.max(0,Math.floor(b.line)+1-L.v);
+  const cls=over?(hit?'hit':''):(hit?(L.state==='post'?'hit':''):'bust');
+  const note=L.state==='post'?(L.dnp?'Did not play':'Final'):L.state==='in'?(over?(hit?'Cleared ✅':`Needs ${need} more`):(hit?`${(b.line-L.v).toFixed(1).replace('.0','')} to spare`:'Gone over ❌')):'Not started';
+  return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div></div>`;
+}
 function drawList(){
   let xs=BETS.slice();
   if(FILTER==='open') xs=xs.filter(b=>b.result==='open'); else if(FILTER==='settled') xs=xs.filter(b=>b.result!=='open');
   xs.sort((a,b)=>FILTER==='open'?a.date.localeCompare(b.date)||a.created-b.created:b.date.localeCompare(a.date)||b.created-a.created);
   if(!xs.length){$('list').innerHTML=`<div class="tr-empty"><h3>${BETS.length?'Nothing here':'No bets yet'}</h3>${BETS.length?'Try another filter.':'Tap <b>+ Add bet</b> to log one.'}</div>`;return;}
   $('list').innerHTML=xs.map(b=>{
-    const p=profit(b), live=false;
+    const p=profit(b), live=b.result==='open'&&b.live&&b.live.state==='in';
     const tag=b.result==='open'?(live?'<span class="tr-tag live">● Live</span>':'<span class="tr-tag open">Open</span>'):`<span class="tr-tag ${b.result}">${b.result==='void'?'Void':b.result==='won'?'Won':'Lost'}${b.auto?' · auto':''}</span>`;
     const st=b.stake>0;
     const right=!st?`<b>$${b.odds.toFixed(2)}</b><span>odds · no stake</span>`:b.result==='open'?`<b>${money(b.stake*b.odds-(b.bonus?b.stake:0))}</b><span>returns · $${b.odds.toFixed(2)}</span>`:`<b class="${p>0?'pos':p<0?'neg':''}">${pm(p)}</b><span>$${b.odds.toFixed(2)} · ${money(b.stake)}${b.bonus?' bonus':''}</span>`;
@@ -314,7 +325,7 @@ $('list').onclick=e=>{
   save();draw();
 };
 $('filt').onclick=e=>{const t=e.target.closest('button');if(!t)return;FILTER=t.dataset.f;$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===t));drawList();};
-function draw(){drawStats();drawList();}
+function draw(){drawStats();drawList();liveBar();}
 
 /* ---------- add / edit ---------- */
 let KIND='prop', EDIT=null;
@@ -380,10 +391,60 @@ $('impFile').onchange=async e=>{
   e.target.value='';
 };
 
-function tick(){}   // live stats removed: no licensed live data source yet
+/* ---------- live tracking (members): BALLDONTLIE box scores via the Overlay live worker ---------- */
+const API=Q.get('api')||'https://overlay-live.borgjayden005.workers.dev';
+const pwGet=()=>{try{return JSON.parse(localStorage.getItem('odds.pw'));}catch(e){return null;}};
+const pwSet=v=>{try{v?localStorage.setItem('odds.pw',JSON.stringify(v)):localStorage.removeItem('odds.pw');}catch(e){}};
+let LIVE_ERR='', LIVE_AT=null, liveTimer=null;
+const trackable=()=>{const lo=addDays(sydDate(),-2);return BETS.filter(b=>b.result==='open'&&b.kind==='prop'&&b.date>=lo&&b.date<=sydDate());};
+function liveBar(){
+  const el=$('liveBar'), n=trackable().length;
+  if(!n){el.hidden=true;return;}
+  el.hidden=false;
+  if(!pwGet()){
+    el.innerHTML=`<span>🔒 <b>Live tracking</b> is for members. Enter the members password to follow your open props live.</span><input type="password" id="lbPw" placeholder="Members password" autocomplete="current-password"><button type="button" class="tr-btn main" id="lbGo">Unlock</button>${LIVE_ERR?`<span class="e">${esc(LIVE_ERR)}</span>`:''}`;
+    $('lbGo').onclick=()=>{const v=$('lbPw').value.trim();if(!v)return;pwSet(v);LIVE_ERR='';tick();};
+    $('lbPw').onkeydown=e=>{if(e.key==='Enter')$('lbGo').click();};
+  } else {
+    el.innerHTML=`<span class="tr-live"><i></i>Live tracking on${LIVE_AT?' · updated '+LIVE_AT.toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'}):''}${LIVE_ERR?' · '+esc(LIVE_ERR):''}</span><button type="button" class="tr-btn" id="lbOff" style="margin-left:auto">Lock</button>`;
+    $('lbOff').onclick=()=>{pwSet(null);liveBar();};
+  }
+}
+async function tick(){
+  clearTimeout(liveTimer); liveBar();
+  const bets=trackable(), pw=pwGet(); if(!bets.length||!pw) return;
+  const ds=[...new Set(bets.flatMap(b=>[addDays(b.date,-1),b.date]))].sort().slice(-3);
+  let d;
+  try{
+    const r=await fetch(`${API}/nba?dates=${ds.join(',')}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
+    if(r.status===401){pwSet(null);LIVE_ERR='Wrong password, try again.';liveBar();return;}
+    if(!r.ok) throw 0; d=await r.json(); LIVE_ERR='';
+  }catch(e){LIVE_ERR="couldn't reach live scores, retrying";liveBar();liveTimer=setTimeout(tick,60000);return;}
+  LIVE_AT=new Date();
+  const rows={};
+  for(const g of d.games||[]) for(const side of ['away','home']) for(const pl of (g[side]&&g[side].players)||[]){
+    rows[key(pl.name)]={g,r:{pts:+pl.pts||0,reb:+pl.reb||0,ast:+pl.ast||0,tpm:+pl.fg3m||0,stl:+pl.stl||0,blk:+pl.blk||0,to:+pl.tov||0},min:pl.min};
+  }
+  let changed=false, anyLive=false;
+  for(const b of bets){
+    const m=rows[key(b.player)]; if(!m||!STATS[b.stat]) continue;
+    const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
+    const dnp=g.state==='post'&&!mins;
+    b.live={game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
+    if(g.state==='in') anyLive=true;
+    if(g.state==='post'&&!b.hold){
+      const res=dnp?'void':v===+b.line?'void':(b.side==='Over'?v>b.line:v<b.line)?'won':'lost';
+      b.result=res;b.auto=true;b.settled=new Date().toISOString();
+    }
+    changed=true;
+  }
+  if(changed){save();draw();} else liveBar();
+  liveTimer=setTimeout(tick,anyLive?30000:120000);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) tick();});
 
 /* ---------- start ---------- */
-load(); draw();
+load(); draw(); tick();
 fetch(HSRC+'?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{}).then(h=>{
   const names=new Set((h.items||[]).concat(h.value||[]).map(i=>i.player));
   $('players').innerHTML=[...names].sort().map(n=>`<option value="${esc(n)}">`).join('');
