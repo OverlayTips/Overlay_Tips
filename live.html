@@ -218,7 +218,7 @@ const etDate=(d=new Date())=>d.toLocaleDateString('en-CA',{timeZone:'America/New
 const PER=p=>p>4?`OT${p-4>1?p-4:''}`:`Q${p}`;
 
 let PLAYS={id:null,list:[],err:'',seen:0}, PBPF='all', PBPQ='all', pbpTimer=null;
-let ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\d+)/)||[])[1]||null, VIEW='props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
+let ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\d+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
 
 async function loadBoard(){
   const now=new Date(), ds=[etDate(new Date(now-864e5)),etDate(now),etDate(new Date(+now+864e5))];
