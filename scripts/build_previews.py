@@ -179,7 +179,7 @@ def page(title, desc, canon, body, active="lineups.html"):
     </a>
     <div class="navlinks">
       {links}
-      <a class="btn btn-mint" href="../portal.html?signup">Join free</a>
+      <a class="btn btn-mint" href="../portal.html?signup">Sign up</a>
     </div>
   </div>
   <div class="tabbar" aria-label="Site sections">

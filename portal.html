@@ -43,7 +43,7 @@
       <a href="merch.html">Merch</a>
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
-      <a class="btn btn-mint" href="portal.html?signup">Join free</a>
+      <a class="btn btn-mint" href="portal.html?signup">Sign up</a>
     </div>
   </div>
   <div class="tabbar" aria-label="Site sections">
@@ -286,7 +286,7 @@ const ref = new URLSearchParams(location.search).get('ref');
 function setMode(m){
   mode = m; $('authMsg').textContent = ''; $('authMsg').className = 'pt-msg';
   const T = {login:['Log in','Welcome back.','Log in','New here?','Create an account'],
-             signup:['Join free','Free for the first 500 members. Sign up and you\'re straight in.','Sign up free','Already a member?','Log in'],
+             signup:['Sign up','Free for the first 500 members. Sign up and you\'re straight in.','Sign up free','Already a member?','Log in'],
              reset:['Reset password',"We'll email you a link to set a new one.",'Send reset link','Remembered it?','Log in'],
              newpw:['Set a new password','Pick a new password for your account.','Save password','','']}[m];
   [$('authTitle').textContent, $('authSub').textContent, $('authBtn').textContent, $('switchTxt').textContent, $('switchBtn').textContent] = T;
