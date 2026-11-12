@@ -99,6 +99,7 @@
 .lv-lock{background:none;border:0;color:#87978f;font:600 13px Archivo,system-ui,sans-serif;cursor:pointer;margin-left:8px;text-decoration:underline}
 </style>
 <script src="nav.js?v=2"></script>
+<script src="keys.js?v=1"></script>
 </head>
 <body class="no-js">
 
@@ -379,17 +380,18 @@ async function unlock(pw,quiet){
   try{const d=await decrypt(BUNDLE,pw);LINESD=d&&d.games?d:{games:[]};}catch(e){if(!quiet)$('gateErr').textContent='Wrong password.';return 'bad';}
   const first=!PW; PW=pw; $('gate').hidden=true; $('app').hidden=false; if(first) cycle(); else if(SEL) drawGame(); return true;
 }
-function lock(msg){store.del('pw');PW=null;LINESD={games:[]};EVENTS=[];clearTimeout(timer);clearTimeout(pbpTimer);PLAYS={id:null,list:[],err:'',seen:0};$('app').hidden=true;$('gate').hidden=false;$('pw').value='';$('pBody').innerHTML='';$('games').innerHTML='';$('gateErr').textContent=msg||'';}
+function lock(msg){store.del('live');PW=null;LINESD={games:[]};EVENTS=[];clearTimeout(timer);clearTimeout(pbpTimer);PLAYS={id:null,list:[],err:'',seen:0};$('app').hidden=true;$('gate').hidden=false;$('pw').value='';$('pBody').innerHTML='';$('games').innerHTML='';$('gateErr').textContent=msg||'';}
 $('gateForm').onsubmit=async e=>{
   e.preventDefault(); $('gateBtn').disabled=true; $('gateErr').textContent='';
   const pw=$('pw').value;
-  if((await unlock(pw))===true){if($('remember').checked)store.set('pw',pw);else store.del('pw');}
+  if((await unlock(pw))===true){if($('remember').checked)store.set('live',pw);else store.del('live');}
   $('gateBtn').disabled=false;
 };
 $('lockBtn').onclick=()=>lock();
 // fresh prop lines every 10 min while open
 setInterval(()=>{if(PW){BUNDLE=null;unlock(PW,true);}},10*60*1000);
-(async()=>{const pw=store.get('pw');if(pw&&(await unlock(pw,true))==='bad')store.del('pw');})();   // keep it on a network blip
+(async()=>{let pw=store.get('live')||store.get('pw');if(pw&&(await unlock(pw,true))==='bad'){store.del('live');pw=null;}
+  if(!PW&&window.OTKeys){OTKeys.reset();const k=await OTKeys.get('live');if(k&&(await unlock(k,true))===true)store.set('live',k);}})();   // members: unlocked by their portal login   // keep it on a network blip
 </script>
 </body>
 </html>

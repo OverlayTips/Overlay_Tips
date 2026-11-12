@@ -136,6 +136,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
 @media(max-width:520px){.tr-form .three{grid-template-columns:1fr 1fr}.tr-form .three label:first-child{grid-column:1/-1}}
 </style>
 <script src="nav.js?v=2"></script>
+<script src="keys.js?v=1"></script>
 </head>
 <body class="no-js">
 
@@ -564,8 +565,9 @@ $('impFile').onchange=async e=>{
 
 /* ---------- live tracking (members): BALLDONTLIE box scores via the Overlay live worker ---------- */
 const API=Q.get('api')||'https://overlay-live.borgjayden005.workers.dev';
-const pwGet=()=>{try{return JSON.parse(localStorage.getItem('odds.pw'));}catch(e){return null;}};
-const pwSet=v=>{try{v?localStorage.setItem('odds.pw',JSON.stringify(v)):localStorage.removeItem('odds.pw');}catch(e){}};
+const pwGet=()=>{try{return JSON.parse(localStorage.getItem('odds.live'))||JSON.parse(localStorage.getItem('odds.pw'));}catch(e){return null;}};
+const pwSet=v=>{try{if(v)localStorage.setItem('odds.live',JSON.stringify(v));else{localStorage.removeItem('odds.live');localStorage.removeItem('odds.pw');}}catch(e){}};
+let KEYTRY=false;   // members: fetch the live key from their portal login once per page load
 let LIVE_ERR='', LIVE_AT=null, liveTimer=null;
 const trackable=()=>{const lo=addDays(sydDate(),-2);return BETS.filter(b=>b.result==='open'&&(b.kind==='prop'||b.kind==='sgm')&&b.date>=lo&&b.date<=sydDate());};
 const legsOf=b=>b.kind==='sgm'?(b.legs||[]):[b];
@@ -574,7 +576,7 @@ function liveBar(){
   if(!n){el.hidden=true;return;}
   el.hidden=false;
   if(!pwGet()){
-    el.innerHTML=`<span>🔒 <b>Live tracking</b> is for members. Enter the members password to follow your open props live.</span><input type="password" id="lbPw" placeholder="Members password" autocomplete="current-password"><button type="button" class="tr-btn main" id="lbGo">Unlock</button>${LIVE_ERR?`<span class="e">${esc(LIVE_ERR)}</span>`:''}`;
+    el.innerHTML=`<span>🔒 <b>Live tracking</b> is for Daily card and VIP members. <a href="portal.html" style="color:var(--mint)">Log in</a>, or enter the members password.</span><input type="password" id="lbPw" placeholder="Members password" autocomplete="current-password"><button type="button" class="tr-btn main" id="lbGo">Unlock</button>${LIVE_ERR?`<span class="e">${esc(LIVE_ERR)}</span>`:''}`;
     $('lbGo').onclick=()=>{const v=$('lbPw').value.trim();if(!v)return;pwSet(v);LIVE_ERR='';tick();};
     $('lbPw').onkeydown=e=>{if(e.key==='Enter')$('lbGo').click();};
   } else {
@@ -584,12 +586,14 @@ function liveBar(){
 }
 async function tick(){
   clearTimeout(liveTimer); liveBar();
-  const bets=trackable(), pw=pwGet(); if(!bets.length||!pw) return;
+  const bets=trackable(); let pw=pwGet(); if(!bets.length) return;
+  if(!pw&&!KEYTRY&&window.OTKeys&&OTKeys.loggedIn()){KEYTRY=true;const k=await OTKeys.get('live');if(k){pwSet(k);pw=k;liveBar();}}
+  if(!pw) return;
   const ds=[...new Set(bets.flatMap(b=>[addDays(b.date,-1),b.date]))].sort().slice(-3);
   let d;
   try{
     const r=await fetch(`${API}/nba?dates=${ds.join(',')}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
-    if(r.status===401){pwSet(null);LIVE_ERR='Wrong password, try again.';liveBar();return;}
+    if(r.status===401){pwSet(null);if(!KEYTRY&&window.OTKeys&&OTKeys.loggedIn()){KEYTRY=true;OTKeys.reset();const k=await OTKeys.get('live');if(k&&k!==pw){pwSet(k);return tick();}}LIVE_ERR='Wrong password, try again.';liveBar();return;}
     if(!r.ok) throw 0; d=await r.json(); LIVE_ERR='';
   }catch(e){LIVE_ERR="couldn't reach live scores, retrying";liveBar();liveTimer=setTimeout(tick,60000);return;}
   LIVE_AT=new Date();

@@ -210,6 +210,7 @@
 .brand .brand-logo{height:44px;width:auto;display:block}
 </style>
 <link rel="stylesheet" href="plain.css?v=6">
+<script src="keys.js?v=1"></script>
 </head>
 <body>
 <nav>
@@ -408,7 +409,8 @@ $('gateForm').onsubmit=async e=>{
   $('gateBtn').disabled=false; $('gateBtn').textContent='Unlock';
 };
 $('lockBtn').onclick=()=>{store.del('pw');DATA=null;$('app').hidden=true;$('gate').hidden=false;$('lockBtn').hidden=true;$('pw').value='';$('list').innerHTML='';};
-(async()=>{const pw=store.get('pw',null); if(pw && !(await unlock(pw,true))) store.del('pw');})();
+(async()=>{let pw=store.get('pw',null); if(pw && !(await unlock(pw,true))){ store.del('pw'); pw=null; }
+  if(!DATA&&window.OTKeys){ const k=await OTKeys.get('odds'); if(k&&(await unlock(k,true))) store.set('pw',k); }})();   // VIP members: unlocked by their portal login
 setInterval(async()=>{const pw=store.get('pw',null); if(DATA&&pw) unlock(pw,true);},10*60*1000);
 
 /* ---------- tables ---------- */
