@@ -123,6 +123,7 @@
     <p class="pt-sub" id="authSub">Welcome back.</p>
     <form id="authForm">
       <label class="pt-field" id="nameRow" hidden>Name<input id="aName" autocomplete="name" maxlength="60"></label>
+      <label class="pt-field" id="refRow" hidden>Mate's referral code <span style="color:#87978f;font-weight:500">(optional, 50% off your first month)</span><input id="aRef" autocomplete="off" maxlength="20" placeholder="e.g. 3f9a2c1b" style="text-transform:lowercase"></label>
       <label class="pt-field">Email<input id="aEmail" type="email" autocomplete="email" required></label>
       <label class="pt-field" id="pwRow">Password<input id="aPw" type="password" autocomplete="current-password" minlength="8"></label>
       <button class="pt-btn" id="authBtn" type="submit">Log in</button>
@@ -167,8 +168,9 @@
       </div>
       <div class="pt-card pt-sec">
         <h3 class="pt-h3">Refer a mate</h3>
-        <p class="pt-sub">Send your link. You get a week free for every mate who joins.</p>
-        <div class="pt-copy"><input id="refLink" readonly><button class="pt-btn sm" id="refCopy" type="button">Copy</button></div>
+        <p class="pt-sub">Your mates get <b>50% off their first month</b> with your code. You get <b>a week free</b> for every mate who joins.</p>
+        <div class="pt-copy" style="margin-bottom:8px"><input id="refCode" readonly style="font:800 20px 'Space Mono',monospace;letter-spacing:.12em;text-align:center"><button class="pt-btn sm" id="refCodeCopy" type="button">Copy code</button></div>
+        <div class="pt-copy"><input id="refLink" readonly><button class="pt-btn sm" id="refCopy" type="button">Copy link</button></div>
         <p class="pt-sub" style="margin:10px 0 0" id="refCount"></p>
       </div>
     </section>
@@ -257,12 +259,13 @@ function setMode(m){
              reset:['Reset password',"We'll email you a link to set a new one.",'Send reset link','Remembered it?','Log in'],
              newpw:['Set a new password','Pick a new password for your account.','Save password','','']}[m];
   [$('authTitle').textContent, $('authSub').textContent, $('authBtn').textContent, $('switchTxt').textContent, $('switchBtn').textContent] = T;
-  show('nameRow', m==='signup'); show('pwRow', m!=='reset'); $('aEmail').closest('label').hidden = m==='newpw';
+  show('nameRow', m==='signup'); show('refRow', m==='signup'); show('pwRow', m!=='reset'); $('aEmail').closest('label').hidden = m==='newpw';
   $('aPw').autocomplete = m==='login' ? 'current-password' : 'new-password';
   $('switchBtn').parentElement.hidden = m==='newpw'; $('forgotBtn').hidden = m!=='login';
 }
 $('switchBtn').onclick = () => setMode(mode==='login' ? 'signup' : 'login');
 $('forgotBtn').onclick = () => setMode('reset');
+if (ref) $('aRef').value = ref;
 if (ref || new URLSearchParams(location.search).has('signup')) setMode('signup');
 
 $('authForm').onsubmit = async e => {
@@ -273,7 +276,7 @@ $('authForm').onsubmit = async e => {
   $('authBtn').disabled = true;
   let r;
   if (mode==='login') r = await sb.auth.signInWithPassword({email, password:pw});
-  else if (mode==='signup') r = await sb.auth.signUp({email, password:pw, options:{emailRedirectTo:PORTAL, data:{name:$('aName').value.trim(), ref:ref||''}}});
+  else if (mode==='signup') r = await sb.auth.signUp({email, password:pw, options:{emailRedirectTo:PORTAL, data:{name:$('aName').value.trim(), ref:($('aRef').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'')||ref||'')}}});
   else if (mode==='reset') r = await sb.auth.resetPasswordForEmail(email, {redirectTo:PORTAL});
   else r = await sb.auth.updateUser({password:pw});
   $('authBtn').disabled = false;
@@ -363,7 +366,8 @@ $('stRange').onchange = renderStats;
 
 async function loadGroup(member, tier){
   const link = PORTAL + '?ref=' + encodeURIComponent(ME.ref_code||'');
-  $('refLink').value = link;
+  $('refLink').value = link; $('refCode').value = (ME.ref_code||'').toUpperCase();
+  $('refCodeCopy').onclick = async () => { try { await navigator.clipboard.writeText((ME.ref_code||'').toUpperCase()); $('refCodeCopy').textContent='Copied'; } catch(e) { $('refCode').select(); } };
   $('refCopy').onclick = async () => { try { await navigator.clipboard.writeText(link); $('refCopy').textContent='Copied'; } catch(e) { $('refLink').select(); } };
   const { data:rc } = await sb.rpc('my_referrals');
   const c = rc && rc[0]; $('refCount').textContent = c ? `${c.total} mate${c.total===1?'':'s'} signed up with your link, ${c.active} active.` : '';
