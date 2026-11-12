@@ -311,9 +311,11 @@ function drawStats(){
 /* ---------- list ---------- */
 let FILTER='open', PICKED=false;
 const isLive=b=>b.result==='open'&&b.live&&b.live.state==='in';
-const OPEN_PBP=new Set(), PLAYS_BY={};
+const OPEN_PBP=new Set(), PLAYS_BY={}, PLAYS_ERR={};
 function playsBox(b,gid){
   const ps=PLAYS_BY[gid];
+  const er=PLAYS_ERR[gid];
+  if(er) return `<ul class="tr-plays"><span class="e">${er==='old-worker'?"Play-by-play isn't switched on yet: the Cloudflare worker (overlay-live) still has the old code. Paste in the new live-worker.js and hit Deploy.":'Play-by-play unavailable: '+esc(er)}</span></ul>`;
   if(!ps) return '<ul class="tr-plays"><span class="e">Loading plays…</span></ul>';
   if(!ps.length) return '<ul class="tr-plays"><span class="e">No plays yet.</span></ul>';
   const k=key(b.player), nm=new RegExp('('+esc(b.player).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
@@ -327,7 +329,9 @@ function playsBox(b,gid){
 async function fetchPlays(gid){
   const pw=pwGet(); if(!pw) return;
   try{const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(gid)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
-    PLAYS_BY[gid]=r.ok?((await r.json()).plays||[]):[];}catch(e){PLAYS_BY[gid]=[];}
+    if(r.ok){PLAYS_BY[gid]=(await r.json()).plays||[];delete PLAYS_ERR[gid];}
+    else{let j={};try{j=await r.json();}catch(_){} PLAYS_ERR[gid]=r.status===404||j.error==='not found'?'old-worker':`error ${r.status}${j.error?' '+j.error:''}${j.detail?': '+j.detail:''}`;}
+  }catch(e){PLAYS_ERR[gid]="couldn't reach live scores";}
   drawList();
 }
 function boxLine(x){
@@ -487,7 +491,8 @@ async function tick(){
   await Promise.all([...need].map(async id=>{
     try{
       const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(id)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
-      if(!r.ok) return; const j=await r.json(), st={}; PLAYS_BY[String(id)]=j.plays||[];
+      if(!r.ok){let j={};try{j=await r.json();}catch(_){} PLAYS_ERR[String(id)]=r.status===404||j.error==='not found'?'old-worker':`error ${r.status}${j.error?' '+j.error:''}${j.detail?': '+j.detail:''}`; return;}
+      const j=await r.json(), st={}; PLAYS_BY[String(id)]=j.plays||[]; delete PLAYS_ERR[String(id)];
       for(const p of j.plays||[]){
         const t=String(p.text||''), sub=t.match(/^(.+?) enters the game for (.+?)\.?\s*$/);
         if(sub){st[key(sub[1])]='on'; st[key(sub[2])]='off'; continue;}
