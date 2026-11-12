@@ -64,7 +64,7 @@
 .tr-lb{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#0e1312;border:1px solid #1b2523;border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:14px;color:#c9d6d0}
 .tr-lb input{flex:1;min-width:140px;background:#060807;border:1px solid #1b2523;color:#ecf5f1;border-radius:8px;padding:8px 10px;font:inherit}
 .tr-lb .e{color:#ff8a8a;width:100%;font-size:13px}
-.tr-court{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:800;margin-left:6px;vertical-align:1px}
+.tr-court{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:800;margin-left:6px;vertical-align:1px}
 .tr-court.on{background:#123325;color:#a8f7cf}.tr-court.off{background:#16201d;color:#87978f}
 .tr-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
 .tr-acts button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:8px;padding:5px 10px;font:700 12.5px Archivo,system-ui,sans-serif;cursor:pointer}
@@ -301,8 +301,7 @@ function prog(b){
   const hit=over?L.v>b.line:L.v<b.line, need=Math.max(0,Math.floor(b.line)+1-L.v);
   const cls=over?(hit?'hit':''):(hit?(L.state==='post'?'hit':''):'bust');
   const note=L.state==='post'?(L.dnp?'Did not play':'Final'):L.state==='in'?(over?(hit?'Cleared ✅':`Needs ${need} more`):(hit?`${(b.line-L.v).toFixed(1).replace('.0','')} to spare`:'Gone over ❌')):'Not started';
-  const court=L.state==='in'&&L.court?`<span class="tr-court ${L.court}">${L.court==='on'?'🟢 On court':'🪑 Bench'}</span>`:'';
-  return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}${court}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div></div>`;
+    return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game||'')}${L.clock?' · '+esc(L.clock):''}</span><span><b>${L.v}</b> / ${b.line} · ${note}</span></div><div class="tr-track"><div class="tr-fill ${cls}" style="width:${pct}%"></div><div class="tr-line" style="left:${lp}%"></div></div></div>`;
 }
 function drawList(){
   let xs=BETS.slice();
@@ -311,7 +310,8 @@ function drawList(){
   if(!xs.length){$('list').innerHTML=`<div class="tr-empty"><h3>${BETS.length?'Nothing here':'No bets yet'}</h3>${BETS.length?'Try another filter.':'Tap <b>+ Add bet</b> to log one.'}</div>`;return;}
   $('list').innerHTML=xs.map(b=>{
     const p=profit(b), live=b.result==='open'&&b.live&&b.live.state==='in';
-    const tag=b.result==='open'?(live?'<span class="tr-tag live">● Live</span>':'<span class="tr-tag open">Open</span>'):`<span class="tr-tag ${b.result}">${b.result==='void'?'Void':b.result==='won'?'Won':'Lost'}${b.auto?' · auto':''}</span>`;
+    const court=live&&b.live.court?`<span class="tr-court ${b.live.court}">${b.live.court==='on'?'🟢 On court':'🪑 Bench'}</span>`:'';
+    const tag=b.result==='open'?(live?'<span class="tr-tag live">● Live</span>'+court:'<span class="tr-tag open">Open</span>'):`<span class="tr-tag ${b.result}">${b.result==='void'?'Void':b.result==='won'?'Won':'Lost'}${b.auto?' · auto':''}</span>`;
     const st=b.stake>0;
     const right=!st?`<b>$${b.odds.toFixed(2)}</b><span>odds · no stake</span>`:b.result==='open'?`<b>${money(b.stake*b.odds-(b.bonus?b.stake:0))}</b><span>returns · $${b.odds.toFixed(2)}</span>`:`<b class="${p>0?'pos':p<0?'neg':''}">${pm(p)}</b><span>$${b.odds.toFixed(2)} · ${money(b.stake)}${b.bonus?' bonus':''}</span>`;
     const sub=[fmtDay(b.date),b.book,b.event,b.result==='open'&&st?money(b.stake)+(b.bonus?' bonus bet':''):''].filter(Boolean).map(esc).join(' · ');
@@ -451,7 +451,7 @@ async function tick(){
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
-    b.live={court,game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
+    b.live={court,game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
     if(g.state==='in') anyLive=true;
     if(g.state==='post'&&!b.hold){
       const res=dnp?'void':v===+b.line?'void':(b.side==='Over'?v>b.line:v<b.line)?'won':'lost';
