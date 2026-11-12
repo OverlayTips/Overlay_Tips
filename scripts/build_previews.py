@@ -167,7 +167,7 @@ def page(title, desc, canon, body, active="lineups.html"):
 <link rel="stylesheet" href="{pre}site.css?v=20261111a">
 <link rel="stylesheet" href="{pre}plain.css?v=6">
 <style>{CSS}</style>
-<script src="{pre}nav.js?v=2"></script>
+<script src="{pre}nav.js?v=3"></script>
 </head>
 <body>
 
