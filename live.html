@@ -114,7 +114,7 @@
 .og-up details[open]{display:flex;flex-direction:column;gap:10px}
 </style>
 <script src="nav.js?v=2"></script>
-<script src="keys.js?v=1"></script>
+<script src="keys.js?v=2"></script>
 </head>
 <body class="no-js">
 
@@ -421,7 +421,9 @@ $('lockBtn').onclick=()=>lock();
 // fresh prop lines every 10 min while open
 setInterval(()=>{if(PW){BUNDLE=null;unlock(PW,true);}},10*60*1000);
 (async()=>{let pw=store.get('live')||store.get('pw');if(pw&&(await unlock(pw,true))==='bad'){store.del('live');pw=null;}
-  if(!PW&&window.OTKeys){OTKeys.reset();const k=await OTKeys.get('live');if(k&&(await unlock(k,true))===true)store.set('live',k);}})();   // members: unlocked by their portal login   // keep it on a network blip
+  if(!PW&&window.OTKeys){OTKeys.reset();const k=await OTKeys.get('live');let res=null;if(k){res=await unlock(k,true);if(res===true)store.set('live',k);}
+    if(!PW){const i=await OTKeys.info();if(i.loggedIn){const why=i.err||(typeof i.tier!=='string'||!['core','vip','founder','pending'].includes(i.tier)?'tier lookup failed ('+i.tier+')':!['core','vip'].includes(i.tier)?'your tier is '+i.tier+' (Daily card or VIP needed)':!Array.isArray(i.keys)?'member keys not set up ('+i.keys+')':!i.keys.includes('live')?'no live key saved in Supabase':res==='bad'?'the live password saved in Supabase doesn\'t match LIVE_PASSWORD in Cloudflare':res===false?'couldn\'t reach live scores':'');
+      if(why){$('gateErr').textContent='Logged in as '+(i.email||'?')+': '+why;$('gateErr').closest('details')&&($('gateErr').closest('details').open=true);}}}}})();   // members: unlocked by their portal login   // keep it on a network blip
 </script>
 </body>
 </html>

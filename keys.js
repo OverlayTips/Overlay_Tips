@@ -32,7 +32,21 @@
       .catch(function () { cache = null; return {}; });
     cache = p; return p;
   }
+  // why isn't it unlocking? -> {loggedIn, email, tier, keys, err}
+  function info() {
+    var s = read(); if (!s || !s.access_token) return Promise.resolve({ loggedIn: false });
+    var email = s.user && s.user.email;
+    var expired = s.expires_at && s.expires_at * 1000 < Date.now() + 30000;
+    return (expired && s.refresh_token ? refresh(s) : Promise.resolve(s)).then(function (x) {
+      var h = { apikey: KEY, Authorization: 'Bearer ' + x.access_token, 'Content-Type': 'application/json' };
+      return Promise.all([
+        fetch(SB + '/rest/v1/rpc/my_tier', { method: 'POST', headers: h, body: '{}' }).then(function (r) { return r.ok ? r.json() : 'error ' + r.status; }),
+        fetch(SB + '/rest/v1/member_keys?select=name', { headers: h }).then(function (r) { return r.ok ? r.json().then(function (j) { return j.map(function (k) { return k.name; }); }) : r.text().then(function (t) { return 'error ' + r.status + ' ' + t.slice(0, 120); }); })
+      ]).then(function (a) { return { loggedIn: true, email: email, tier: a[0], keys: a[1] }; });
+    }).catch(function (e) { return { loggedIn: true, email: email, err: 'login expired, log in again' }; });
+  }
   window.OTKeys = {
+    info: info,
     get: function (name) { return all().then(function (o) { return o[name] || null; }); },
     loggedIn: function () { var s = read(); return !!(s && s.access_token); },
     reset: function () { cache = null; }
