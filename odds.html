@@ -211,12 +211,12 @@
 
 .og-up{display:flex;flex-direction:column;gap:12px;text-align:left}
 .og-up h2{margin:0}
-.og-up .tiers{display:grid;gap:8px;margin:2px 0}
-.og-up .t{border:1px solid #1b2523;border-radius:14px;padding:12px 14px;background:#0b100f}
-.og-up .t.v{border-color:#6b5a22}
-.og-up .t b{display:flex;justify-content:space-between;color:#ecf5f1;font-size:16px}
-.og-up .t b span{color:#efd38f}
-.og-up .t ul{margin:6px 0 0 18px;padding:0;color:#c9d6d0;font-size:13.5px;line-height:1.5}
+.og-up .og-tiers{display:grid;grid-template-columns:1fr;gap:8px;margin:2px 0}
+.og-up .og-t{border:1px solid #1b2523;border-radius:14px;padding:12px 14px;background:#0b100f}
+.og-up .og-t.v{border-color:#6b5a22}
+.og-up .og-t b{display:flex;justify-content:space-between;color:#ecf5f1;font-size:16px}
+.og-up .og-t b span{color:#efd38f}
+.og-up .og-t ul{margin:6px 0 0 18px;padding:0;color:#c9d6d0;font-size:13.5px;line-height:1.5}
 .og-up .cta{display:flex;gap:8px;flex-wrap:wrap}
 .og-up .cta a{flex:1;text-align:center;padding:11px 14px;border-radius:999px;font-weight:800;font-size:15px;text-decoration:none;white-space:nowrap}
 .og-up .cta a.p{background:#62f0a8;color:#04140c}.og-up .cta a.s{border:1px solid #1d5a3f;color:#a8f7cf}
@@ -240,7 +240,7 @@
     <div class="mono">Members only</div>
       <h2>The odds tracker is for VIP members</h2>
       <p>Sign up and go VIP to see every Aussie bookie side by side. VIP members just log in and it unlocks.</p>
-      <div class="tiers"><div class="t v"><b>VIP <span>$89/month</span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
+      <div class="og-tiers"><div class="og-t v"><b>VIP <span>$89/month</span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
       <div class="cta"><a class="p" href="membership.html">See memberships</a><a class="s" href="portal.html">Log in</a></div>
       <details><summary>Already a member with a password?</summary>
     <input type="text" name="username" value="overlay-odds" autocomplete="username" hidden>
