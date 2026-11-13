@@ -92,9 +92,11 @@ def write(snap):
 
 
 def busy(snap):
-    """A game on now, or tipping within 20 min."""
+    """A game on now, tipping within 20 min, or 'postponed' in the last 3h (often just a delayed start)."""
     now = datetime.now(timezone.utc)
+    # API-Sports sometimes marks a delayed tip-off "Postponed" and then flips it to live: keep watching those for 3h
     return any(g["state"] == "in" or (g["state"] == "pre" and datetime.fromisoformat(g["start"]) - now < timedelta(minutes=20))
+               or ("postpon" in str(g["status"]).lower() and timedelta(0) <= now - datetime.fromisoformat(g["start"]) < timedelta(hours=3))
                for g in snap["games"])
 
 
