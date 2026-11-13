@@ -37,6 +37,23 @@ def api(path):
     return j.get("response", [])
 
 
+_ROSTER = {}
+
+
+def roster(team_id, y):
+    """Squad list for a team (cached for an hour per run)."""
+    hit = _ROSTER.get(team_id)
+    if hit and time.time() - hit[0] < 3600:
+        return hit[1]
+    try:
+        pl = [{"id": p["id"], "name": p["name"]} for p in api(f"/players?team={team_id}&season={y}-{y + 1}")]
+    except Exception as e:
+        print("::warning::roster pull failed:", team_id, e)
+        pl = hit[1] if hit else []
+    _ROSTER[team_id] = (time.time(), pl)
+    return pl
+
+
 def abbr(n):
     k = sorted((k for k in ABBR if (n or "").startswith(k)), key=len, reverse=True)
     return ABBR[k[0]] if k else (n or "")[:3].upper()
@@ -69,7 +86,13 @@ def snapshot():
 
     def side(g, t, score):
         ps = []
-        for p in by.get((g["id"], t["id"]), []):
+        rows = by.get((g["id"], t["id"]), [])
+        # API-Sports only lists players once they've played: add the rest of the squad as not played yet
+        if g["id"] in started:
+            for pl in roster(t["id"], y):
+                if pl["id"] not in {r["player"]["id"] for r in rows}:
+                    rows = rows + [{"player": pl, "minutes": "", "type": "bench"}]
+        for p in rows:
             tp, ft, rb = p.get("threepoint_goals") or {}, p.get("freethrows_goals") or {}, p.get("rebounds") or {}
             ps.append({"name": nbl_names.fix(p["player"]["name"]), "min": p.get("minutes") or "", "pts": p.get("points") or 0,
                        "reb": rb.get("total") or 0, "ast": p.get("assists") or 0, "fg3m": tp.get("total") or 0,
