@@ -140,6 +140,49 @@ def sharp_fair(ev, mk, desc, sides, main):
     return {s: v / tot for s, v in pr.items()}
 
 
+BF_COMM = float(os.environ.get("BF_COMMISSION", "8")) / 100   # Betfair commission on winnings (set yours)
+
+
+def lay_arbs(pool, c=None):
+    """Back at a bookie, lay the same selection on Betfair: back S at B, lay S*B/(L-c) at L.
+    Every result returns S*(B*(1-c)/(L-c) - 1). Keeps the best bookie price per selection, profit > 0."""
+    c = BF_COMM if c is None else c
+    out = []
+    for ev in pool:
+        bf = next((b for b in ev.get("bookmakers", []) if b["key"] == "betfair_ex_au"), None)
+        if not bf:
+            continue
+        lays = {m["key"][:-4]: m["outcomes"] for m in bf.get("markets", []) if m["key"].endswith("_lay")}
+        best = {}
+        for b in ev["bookmakers"]:
+            if b["key"] == "betfair_ex_au":
+                continue
+            for m in b.get("markets", []):
+                lo = lays.get(m["key"])
+                if not lo:
+                    continue
+                for o in m.get("outcomes", []):
+                    if not (o.get("price") or 0) > 1:
+                        continue
+                    l = next((x for x in lo if x.get("name") == o.get("name") and (x.get("description") or "") == (o.get("description") or "")
+                              and (o.get("point") is None or x.get("point") == o.get("point"))), None)
+                    if not l or not (l.get("price") or 0) > 1 + c:
+                        continue
+                    k = (m["key"], o.get("name"), o.get("description") or "", o.get("point"))
+                    margin = o["price"] * (1 - c) / (l["price"] - c) - 1
+                    if k not in best or margin > best[k]["margin_pct"] / 100:
+                        who = f"{o['description']} " if o.get("description") else ""
+                        pt = o.get("point")
+                        sign = "+" if (m["key"] == "spreads" and pt is not None and pt > 0) else ""
+                        best[k] = {"sport": ev.get("sport_title"), "sport_key": ev.get("sport_key"), "game": _game(ev),
+                                   "start": ev["commence_time"], "market": _mlabel(m["key"]),
+                                   "pick": f"{who}{o['name']}{(' ' + sign + str(pt)) if pt is not None else ''}",
+                                   "back": o["price"], "book": SHORT.get(b["key"], b.get("title", b["key"])), "lay": l["price"],
+                                   "comm_pct": round(c * 100, 1), "margin_pct": round(margin * 100, 2)}
+        out += [v for v in best.values() if v["margin_pct"] > 0]
+    return sorted(out, key=lambda x: -x["margin_pct"])
+
+
 def compute(events, props, hist, now):
     overlays, arbs, steamers = [], [], []
     pool = [e for e in list(events) + list(props) if now < _parse(e["commence_time"]) <= now + WINDOW]
@@ -185,7 +228,7 @@ def compute(events, props, hist, now):
             if len(best) == len(sides) and (mk != "h2h" or len(sides) >= 2):
                 pct = sum(1 / p for p, _ in best.values())
                 if pct < 1:
-                    arbs.append({"sport": ev.get("sport_title"), "game": _game(ev), "start": ev["commence_time"],
+                    arbs.append({"sport": ev.get("sport_title"), "sport_key": ev.get("sport_key"), "game": _game(ev), "start": ev["commence_time"],
                                  "market": _mlabel(mk), "margin_pct": round((1 - pct) * 100, 2),
                                  "legs": [{"pick": sel(s), "price": p, "book": SHORT.get(b, b)} for s, (p, b) in best.items()]})
         for key, ser in (hist.get(ev["id"], {}).get("series") or {}).items():
@@ -206,7 +249,8 @@ def compute(events, props, hist, now):
     overlays.sort(key=lambda x: -x["edge_pct"])
     arbs.sort(key=lambda x: -x["margin_pct"])
     steamers.sort(key=lambda x: x["pct"])
-    return {"overlays": overlays[:15], "arbs": arbs[:10], "steamers": steamers[:10],
+    layarbs = lay_arbs(pool)
+    return {"overlays": overlays[:15], "arbs": arbs[:10], "layarbs": layarbs[:10], "steamers": steamers[:10],
             "games_in_window": len(pool)}
 
 

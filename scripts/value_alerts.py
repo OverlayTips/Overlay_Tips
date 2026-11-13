@@ -115,9 +115,10 @@ def emoji(key, title=""):
     return "🎯"
 
 
-def away_at_home(g):
-    """picks.py writes 'Home v Away'; Hot stats writes 'Away @ Home'. Use one style so a game groups once."""
-    if " v " in g:
+def away_at_home(g, key=""):
+    """picks.py writes 'Home v Away'; Hot stats writes 'Away @ Home'. Use one style so a game groups once.
+    Tennis and fights have no home side, so they keep 'A v B'."""
+    if " v " in g and not str(key or "").startswith(("tennis", "mma")):
         h, a = g.split(" v ", 1)
         return f"{a} @ {h}"
     return g
@@ -158,11 +159,66 @@ def collect(now):
                         "edge": o["edge_pct"], "price": o["price"], "start": o.get("start", ""),
                         "text": f"{o['pick']}{tag(o)} ({o['market']}) @ {o['price']:.2f} {o['book']}",
                         "sel": f"{o['pick']}{tag(o)} ({o['market']})", "book": o["book"],
-                        "game": away_at_home(o["game"]), "lg": o.get("sport", ""),
+                        "game": away_at_home(o["game"], o.get("sport_key")), "lg": o.get("sport", ""),
                         "emoji": emoji(o.get("sport_key"), o.get("sport")),
                         "sub": f"fair {o['fair']:.2f}",
                         "add": None})
     return out
+
+
+ARB_MIN = float(os.environ.get("ARB_MIN", "1.0"))   # % profit needed to alert an arb
+
+
+def collect_arbs(now):
+    """Arbs from picks.json: bookie v bookie (stakes for $100 total) and bookie v Betfair (back $100)."""
+    key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
+    bundle = load(os.path.join(OUT, "picks.json"), None)
+    if not (key and bundle and bundle.get("ct")):
+        return []
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import picks
+    try:
+        summ = picks.decrypt_with_key(bundle, key)
+    except Exception as e:
+        print(f"::warning::couldn't read picks.json: {e}")
+        return []
+    out = []
+    for a in summ.get("arbs") or []:
+        if a["margin_pct"] < ARB_MIN or started(a.get("start", ""), now):
+            continue
+        inv = sum(1 / l["price"] for l in a["legs"])
+        lines = [f"${100 / l['price'] / inv:.2f} on {l['pick']} @ {l['price']:.2f} {l['book']}" for l in a["legs"]]
+        out.append({"key": "arb|" + a["game"] + "|" + a["market"] + "|" + "|".join(sorted(l["pick"] for l in a["legs"])),
+                    "margin": a["margin_pct"], "start": a.get("start", ""), "game": away_at_home(a["game"], a.get("sport_key")),
+                    "lg": a.get("sport", ""), "emoji": emoji(a.get("sport_key"), a.get("sport")), "market": a["market"],
+                    "title": f"⚖️ Arb +{a['margin_pct']:.1f}% · {a['market']}",
+                    "lines": lines + [f"= ${100 / inv - 100:.2f} profit on $100 whatever happens"]})
+    for a in summ.get("layarbs") or []:
+        if a["margin_pct"] < ARB_MIN or started(a.get("start", ""), now):
+            continue
+        c, B, L = a["comm_pct"] / 100, a["back"], a["lay"]
+        ls = 100 * B / (L - c)
+        out.append({"key": f"lay|{a['game']}|{a['market']}|{a['pick']}|{a['book']}",
+                    "margin": a["margin_pct"], "start": a.get("start", ""), "game": away_at_home(a["game"], a.get("sport_key")),
+                    "lg": a.get("sport", ""), "emoji": emoji(a.get("sport_key"), a.get("sport")), "market": a["market"],
+                    "title": f"⚖️ Back/lay arb +{a['margin_pct']:.1f}% · {a['pick']}",
+                    "lines": [f"Back $100 on {a['pick']} @ {B:.2f} {a['book']}",
+                              f"Lay ${ls:.2f} @ {L:.2f} on Betfair (liability ${ls * (L - 1):.2f})",
+                              f"= ${a['margin_pct']:.2f} profit whatever happens, after {a['comm_pct']:g}% Betfair commission"]})
+    return sorted(out, key=lambda x: -x["margin"])
+
+
+def send_arbs(state, now):
+    for a in collect_arbs(now):
+        old = state.get(a["key"])
+        if old and a["margin"] < old["edge"] + 1:
+            continue
+        lg = f" ({a['lg']})" if a.get("lg") else ""
+        lines = [f"{a['emoji']} {a['game']}{lg} · {tip(a['start'])} · {a['market']}"] + a["lines"] + \
+                ["Prices move fast: check every leg is still there before betting."]
+        if push(a["title"], lines, click=SITE + "/odds.html",
+                actions=[{"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False}]):
+            state[a["key"]] = {"edge": a["margin"], "price": 0, "tag": "", "at": now.isoformat()}
 
 
 def main():
@@ -208,6 +264,10 @@ def main():
                 sent += rest
         for p in sent:
             state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
+    try:
+        send_arbs(state, now)
+    except Exception as e:
+        print(f"::warning::arb alerts failed: {e}")
     with open(state_path, "w") as f:
         json.dump(state, f, separators=(",", ":"))
 
