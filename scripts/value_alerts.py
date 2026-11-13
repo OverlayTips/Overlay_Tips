@@ -124,6 +124,35 @@ def away_at_home(g, key=""):
     return g
 
 
+def _frac(x):
+    return f"{x[0]}/{x[1]}" if x and x[1] else None
+
+
+def analysis(v, side):
+    """Short case for an NBA/NBL prop: form, hit rates, market v fair, best price, teammate news."""
+    out, pt = [], v.get("point")
+    games = v.get("games") or []
+    if games:
+        last = ", ".join(str(g[3]) for g in games[:5])
+        out.append(f"📈 Last 5: {last} (line {pt}) · avg {v.get('avg')}")
+    hits = [f"{lab} {_frac(v.get(k))}" for lab, k in (("L5", "l5"), ("L10", "l10"), ("Season", "season")) if _frac(v.get(k))]
+    if v.get("vs") and v["vs"][1]:
+        hits.append(f"v {v.get('opp')} {_frac(v['vs'])}")
+    if hits:
+        out.append(f"🎯 Hit {side.lower()}: " + " · ".join(hits))
+    if v.get("prob") and v.get("mkt"):
+        out.append(f"🧮 Our chance {100*v['prob']:.0f}% v market {100*v['mkt']:.0f}% ({v.get('books', '?')} books)")
+    pr = sorted((v.get("prices") or {}).items(), key=lambda x: -x[1])
+    if len(pr) > 1:
+        out.append("💵 " + " · ".join(f"{b} {p:.2f}" for b, p in pr[:4]))
+    if v.get("wo"):
+        w = v["wo"]
+        out.append(f"🩼 {w['n']} out: avg {w['avg']} without him v {w['with']} with ({_frac(w.get('hit')) or '?'} hit, {w.get('g', '?')} games)")
+    if v.get("inj"):
+        out.append(f"⚠️ {v['player']} listed {v['inj']} — check he plays")
+    return out
+
+
 def collect(now):
     out = []
     hot = load(os.path.join(OUT, "hot.json"), {})
@@ -139,8 +168,8 @@ def collect(now):
                     "text": f"{v['player']}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
                     "sel": f"{v['player']}{tag(v)} {v['line']} {v['stat']}", "book": v["book"],
                     "game": v.get("game", ""), "lg": v.get("lg", ""), "emoji": "🏀",
-                    "sub": f"fair {100*v.get('prob',0):.0f}%"
-                           + (f" · {v['wo']['n']} out: avg {v['wo']['avg']} w/o vs {v['wo']['with']} with" if v.get("wo") else ""),
+                    "sub": f"fair {100*v.get('prob',0):.0f}%",
+                    "why": analysis(v, side),
                     "add": add})
     key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
     bundle = load(os.path.join(OUT, "picks.json"), None)
@@ -259,7 +288,7 @@ def main():
             lg = f" ({p['lg']})" if p.get("lg") else ""
             title = f"💰 +{p['edge']:.1f}% · {p['sel']}"
             lines = [f"{p['emoji']} {p['game']}{lg} · {tip(p['start'])}",
-                     f"${p['price']:.2f} at {p['book']} · {stake(p['edge'], p['price']):g}U · {p['sub']}"]
+                     f"${p['price']:.2f} at {p['book']} · {stake(p['edge'], p['price']):g}U · {p['sub']}"] + p.get("why", [])
             acts = [{"action": "view", "label": "Log bet", "url": p["add"], "clear": False}] if p["add"] else []
             acts.append({"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False})
             if push(title, lines, click=SITE + "/odds.html", actions=acts):
