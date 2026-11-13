@@ -335,7 +335,7 @@ function drawGame(){
   if(srt==='player') items.sort((x,y)=>x.player.localeCompare(y.player)||x.stat.localeCompare(y.stat));
   else if(srt==='pct') items.sort((x,y)=>pct(y)-pct(x));
   else items.sort((x,y)=>((x.v>x.line)-(y.v>y.line))||pct(y)-pct(x)||x.player.localeCompare(y.player));
-  if(!items.length){$('pBody').innerHTML=s==='post'?`<div class="lv-empty"><h3>No prop lines saved for this game</h3>The <b>Box score</b> tab has the final stats.</div>`:`<div class="lv-empty"><h3>No prop lines for this game yet</h3>Lines come in with the next odds update (about 6:45am, 9:15am and 5:45pm). The <b>Box score</b> tab still works live.</div>`;return;}
+  if(!items.length){$('pBody').innerHTML=s==='post'?`<div class="lv-empty"><h3>No prop lines saved for this game</h3>The <b>Box score</b> tab has the final stats.</div>`:`<div class="lv-empty"><h3>No prop lines for this game yet</h3>Lines come in with the next odds update (every 15 minutes). The <b>Box score</b> tab still works live.</div>`;return;}
   $('pBody').innerHTML='<div class="lv-props">'+items.map(i=>{
     const hit=i.v!=null&&i.v>i.line, need=i.v==null?null:Math.floor(i.line)+1-i.v, close=!hit&&need!=null&&need<=Math.max(2,i.line*0.12)&&s==='in';
     const max=Math.max(i.line*1.35,(i.v||0)+1,1);
