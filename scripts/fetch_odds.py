@@ -240,9 +240,12 @@ def main():
     sports = api.get("/sports")          # free
     active = {s["key"]: s["title"] for s in sports if s.get("active")}
     games = [s["key"] for s in sports if s.get("active") and not s.get("has_outrights")]
-    nba_only = os.environ.get("NBA_ONLY") == "1"
+    only = [x.strip() for x in os.environ.get("ONLY", "").split(",") if x.strip()]
+    if os.environ.get("NBA_ONLY") == "1" and not only:
+        only = ["basketball_nba"]
+    nba_only = bool(only)   # a quick pre-tip refresh of just these sports
     wanted = []
-    for pat in (["basketball_nba"] if nba_only else SPORTS):  # named sports first, so wildcards never starve them of credits
+    for pat in (only if only else SPORTS):  # named sports first, so wildcards never starve them of credits
         if not pat.endswith("*") and pat in active and pat not in wanted:
             wanted.append(pat)
     for pat in ([] if nba_only else SPORTS):
@@ -313,7 +316,7 @@ def main():
         if ev.get("fetched") == TS:
             record(hist, ev)
             record_bookies(hist, ev)
-    if nba_only:   # pre-tip NBA refresh: every other sport keeps its last odds + props unchanged
+    if nba_only:   # pre-tip refresh: every other sport keeps its last odds + props unchanged
         keep_from = NOW - KEEP_AFTER_START
         prev_o = (prev.get("odds") or {}).get("events", [])
         events += [e for e in prev_o if e.get("sport_key") not in wanted and parse(e["commence_time"]) > keep_from]
