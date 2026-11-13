@@ -278,7 +278,7 @@ const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e
 function drawBoard(){
   drawLeague();
   const live=EVENTS.filter(e=>e.state==='in').length;
-  $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:(live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'')+(NBLERR?` <small style="opacity:.7">(NBL: ${esc(NBLERR)})</small>`:'');
+  $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:(live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'')+(NBLERR?` <small style="opacity:.7">(NBL: ${esc(NBLERR)})</small>`:'')+(LG==='NBL'&&!failed?` <small style="opacity:.7">· NBL scores can lag the real game by a few minutes</small>`:'');
   if(!EVENTS.length){$('games').innerHTML=failed?'':`<div class="lv-empty" style="grid-column:1/-1"><h3>No ${LG} games right now</h3>Games show up here on game days.${LG==='NBL'&&NBLERR?' <small>('+esc(NBLERR)+')</small>':''}</div>`;$('panel').hidden=true;return;}
   $('games').innerHTML=EVENTS.map(e=>{
     const pre=e.state==='pre', hs=num(e.home.score), as=num(e.away.score);
