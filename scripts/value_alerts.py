@@ -168,6 +168,7 @@ def collect(now):
 
 ARB_MIN = float(os.environ.get("ARB_MIN", "1.0"))   # % profit needed to alert an arb
 BEST_ARB = None
+ARB_BOOKIE = os.environ.get("ARB_BOOKIE", "0") == "1"   # bookie v bookie arb alerts (off: Betfair back/lay only)
 
 
 def collect_arbs(now):
@@ -186,9 +187,9 @@ def collect_arbs(now):
     print("arbs seen: bookie v bookie " + ", ".join(f"{a['margin_pct']}%" for a in summ.get("arbs") or []) +
           " | back/lay " + ", ".join(f"{a['margin_pct']}%" for a in summ.get("layarbs") or []))
     global BEST_ARB
-    BEST_ARB = max([a["margin_pct"] for a in (summ.get("arbs") or []) + (summ.get("layarbs") or [])], default=None)
+    BEST_ARB = max([a["margin_pct"] for a in (summ.get("layarbs") or []) + (summ.get("arbs") or [] if ARB_BOOKIE else [])], default=None)
     out = []
-    for a in summ.get("arbs") or []:
+    for a in (summ.get("arbs") or []) if ARB_BOOKIE else []:
         if a["margin_pct"] < ARB_MIN or started(a.get("start", ""), now):
             continue
         inv = sum(1 / l["price"] for l in a["legs"])
@@ -283,7 +284,7 @@ def main():
         allv = sorted(collect(now), key=lambda x: -x["edge"])
         when = datetime.now(SYD).strftime("%-I:%M%p").lower()
         lines = [f"{len(allv)} value bets live · {len(new)} new this update" + (f" · {arb_sent} new arbs" if arb_sent else ""),
-                 f"Best arb right now: {BEST_ARB:.2f}%" if BEST_ARB is not None else "No arbs right now"]
+                 f"Best Betfair arb right now: {BEST_ARB:.2f}%" if BEST_ARB is not None else "No Betfair arbs right now"]
         if allv:
             lines.append("Top value:")
             lines += [f"+{p['edge']:.1f}% {p['text']}" for p in allv[:3]]
