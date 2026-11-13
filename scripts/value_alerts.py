@@ -296,7 +296,7 @@ def main():
                 sent.append(p)
         if len(new) > len(top):   # the rest in one summary
             rest = new[len(top):]
-            lines = [f"+{p['edge']:.1f}% {p['text']}" for p in rest[:10]]
+            lines = [f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U" for p in rest[:10]]
             if len(rest) > 10:
                 lines.append(f"+{len(rest) - 10} more on the odds tracker")
             if push(f"💰 {len(rest)} more value bets", lines, click=SITE + "/odds.html",
@@ -319,7 +319,7 @@ def main():
         if allv:
             lines.append("Top value:")
             for p in allv[:3]:
-                lines += ["", f"+{p['edge']:.1f}% {p['text']}"] + (p.get("why") or [p["sub"].capitalize()])
+                lines += ["", f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U"] + (p.get("why") or [p["sub"].capitalize()])
         try:
             _push(TOPIC, f"📊 Odds updated {when}", lines, click=SITE + "/odds.html", priority=3)
         except Exception as e:
