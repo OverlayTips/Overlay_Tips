@@ -49,6 +49,7 @@
 .lv-head h2{font-size:22px!important;margin:0!important}
 .lv-tabs{display:flex;gap:6px}
 .lv-tabs button,.lv-sort select{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:6px 12px;font:600 13.5px Archivo,system-ui,sans-serif;cursor:pointer}
+.lv-league{margin:4px 0 12px}.lv-league button i{font-style:normal;margin-left:6px;opacity:.75;font-weight:700}
 .lv-tabs button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
 .lv-sort{color:#87978f;font-size:13px;display:flex;gap:6px;align-items:center}
 .lv-props{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:10px}
@@ -168,7 +169,7 @@
   <div class="wrap">
     <div class="mono">Members · NBA live</div>
     <h1>Live</h1>
-    <p>Members only. Every NBA game live, in Sydney time. Pick a game to watch each player's stats against his prop line as it happens, follow the play-by-play, or open the full box score. Refreshes every 30 seconds.</p>
+    <p>Members only. Every NBA and NBL game live, in Sydney time. Pick a game to watch each player's stats against his prop line as it happens, follow the play-by-play, or open the full box score. Refreshes every 30 seconds.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0" id="gate">
@@ -192,6 +193,7 @@
 <section class="page-sec" style="padding-top:0" id="app" hidden>
   <div class="wrap">
     <div class="lv-meta"><span id="meta">Loading…</span><button type="button" class="lv-lock" id="lockBtn">Lock</button></div>
+    <div class="lv-tabs lv-league" id="league"><button type="button" data-lg="NBA" class="on">NBA</button><button type="button" data-lg="NBL">NBL</button></div>
     <div class="lv-games" id="games"></div>
     <div class="lv-panel" id="panel" hidden>
       <div class="lv-head">
@@ -246,7 +248,7 @@ const etDate=(d=new Date())=>d.toLocaleDateString('en-CA',{timeZone:'America/New
 const PER=p=>p>4?`OT${p-4>1?p-4:''}`:`Q${p}`;
 
 let PLAYS={id:null,list:[],err:'',seen:0}, PBPF='all', PBPQ='all', pbpTimer=null;
-let NBLERR='', ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\w+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
+let LG=(()=>{try{return localStorage.getItem('ot-live-lg')||'NBA';}catch(e){return 'NBA';}})(), ALL=[], NBLERR='', ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\w+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
 
 async function loadBoard(){
   const now=new Date(), ds=[etDate(new Date(now-864e5)),etDate(now),etDate(new Date(+now+864e5))];
@@ -267,15 +269,17 @@ async function loadBoard(){
     }catch(e){NBLERR=String(e&&e.message||e);}
   }catch(e){failed=true;ERR=String(e&&e.message||e).slice(0,160)||'no connection (is the Worker code deployed?)';if(ERR==='Failed to fetch')ERR='no connection (is the Worker code deployed?)';return;}
   // live games, anything tipping in the next 30h, and finals from the last 8h
-  EVENTS=all.filter(e=>{const t=new Date(e.start);return e.state==='in'||(e.state==='pre'&&t-now<30*3600e3)||(e.state==='post'&&now-t<8*3600e3);})
+  ALL=all.filter(e=>{const t=new Date(e.start);return e.state==='in'||(e.state==='pre'&&t-now<30*3600e3)||(e.state==='post'&&now-t<8*3600e3);})
     .sort((x,y)=>({in:0,pre:1,post:2}[x.state]-{in:0,pre:1,post:2}[y.state])||String(x.start).localeCompare(String(y.start)));
+  EVENTS=ALL.filter(e=>(e.lg||'NBA')===LG);
   if(!SEL||!EVENTS.some(e=>String(e.id)===SEL)) SEL=EVENTS[0]?String(EVENTS[0].id):null;
 }
 const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e.status||'Live'):e.state==='post'?'Final':`${day(e.start)} ${tip(e.start)}`;
 function drawBoard(){
+  drawLeague();
   const live=EVENTS.filter(e=>e.state==='in').length;
   $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:(live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'')+(NBLERR?` <small style="opacity:.7">(NBL: ${esc(NBLERR)})</small>`:'');
-  if(!EVENTS.length){$('games').innerHTML=failed?'':'<div class="lv-empty" style="grid-column:1/-1"><h3>No NBA or NBL games right now</h3>Games show up here on game days.</div>';$('panel').hidden=true;return;}
+  if(!EVENTS.length){$('games').innerHTML=failed?'':`<div class="lv-empty" style="grid-column:1/-1"><h3>No ${LG} games right now</h3>Games show up here on game days.${LG==='NBL'&&NBLERR?' <small>('+esc(NBLERR)+')</small>':''}</div>`;$('panel').hidden=true;return;}
   $('games').innerHTML=EVENTS.map(e=>{
     const pre=e.state==='pre', hs=num(e.home.score), as=num(e.away.score);
     const stat=`<div class="st ${e.state==='in'?'on-air':e.state==='post'?'fin':''}">${e.state==='in'?'● ':''}${esc(clock(e))}</div>`;
@@ -283,6 +287,12 @@ function drawBoard(){
     return `<button type="button" class="lv-g ${String(e.id)===SEL?'on':''}" data-id="${esc(e.id)}">${row(e.away,as,hs)}${row(e.home,hs,as)}${stat}</button>`;
   }).join('');
 }
+function drawLeague(){
+  $('league').querySelectorAll('button').forEach(b=>{const n=ALL.filter(e=>(e.lg||'NBA')===b.dataset.lg),l=n.filter(e=>e.state==='in').length;
+    b.classList.toggle('on',b.dataset.lg===LG); b.innerHTML=`${b.dataset.lg}<i>${l?'● '+l+' live':n.length||''}</i>`;});
+}
+$('league').onclick=ev=>{const b=ev.target.closest('button');if(!b||b.dataset.lg===LG)return;LG=b.dataset.lg;try{localStorage.setItem('ot-live-lg',LG);}catch(e){}
+  EVENTS=ALL.filter(e=>(e.lg||'NBA')===LG); SEL=EVENTS[0]?String(EVENTS[0].id):null; drawBoard(); loadGame(); loadPlays();};
 $('games').onclick=ev=>{const b=ev.target.closest('.lv-g');if(!b)return;SEL=b.dataset.id;history.replaceState(null,'','#g='+SEL);drawBoard();loadGame();loadPlays();};
 
 function boxOf(e){
