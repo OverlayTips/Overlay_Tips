@@ -981,8 +981,34 @@ function renderBonus(){
   $('list').innerHTML=`<div class="ev-meta" style="padding:0 4px 8px">${rows.length} markets, best conversion first</div><div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Lay (Betfair)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
 }
 $('bstake').oninput=()=>{if(!DATA)return; if(view==='bonus')renderBonus(); else if(view==='arb')renderArbs();};
-$('bcomm').oninput=()=>{const v=parseFloat($('bcomm').value); if(!(v>=0))return; bcomm=v; store.set('bcomm',bcomm); if(DATA&&view==='bonus')renderBonus();};
+$('bcomm').oninput=()=>{const v=parseFloat($('bcomm').value); if(!(v>=0))return; bcomm=v; store.set('bcomm',bcomm); if(DATA&&view==='bonus')renderBonus(); else if(DATA&&view==='arb')renderArbs();};
 
+/* ---------- back/lay arbs: back at a bookie, lay the same selection on Betfair (cash stake) ----------
+   back S at B, lay S*B/(L-c) at L: both results return S*(B*(1-c)/(L-c)-1). Positive = locked-in profit. */
+let arbMode=store.get('arbMode','lay');
+function findLayArbs(evs,c){
+  const now=new Date(), out=[];
+  evs.forEach(ev=>{
+    if(new Date(ev.commence_time)<=now) return;
+    const bf=ev.bookmakers.find(b=>b.key==='betfair_ex_au'); if(!bf) return;
+    const lays={};
+    bf.markets.forEach(m=>{ if(m.key.endsWith('_lay')) lays[m.key.slice(0,-4)]=m.outcomes; });
+    const best={};   // best back price per selection across bookies
+    ev.bookmakers.forEach(b=>{ if(b.key==='betfair_ex_au') return;
+      b.markets.forEach(m=>{ const lo=lays[m.key]; if(!lo) return;
+        m.outcomes.forEach(o=>{
+          if(!(o.price>1)) return;
+          const l=lo.find(x=>x.name===o.name&&(x.description||'')===(o.description||'')&&(o.point==null||x.point===o.point));
+          if(!l||!(l.price>1)) return;
+          const k=m.key+'|'+o.name+'|'+(o.description||'')+'|'+(o.point??'');
+          if(!best[k]||o.price>best[k].c.price) best[k]={ev,mk:m.key,c:{book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price},lay:{name:l.name,desc:l.description||'',point:l.point,price:l.price},margin:o.price*(1-c)/(l.price-c)-1};
+        });
+      });
+    });
+    out.push(...Object.values(best));
+  });
+  return out.sort((a,b)=>b.margin-a.margin);
+}
 /* ---------- arbitrage: best prices across bookies that add up to under 100% ---------- */
 function findArbs(evs){
   const now=new Date(), out=[];
@@ -1255,9 +1281,37 @@ function renderArbs(){
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
   $('q').placeholder='Search team or player';
-  $('legend').textContent='Arbs: bet every side at the bookies shown and you profit whatever happens. Stakes are split so every outcome pays the same. Prices are from the last update and arbs vanish fast, so confirm every leg is still there (same line) before betting. Watch for different void rules if a player is scratched, and bookies may limit accounts that arb a lot. Betfair left out (commission).';
-  const q=$('q').value.trim().toLowerCase();
-  $('list').innerHTML=arbsHTML(evs.filter(e=>sport==='all'||e.sport_title===sport),q);
+  const lay=arbMode==='lay';
+  $('bpropsBox').hidden=!lay; $('bcomm').value=bcomm; $('stakeLbl').textContent=lay?'Back stake $':'Total stake $';
+  $('legend').innerHTML=`<span class="seg" id="arbSeg" style="display:inline-flex;margin:0 0 8px"><button type="button" data-m="lay" class="${lay?'on':''}">Bookie v Betfair</button><button type="button" data-m="bb" class="${lay?'':'on'}">Bookie v bookie</button></span><br>`+(lay
+    ?`Back at the bookie, lay the same selection on Betfair: every result pays the same, after ${bcomm}% Betfair commission (set yours in Betfair comm %). Lay prices are from the last update, so check the lay price and the money available on Betfair before betting. Bookies may limit accounts that arb a lot.`
+    :'Bet every side at the bookies shown and you profit whatever happens. Stakes are split so every outcome pays the same. Prices are from the last update and arbs vanish fast, so confirm every leg is still there (same line) before betting. Watch for different void rules if a player is scratched, and bookies may limit accounts that arb a lot.');
+  $('arbSeg').onclick=e=>{const b=e.target.closest('button'); if(!b||b.dataset.m===arbMode) return; arbMode=b.dataset.m; store.set('arbMode',arbMode); render();};
+  const q=$('q').value.trim().toLowerCase(), list=evs.filter(e=>sport==='all'||e.sport_title===sport);
+  $('list').innerHTML=lay?layArbsHTML(list,q):arbsHTML(list,q);
+}
+function layArbsHTML(evs,q){
+  const S=Math.max(1,parseFloat($('bstake').value)||100), c=Math.min(Math.max(bcomm,0),50)/100;
+  const all=findLayArbs(evs,c).filter(a=>myBook==='all'||a.c.book.key===myBook)
+    .filter(a=>!q||(a.c.desc+' '+a.ev.home_team+' '+a.ev.away_team).toLowerCase().includes(q));
+  const arbs=all.filter(a=>a.margin>0).slice(0,30), near=arbs.length?[]:all.slice(0,10);
+  const pt=(mk,p)=>p==null?'':' '+fmtPt(mk,p), lbl=mk=>MKT_LABEL[mk]||PROP_LABEL[mk]||mk;
+  const sel=(x,o)=>`${o.desc?esc(o.desc)+' ':''}${esc(o.name)}${pt(x.mk,o.point)}`;
+  arbs.slice(0,3).forEach(a=>SHARE.push(`BACK/LAY +${(a.margin*100).toFixed(1)}%: back ${a.c.desc?a.c.desc+' ':''}${a.c.name}${pt(a.mk,a.c.point)} @ $${a.c.price.toFixed(2)} (${bkName(a.c.book)}), lay @ $${a.lay.price.toFixed(2)} on Betfair\n   ${a.ev.sport_title} · ${shortTeam(a.ev.home_team)} v ${shortTeam(a.ev.away_team)}`));
+  const row=a=>{
+    const B=a.c.price, L=a.lay.price, LS=S*B/(L-c), win=S*a.margin;
+    return `<tr><td class="conv c-edge" style="${a.margin<0?'color:var(--muted)':''}">${a.margin>=0?'+':''}${(a.margin*100).toFixed(2)}%<small>${win>=0?'$'+win.toFixed(2)+' profit':'$'+(-win).toFixed(2)+' cost'}</small></td>
+      <td class="c-bet"><span class="leg">Back <b>$${S.toFixed(2)}</b> on ${sel(a,a.c)} @ <b>${B.toFixed(2)}</b> <span class="bk">${esc(bkName(a.c.book))}</span></span>
+        <span class="leg">Lay <b>$${LS.toFixed(2)}</b> on ${sel(a,a.lay)} @ <b>${L.toFixed(2)}</b> <span class="bk">Betfair · liability $${(LS*(L-1)).toFixed(2)}</span></span></td>
+      <td class="c-game"><span class="leg">${esc(a.ev.home_team)} v ${esc(a.ev.away_team)}</span><span class="bk">${esc(a.ev.sport_title)} · ${esc(lbl(a.mk))} · ${when(a.ev.commence_time)}</span></td></tr>`;
+  };
+  const table=(title,meta,rows)=>`<div class="ev topev"><div class="ev-head"><div><div class="ev-title">${title}</div><div class="ev-meta">${meta}</div></div></div>
+    <div class="tbl-wrap"><table class="bb arbt"><tr><th>Profit</th><th>Back (bookie) + Lay (Betfair)</th><th>Game</th></tr>${rows.map(row).join('')}</table></div></div>`;
+  if(arbs.length) return table(`Back/lay arbs${myBook==='all'?'':esc(' at '+(BOOK_NAMES[myBook]||SHORT[myBook]||myBook))}`,
+    `Profit after ${bcomm}% Betfair commission, whatever happens, if both prices are still there. ${arbs.length} found · $${S.toFixed(0)} back stake`,arbs);
+  if(!near.length) return '<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">No Betfair lay prices to compare right now.</b> Betfair lays come with game markets (head to head, line, totals), so check again after the next update.</div>';
+  return '<div class="empty" style="padding:18px 22px 4px"><b style="color:var(--text)">No back/lay arbs right now.</b> These are the closest: handy for promos (e.g. a refund or bonus if it loses), where a small cost is worth it.</div>'
+    +table('Closest back/lay matches',`Cost after ${bcomm}% Betfair commission · $${S.toFixed(0)} back stake`,near);
 }
 function arbsHTML(evs,q){
   const T=Math.max(1,parseFloat($('bstake').value)||100);
