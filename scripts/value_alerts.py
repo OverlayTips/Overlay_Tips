@@ -98,7 +98,8 @@ def collect(now):
         out.append({"tag": tag(v), "key": f"hot|{v['player']}|{v['stat']}|{v.get('point')}|{side}",
                     "edge": v["value"], "price": v["price"], "start": v.get("start", ""),
                     "text": f"{v['player']}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
-                    "sub": f"{v.get('team','')} v {v.get('opp','')} · {tip(v.get('start',''))} · fair {100*v.get('prob',0):.0f}%"
+                    "game": v.get("game", ""), "lg": v.get("lg", ""),
+                    "sub": f"fair {100*v.get('prob',0):.0f}%"
                            + (f" · {v['wo']['n']} out: avg {v['wo']['avg']} w/o vs {v['wo']['with']} with" if v.get("wo") else ""),
                     "add": add})
     key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
@@ -117,7 +118,8 @@ def collect(now):
             out.append({"tag": tag(o), "key": f"ov|{o['game']}|{o['market']}|{o['pick']}",
                         "edge": o["edge_pct"], "price": o["price"], "start": o.get("start", ""),
                         "text": f"{o['pick']}{tag(o)} ({o['market']}) @ {o['price']:.2f} {o['book']}",
-                        "sub": f"{o['game']} · {tip(o.get('start',''))} · fair {o['fair']:.2f}",
+                        "game": o["game"], "lg": o.get("sport", ""),
+                        "sub": f"fair {o['fair']:.2f}",
                         "add": None})
     return out
 
@@ -145,12 +147,21 @@ def main():
     else:
         top = new[:MAX_PER_PUSH]
         lines = []
+        # grouped by game, soonest first: "🏀 Utah Jazz @ Houston Rockets (NBA) · Sat 12:40pm" then its bets
+        games = {}
         for p in top:
-            lines.append(f"+{p['edge']:.1f}% · {p['text']} · {stake(p['edge'], p['price']):g}U")
-            lines.append(f"   {p['sub']}")
+            games.setdefault((p["start"], p["game"]), []).append(p)
+        for (start, game), ps in sorted(games.items()):
+            if lines:
+                lines.append("")
+            lg = f" ({ps[0]['lg']})" if ps[0].get("lg") else ""
+            lines.append(f"🏀 {game}{lg} · {tip(start)}")
+            for p in ps:
+                lines.append(f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U · {p['sub']}")
         if len(new) > len(top):
             lines.append(f"+{len(new) - len(top)} more on the odds tracker")
-        title = f"💰 {len(new)} new value bet{'s' if len(new) > 1 else ''}" if len(new) > 1 else f"💰 Value: +{top[0]['edge']:.1f}%"
+        title = (f"💰 {len(new)} new value bets" if len(new) > 1
+                 else f"💰 +{top[0]['edge']:.1f}% value · {top[0]['game']}")
         acts = [{"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False}]
         if top[0]["add"]:
             acts.append({"action": "view", "label": "Log top bet", "url": top[0]["add"], "clear": False})
