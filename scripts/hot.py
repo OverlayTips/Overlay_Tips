@@ -79,12 +79,16 @@ def _absentees(players, out):
     return best
 
 
-def build(prop_events, stats, now, ts, out=()):
+NO_DATA = {"basketball_nbl": {"player_blocks", "player_steals"}}   # API-Basketball has no blocks/steals
+LEAGUE = {"basketball_nba": "NBA", "basketball_nbl": "NBL"}
+
+
+def build(prop_events, stats, now, ts, out=(), sport="basketball_nba"):
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
     cands, vcands, legs = [], [], []
     absent = _absentees(players, out)
     for ev in prop_events:
-        if ev.get("sport_key") != "basketball_nba":
+        if ev.get("sport_key") != sport:
             continue
         start = datetime.fromisoformat(ev["commence_time"].replace("Z", "+00:00"))
         if start <= now:
@@ -96,7 +100,7 @@ def build(prop_events, stats, now, ts, out=()):
                 continue
             for m in b.get("markets", []):
                 mk = m["key"].replace("_alternate", "")
-                if mk not in STAT:
+                if mk not in STAT or mk in NO_DATA.get(sport, ()):
                     continue
                 for o in m.get("outcomes", []):
                     if o.get("point") is None or not o.get("description"):
@@ -182,7 +186,7 @@ def build(prop_events, stats, now, ts, out=()):
             w = FORM_W[src]
             prob = w * p_form + (1 - w) * p_mkt
             item = {
-                "player": p.get("n") or desc, "team": p.get("team"), "opp": opp,
+                "player": p.get("n") or desc, "team": p.get("team"), "opp": opp, "lg": LEAGUE.get(sport, ""),
                 "game": f"{ev['away_team']} @ {ev['home_team']}", "start": ev["commence_time"],
                 "stat": label, "line": f"{int(pt + 0.5)}+", "point": pt, "price": price, "book": book,
                 "l10": [h10, len(l10)], "l5": [h5, len(l5)], "vs": [hit(vs), len(vs)], "season": [hs, len(gs)],

@@ -65,6 +65,7 @@ jobs:
           ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
           NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
+          APISPORTS_KEY: ${{ secrets.APISPORTS_KEY }}
         run: |
           pip install -q cryptography
           python scripts/fetch_odds.py

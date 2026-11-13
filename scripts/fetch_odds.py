@@ -367,6 +367,15 @@ def main():
     except Exception as e:
         print("player stats failed:", type(e).__name__, e)
 
+    # ---- NBL player game logs (API-Sports Pro: APISPORTS_KEY secret) ----
+    try:
+        import nbl_stats
+        nblst, note = nbl_stats.update(stats.get("nbl"), list(props.values()), NOW, TS)
+        stats = {**stats, "nbl": nblst}
+        print("NBL stats:", note)
+    except Exception as e:
+        print("NBL stats failed:", type(e).__name__, e)
+
     sgms = []
     # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
     try:
@@ -374,10 +383,19 @@ def main():
         hj = hot.build(list(props.values()), stats.get("nba") or {}, NOW, TS,
                        out=set(avail.out_names) if avail else set())
         legs = hj.pop("_legs", [])
+        if (stats.get("nbl") or {}).get("players"):
+            hn = hot.build(list(props.values()), stats["nbl"], NOW, TS, sport="basketball_nbl")
+            hj["items"] += hn["items"]
+            hj["value"] = sorted(hj["value"] + hn["value"], key=lambda x: -x["value"])
+            legs += hn.pop("_legs", [])
+            print(f"hot stats NBL: {len(hn['items'])} props, {len(hn['value'])} value")
         if avail:   # drop Out/Doubtful players, flag Questionable / not starting
             for lst in ("items", "value"):
                 keep = []
                 for it in hj.get(lst) or []:
+                    if it.get("lg") == "NBL":   # injury feed is NBA only
+                        keep.append(it)
+                        continue
                     a = avail.check(it.get("player"), it.get("team"))
                     if a["drop"]:
                         continue
@@ -387,7 +405,7 @@ def main():
                         it["starting"] = True
                     keep.append(it)
                 hj[lst] = keep
-            legs = [l for l in legs if not avail.check(l.get("player"), l.get("team"))["drop"]]
+            legs = [l for l in legs if l.get("lg") == "NBL" or not avail.check(l.get("player"), l.get("team"))["drop"]]
         with open(os.path.join(OUT, "hot.json"), "w") as f:
             json.dump(hj, f, separators=(",", ":"))
         print(f"hot stats: {len(hj['items'])} props")
