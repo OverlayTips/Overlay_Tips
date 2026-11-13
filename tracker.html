@@ -219,7 +219,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <label class="tr-btn" style="cursor:pointer">Restore backup<input type="file" id="impFile" accept=".json,application/json" hidden></label>
       <button type="button" class="tr-btn reset" id="resetBtn">Reset tracker</button>
     </div>
-    <p class="tr-note">Your bets are saved in this browser only, on this device. Nobody else can see them. Export a backup now and then, or to move them to another phone. Members can turn on live tracking to follow open NBA props during the game; they settle themselves at full time. Anything else, settle with the Won, Lost or Void buttons. <a href="hot.html">Hot stats →</a></p>
+    <p class="tr-note"><span id="syncNote">Your bets are saved in this browser only, on this device. Nobody else can see them.</span> Export a backup now and then. Members can turn on live tracking to follow open NBA props during the game; they settle themselves at full time. Anything else, settle with the Won, Lost or Void buttons. <a href="hot.html">Hot stats →</a></p>
   </div>
 </section>
 </main>
@@ -332,8 +332,32 @@ const addDays=(s,n)=>{const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate
 
 /* ---------- storage ---------- */
 let BETS=[];
-function load(){try{BETS=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(BETS))BETS=[];}catch(e){BETS=[];}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(BETS));return true;}catch(e){alert("Couldn't save in this browser (private mode?). Export a backup so you don't lose it.");return false;}}
+// Saved on this device, and (when logged in to the members portal) to your account so every device has them.
+// Each bet carries "mod" (last changed); deletions are kept as {id,t} so they stay deleted on other devices.
+const DELK='ot-bets-del'; let DEL=[], SNAP={};
+const bare=b=>{const c={...b};delete c.mod;return JSON.stringify(c);};
+function snap(){SNAP={};for(const b of BETS)SNAP[b.id]=bare(b);}
+function load(){try{BETS=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(BETS))BETS=[];}catch(e){BETS=[];}
+  try{DEL=JSON.parse(localStorage.getItem(DELK)||'[]');if(!Array.isArray(DEL))DEL=[];}catch(e){DEL=[];} snap();}
+function store(){localStorage.setItem(KEY,JSON.stringify(BETS));localStorage.setItem(DELK,JSON.stringify(DEL.slice(-500)));}
+function save(){
+  const now=Date.now(), have=new Set(BETS.map(b=>b.id));
+  for(const b of BETS){const j=bare(b); if(SNAP[b.id]!==j){b.mod=now;SNAP[b.id]=j;}}
+  for(const id of Object.keys(SNAP)) if(!have.has(id)){DEL.push({id,t:now});delete SNAP[id];}
+  try{store();}catch(e){alert("Couldn't save in this browser (private mode?). Export a backup so you don't lose it.");return false;}
+  if(window.otPush) window.otPush();
+  return true;}
+// account sync hooks (used by the module script at the bottom)
+window.otPayload=()=>({bets:BETS,del:DEL.slice(-500)});
+window.otMergeCloud=c=>{
+  const by={}, dels={};
+  for(const d of [...DEL,...((c&&c.del)||[])]) if(d&&d.id) dels[d.id]=Math.max(dels[d.id]||0,+d.t||0);
+  for(const b of [...((c&&c.bets)||[]),...BETS]) if(b&&b.id&&(!by[b.id]||(+b.mod||0)>=(+by[b.id].mod||0))) by[b.id]=b;
+  BETS=Object.values(by).filter(b=>!(dels[b.id]>=(+b.mod||0)));
+  DEL=Object.entries(dels).map(([id,t])=>({id,t})).sort((a,b)=>a.t-b.t);
+  try{store();}catch(e){} snap(); draw(); if(typeof tick==='function') tick();
+};
+window.otSyncNote=on=>{const n=$('syncNote'); if(n) n.innerHTML=on?'Your bets are saved to your Overlay Tips account, so they show on any device you log in on. Nobody else can see them.':'Your bets are saved in this browser only, on this device. <a href="portal.html">Log in</a> to keep them in your account on every device. Nobody else can see them.';};
 const label=b=>b.kind==='prop'?`${b.player} ${b.side} ${b.line} ${b.stat}`:b.kind==='sgm'?`SGM · ${(b.legs||[]).length} legs`:b.desc;
 const legLabel=l=>`${l.player} ${l.side} ${l.line} ${l.stat}`;
 const profit=b=>!(b.stake>0)?0:b.result==='won'?b.stake*(b.odds-1):b.result==='lost'?(b.bonus?0:-b.stake):0;
@@ -570,7 +594,7 @@ $('form').onsubmit=e=>{
 function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 $('expBtn').onclick=()=>dl(`overlay-bets-${sydDate()}.json`,JSON.stringify({v:1,bets:BETS},null,1),'application/json');
 $('resetBtn').onclick=()=>{const d=$('resetDlg'); if(d.showModal) d.showModal(); else if(confirm("Reset your tracker? This deletes every bet and your stats. FYI this can't be undone.")) doReset();};
-function doReset(){BETS=[];try{localStorage.removeItem(KEY);}catch(e){} draw(); const d=$('resetDlg'); if(d.open) d.close();}
+function doReset(){BETS=[];save(); draw(); const d=$('resetDlg'); if(d.open) d.close();}
 $('resetCancel').onclick=()=>$('resetDlg').close();
 $('resetExp').onclick=()=>$('expBtn').click();
 $('resetGo').onclick=doReset;
@@ -717,6 +741,28 @@ if(Q.get('add')){
   openForm(null,{kind:'prop',lg:Q.get('lg')||'NBA',player:Q.get('player')||'',stat:Q.get('stat')||'Points',side:Q.get('side')||'Over',line:Q.get('line')||'',odds:Q.get('odds')||'',book:Q.get('book')||''});
   history.replaceState(null,'',location.pathname);
 }
+</script>
+<script type="module">
+// account sync: pull this member's saved bets, merge with this device, then keep the account up to date
+(async()=>{
+  try{
+    const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const sb=createClient('https://enldqvdxygppxwrauqlw.supabase.co','sb_publishable_Zznc-4Nv6Ibb_SyE55jn6A_IqSxnYW8');
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){window.otSyncNote(false);return;}
+    const uid=session.user.id;
+    const {data,error}=await sb.from('user_bets').select('bets,del').eq('user_id',uid).maybeSingle();
+    if(error){console.warn('bet sync',error.message);window.otSyncNote(false);return;}
+    let t=null, busy=false, again=false;
+    const push=async()=>{ if(busy){again=true;return;} busy=true;
+      try{const p=window.otPayload(); const {error}=await sb.from('user_bets').upsert({user_id:uid,bets:p.bets,del:p.del,updated_at:new Date().toISOString()}); if(error)console.warn('bet sync',error.message);}catch(e){}
+      busy=false; if(again){again=false;push();} };
+    window.otPush=()=>{clearTimeout(t);t=setTimeout(push,1200);};
+    window.otMergeCloud(data||{bets:[],del:[]});
+    window.otSyncNote(true);
+    push();
+  }catch(e){console.warn('bet sync',e);}
+})();
 </script>
 </body>
 </html>

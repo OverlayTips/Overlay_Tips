@@ -183,9 +183,10 @@
     </section>
 
     <section id="tStats" hidden>
+      <p class="tip-meta" style="margin:0 0 10px">Your own results, from the bets you log in the <a href="tracker.html">bet tracker</a>. Only you can see them.</p>
       <div class="pt-filter"><select id="stRange"><option value="30">Last 30 days</option><option value="7">Last 7 days</option><option value="all">All time</option></select></div>
       <div class="stats" id="statBoxes"></div>
-      <div class="pt-card pt-sec"><h3 class="pt-h3">By sport</h3><div class="pt-scroll"><table class="pt-t" id="sportTbl"></table></div></div>
+      <div class="pt-card pt-sec"><h3 class="pt-h3">By bet type</h3><div class="pt-scroll"><table class="pt-t" id="sportTbl"></table></div></div>
       <div class="pt-card pt-sec"><h3 class="pt-h3">Settled bets</h3><div class="pt-scroll"><table class="pt-t" id="histTbl"></table></div></div>
     </section>
 
@@ -351,7 +352,7 @@ async function boot(){
   if (prof.is_admin) tabs.push(['tAdmin','Admin']);
   $('tabs').innerHTML = tabs.map(([id,l]) => `<button type="button" data-t="${id}">${l}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => openTab(b.dataset.t));
-  if (member) await loadTips();
+  if (member) { await loadTips(); await loadMyBets(); }
   await loadGroup(member, tier);
   loadPlans(prof);
   if (prof.is_admin) initAdmin();
@@ -385,26 +386,42 @@ function renderTips(){
 }
 $('tipDay').onchange = renderTips;
 
+// Results & stats: this member's own bets from the bet tracker (saved to their account in user_bets)
+let MYBETS = [];
+async function loadMyBets(){
+  const { data, error } = await sb.from('user_bets').select('bets,del').eq('user_id', ME.id).maybeSingle();
+  if (error) console.warn('my bets', error.message);
+  const dels = {}; ((data && data.del) || []).forEach(d => { if (d && d.id) dels[d.id] = Math.max(dels[d.id]||0, +d.t||0); });
+  MYBETS = ((data && data.bets) || []).filter(b => b && b.id && !(dels[b.id] >= (+b.mod||0)));
+  renderStats();
+}
+const pmoney = n => (n<0?'-$':n>0?'+$':'$') + Math.abs(n).toFixed(2);
+const betProfit = b => !(b.stake>0) ? 0 : b.result==='won' ? b.stake*(b.odds-1) : b.result==='lost' ? (b.bonus?0:-b.stake) : 0;
+const betLabel = b => b.kind==='prop' ? `${b.player} ${b.side} ${b.line} ${b.stat}` : b.kind==='sgm' ? `SGM · ${(b.legs||[]).length} legs` : (b.desc||'Bet');
+const betType = b => b.kind==='other' ? 'Other bets' : `${b.lg||'NBA'} ${b.kind==='sgm' ? 'SGMs' : 'player props'}`;
 function renderStats(){
   const r = $('stRange').value;
-  let set = TIPS.filter(t => t.result==='won' || t.result==='lost');
-  if (r!=='all') { const from = melDate(new Date(Date.now()-(+r-1)*864e5)); set = set.filter(t => t.tip_date>=from); }
-  const agg = arr => { const st=arr.reduce((a,t)=>a+ +t.units,0), pl=arr.reduce((a,t)=>a+profit(t),0), w=arr.filter(t=>t.result==='won').length;
+  let set = MYBETS.filter(b => b.result==='won' || b.result==='lost');
+  if (r!=='all') { const from = melDate(new Date(Date.now()-(+r-1)*864e5)); set = set.filter(b => (b.date||'')>=from); }
+  set.sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.created||0)-(a.created||0));
+  const agg = arr => { const st=arr.reduce((a,b)=>a+(b.bonus?0:(+b.stake||0)),0), pl=arr.reduce((a,b)=>a+betProfit(b),0), w=arr.filter(b=>b.result==='won').length;
     return {n:arr.length, w, st, pl, sr: arr.length ? w/arr.length*100 : 0, roi: st ? pl/st*100 : 0}; };
   const A = agg(set), cls = n => n>0?'pos':n<0?'neg':'';
+  const open = MYBETS.filter(b => b.result==='open').length;
   $('statBoxes').innerHTML = [
-    [`<span class="${cls(A.pl)}">${u(A.pl)}</span>`,'profit'],
+    [`<span class="${cls(A.pl)}">${pmoney(A.pl)}</span>`,'profit'],
     [`<span class="${cls(A.roi)}">${A.roi>0?'+':''}${A.roi.toFixed(1)}%</span>`,'ROI'],
     [`${A.sr.toFixed(0)}%`,`strike rate (${A.w} from ${A.n})`],
-    [`${A.st.toFixed(1)}U`,'staked']].map(([b,s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
-  const sp = {}; set.forEach(t => (sp[t.sport]=sp[t.sport]||[]).push(t));
+    [`$${A.st.toFixed(2)}`,`staked${open?` · ${open} open`:''}`]].map(([b,s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+  const sp = {}; set.forEach(b => (sp[betType(b)]=sp[betType(b)]||[]).push(b));
   const sr = Object.entries(sp).map(([k,v]) => [k, agg(v)]).sort((a,b) => b[1].pl-a[1].pl);
-  $('sportTbl').innerHTML = sr.length ? `<tr><th>Sport</th><th class="n">Bets</th><th class="n">Strike</th><th class="n">Profit</th><th class="n">ROI</th></tr>` +
-    sr.map(([k,a]) => `<tr><td>${esc(k)}</td><td class="n">${a.n}</td><td class="n">${a.sr.toFixed(0)}%</td><td class="n ${cls(a.pl)}">${u(a.pl)}</td><td class="n ${cls(a.roi)}">${a.roi.toFixed(1)}%</td></tr>`).join('')
-    : '<tr><td class="pt-empty">No settled bets in this range yet.</td></tr>';
-  $('histTbl').innerHTML = set.length ? `<tr><th>Date</th><th>Bet</th><th class="n">Odds</th><th class="n">Units</th><th class="n">P/L</th></tr>` +
-    set.slice(0,100).map(t => `<tr><td>${fmtDay(t.tip_date)}</td><td>${esc(t.selection)}<div class="tip-meta">${esc(t.sport)}</div></td><td class="n">${(+t.odds).toFixed(2)}</td><td class="n">${+t.units}</td><td class="n ${cls(profit(t))}">${u(profit(t))}</td></tr>`).join('')
-    : '<tr><td class="pt-empty">No settled bets yet.</td></tr>';
+  const none = MYBETS.length ? 'No settled bets in this range yet.' : 'No bets yet. Log them in the <a href="tracker.html">bet tracker</a> and your results show up here.';
+  $('sportTbl').innerHTML = sr.length ? `<tr><th>Type</th><th class="n">Bets</th><th class="n">Strike</th><th class="n">Profit</th><th class="n">ROI</th></tr>` +
+    sr.map(([k,a]) => `<tr><td>${esc(k)}</td><td class="n">${a.n}</td><td class="n">${a.sr.toFixed(0)}%</td><td class="n ${cls(a.pl)}">${pmoney(a.pl)}</td><td class="n ${cls(a.roi)}">${a.roi.toFixed(1)}%</td></tr>`).join('')
+    : `<tr><td class="pt-empty">${none}</td></tr>`;
+  $('histTbl').innerHTML = set.length ? `<tr><th>Date</th><th>Bet</th><th class="n">Odds</th><th class="n">Stake</th><th class="n">P/L</th></tr>` +
+    set.slice(0,200).map(b => `<tr><td>${b.date?fmtDay(b.date):''}</td><td>${esc(betLabel(b))}<div class="tip-meta">${esc(betType(b))}${b.book?' · '+esc(b.book):''}${b.bonus?' · bonus':''}</div></td><td class="n">${(+b.odds).toFixed(2)}</td><td class="n">${b.stake>0?'$'+(+b.stake).toFixed(2):'–'}</td><td class="n ${cls(betProfit(b))}">${b.stake>0?pmoney(betProfit(b)):'–'}</td></tr>`).join('')
+    : `<tr><td class="pt-empty">${none}</td></tr>`;
 }
 $('stRange').onchange = renderStats;
 
