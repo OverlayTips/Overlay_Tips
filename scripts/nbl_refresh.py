@@ -16,7 +16,7 @@ soon = [g for g in games if g["status"]["short"] == "NS"
 for g in soon:
     print("tips soon:", g["date"], g["teams"]["home"]["name"], "v", g["teams"]["away"]["name"])
 if not soon:
-    raise SystemExit("no NBL game in the next 15-80 min")
+    print("no NBL game in the next 15-80 min"); raise SystemExit(0)
 tok, repo = os.environ["GH_TOKEN"], os.environ["GITHUB_REPOSITORY"]
 req = urllib.request.Request(f"https://api.github.com/repos/{repo}/actions/workflows/odds.yml/dispatches",
                              data=json.dumps({"ref": "main", "inputs": {"only": "basketball_nbl"}}).encode(),
