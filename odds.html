@@ -231,6 +231,7 @@
 .og-up details summary{cursor:pointer}
 .og-up details[open]{display:flex;flex-direction:column;gap:10px}
 .inj{font-size:11px;font-weight:700;color:#f5b041;white-space:nowrap}.inj.ok{color:#4cd07d}
+.ec-gm{display:block;font-size:11.5px;color:#8fa39b;margin-top:1px}
 </style>
 <link rel="stylesheet" href="plain.css?v=6">
 <script src="keys.js?v=2"></script>
@@ -912,6 +913,7 @@ function topEV(evs,q,o={}){
     <div class="tbl-wrap"><table class="bb"><tr><th>Edge</th><th>Bet</th><th>Best price</th><th>Fair</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
 
+const nickOf=t=>{const w=String(t||'').split(' ');return w.length>1&&!/^(FC|SC|AFC|CF)$/i.test(w[w.length-1])?w[w.length-1]:String(t||'');};
 /* best value picks at a glance: edge % as ranked bars (one series, so no legend) */
 function evChart(top,ptOf){
   if(top.length<2) return '';
@@ -920,7 +922,7 @@ function evChart(top,ptOf){
     const pick=r.s.desc?`${r.s.desc} ${r.s.name}${pt!=null?' '+pt:''}`:`${r.s.name}${pt!=null?' '+fmtPt(mk,pt):''}`;
     const mkt=MKT_LABEL[mk]||PROP_LABEL[mk]||mk;
     const tip=`${pick} (${mkt}) · $${pk.price.toFixed(2)} ${bkName(pk.book)} · fair ${(x.fair||r.fair).toFixed(2)} · +${edge.toFixed(1)}% · ${e.home_team} v ${e.away_team}, ${when(e.commence_time)}`;
-    return `<div class="ec-row" title="${esc(tip)}"><div class="ec-lbl"><b>${esc(pick)}</b><span>${esc(mkt)} · $${pk.price.toFixed(2)} ${esc(bkName(pk.book))}</span></div>
+    return `<div class="ec-row" title="${esc(tip)}"><div class="ec-lbl"><b>${esc(pick)}</b><span>${esc(mkt)} · $${pk.price.toFixed(2)} ${esc(bkName(pk.book))}</span><span class="ec-gm">${esc(nickOf(e.home_team))} v ${esc(nickOf(e.away_team))} · ${esc(when(e.commence_time))}</span></div>
       <div class="ec-track"><div class="ec-bar" style="width:${(edge/max*100).toFixed(1)}%"></div></div><div class="ec-val">+${edge.toFixed(1)}%</div></div>`;}).join('');
   return `<div class="evchart" role="img" aria-label="Top ${top.length} value picks by edge"><h4>Best value right now</h4>
     <div class="ec-sub">Edge over the fair price (bookie margins removed), top ${top.length}. Full details in the table below.</div>${rows}</div>`;
