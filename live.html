@@ -246,7 +246,7 @@ const etDate=(d=new Date())=>d.toLocaleDateString('en-CA',{timeZone:'America/New
 const PER=p=>p>4?`OT${p-4>1?p-4:''}`:`Q${p}`;
 
 let PLAYS={id:null,list:[],err:'',seen:0}, PBPF='all', PBPQ='all', pbpTimer=null;
-let ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\w+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
+let NBLERR='', ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\w+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
 
 async function loadBoard(){
   const now=new Date(), ds=[etDate(new Date(now-864e5)),etDate(now),etDate(new Date(+now+864e5))];
@@ -261,8 +261,10 @@ async function loadBoard(){
     try{   // NBL (Australian dates), best effort
       const au=d=>d.toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});
       const r2=await fetch(`${API}/nbl?dates=${[au(new Date(now-864e5)),au(now),au(new Date(+now+864e5))].join(',')}`,{cache:'no-store',headers:{'X-Members-Password':PW}});
-      if(r2.ok){const j2=await r2.json(); all=all.concat(j2.games||[]);}
-    }catch(_){}
+      let j2={}; try{j2=await r2.json();}catch(_){j2={error:'not JSON'};}
+      if(r2.ok&&!j2.note){all=all.concat(j2.games||[]);NBLERR='';}
+      else NBLERR=j2.note||`${r2.status} ${j2.error||''}${j2.detail?': '+j2.detail:''}`.trim();
+    }catch(e){NBLERR=String(e&&e.message||e);}
   }catch(e){failed=true;ERR=String(e&&e.message||e).slice(0,160)||'no connection (is the Worker code deployed?)';if(ERR==='Failed to fetch')ERR='no connection (is the Worker code deployed?)';return;}
   // live games, anything tipping in the next 30h, and finals from the last 8h
   EVENTS=all.filter(e=>{const t=new Date(e.start);return e.state==='in'||(e.state==='pre'&&t-now<30*3600e3)||(e.state==='post'&&now-t<8*3600e3);})
@@ -272,7 +274,7 @@ async function loadBoard(){
 const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e.status||'Live'):e.state==='post'?'Final':`${day(e.start)} ${tip(e.start)}`;
 function drawBoard(){
   const live=EVENTS.filter(e=>e.state==='in').length;
-  $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'';
+  $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:(live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'')+(NBLERR?` <small style="opacity:.7">(NBL: ${esc(NBLERR)})</small>`:'');
   if(!EVENTS.length){$('games').innerHTML=failed?'':'<div class="lv-empty" style="grid-column:1/-1"><h3>No NBA or NBL games right now</h3>Games show up here on game days.</div>';$('panel').hidden=true;return;}
   $('games').innerHTML=EVENTS.map(e=>{
     const pre=e.state==='pre', hs=num(e.home.score), as=num(e.away.score);
