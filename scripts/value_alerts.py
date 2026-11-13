@@ -21,7 +21,7 @@ SITE = "https://overlay.tips"
 FOOT = "Overlay Tips | 18+ Gamble responsibly"
 MIN_VALUE = 4.0      # % edge needed to alert
 MAX_PER_PUSH = 6
-MAX_SINGLE = 8     # bets sent as their own notification each run; any more go in one summary
+MAX_SINGLE = 10**6   # no limit: every new value bet gets its own notification
 BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U to 3U
 
 
