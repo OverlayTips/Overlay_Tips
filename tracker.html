@@ -40,8 +40,16 @@
 .tr-stat b{display:block;font-size:24px;font-weight:900;color:#ecf5f1;font-variant-numeric:tabular-nums;margin-top:2px}
 .tr-stat b.pos{color:var(--mint)}.tr-stat b.neg{color:#ff8a8a}
 .tr-chart{background:#0e1312;border:1px solid #1b2523;border-radius:14px;padding:10px 12px 6px;margin-bottom:18px}
-.tr-chart svg{width:100%;height:auto;display:block}
+.tr-chart{position:relative}
+.tr-chart svg{width:100%;height:auto;display:block;touch-action:pan-y}
 .tr-chart .cap{color:#87978f;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.tr-ch-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:4px}
+.tr-ch-now{font:800 22px Archivo,system-ui,sans-serif;margin-top:2px}.tr-ch-now.pos{color:var(--mint)}.tr-ch-now.neg{color:#ff8a8a}
+.tr-ch-now small{font-size:12px;font-weight:600;color:#87978f;margin-left:6px}
+.tr-ch-r{display:flex;gap:4px}.tr-ch-r button{background:transparent;border:1px solid #1b2523;color:#87978f;border-radius:999px;padding:3px 9px;font:700 11.5px Archivo,system-ui,sans-serif;cursor:pointer}
+.tr-ch-r button.on{background:#1b2523;color:#e8f0ec}
+.tr-ch-tip{position:absolute;pointer-events:none;background:#141b19;border:1px solid #26332f;border-radius:10px;padding:7px 9px;font-size:12px;color:#c9d6d0;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.4);transform:translate(-50%,-100%);z-index:2}
+.tr-ch-tip b{display:block;color:#e8f0ec;font-size:13px}.tr-ch-tip .pos{color:var(--mint)}.tr-ch-tip .neg{color:#ff8a8a}
 .tr-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 12px}
 .tr-chips{display:flex;flex-wrap:wrap;gap:8px}
 .tr-chips button,.tr-btn{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
@@ -196,7 +204,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
     <div class="tr-stats" id="stats"></div>
-    <div class="tr-chart" id="chartWrap" hidden><div class="cap">Profit over time</div><div id="chart"></div></div>
+    <div class="tr-chart" id="chartWrap" hidden><div class="tr-ch-h"><div><div class="cap">Profit over time</div><div class="tr-ch-now" id="chNow"></div></div><div class="tr-ch-r" id="chRange"><button type="button" data-r="7">7D</button><button type="button" data-r="30">30D</button><button type="button" data-r="all" class="on">All</button></div></div><div id="chart"></div><div class="tr-ch-tip" id="chTip" hidden></div></div>
     <div class="tr-bar">
       <div class="tr-chips" id="filt">
         <button type="button" data-f="live">Live <span id="liveN"></span></button>
@@ -397,16 +405,68 @@ function drawStats(){
     ['Open',`<b>${open.length}</b>`],
     ['Riding on open',`<b>${money(open.reduce((s,b)=>s+(b.bonus?0:(b.stake||0)),0))}</b>`]
   ].map(([k,v])=>`<div class="tr-stat"><span>${k}</span>${v}</div>`).join('');
-  const pts=set.slice().sort((a,b)=>(a.date+(a.settled||'')).localeCompare(b.date+(b.settled||'')));
-  $('chartWrap').hidden=pts.length<2;
-  if(pts.length<2) return;
-  let c=0; const ys=[0,...pts.map(b=>c+=profit(b))];
-  const W=600,H=150,P=8,mx=Math.max(...ys,0),mn=Math.min(...ys,0),rg=(mx-mn)||1;
-  const X=i=>P+i*(W-2*P)/(ys.length-1), Y=v=>P+(mx-v)/rg*(H-2*P);
-  const line=ys.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-  const last=ys[ys.length-1], col=last>=0?'#62f0a8':'#ff6b6b';
-  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Profit over time, now ${esc(pm(last))}"><line x1="${P}" x2="${W-P}" y1="${Y(0)}" y2="${Y(0)}" stroke="#1b2523" stroke-dasharray="4 5"/><polyline points="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${X(ys.length-1)}" cy="${Y(last)}" r="4" fill="${col}"/></svg>`;
+  CHPTS=set.slice().sort((a,b)=>(a.date+(a.settled||'')).localeCompare(b.date+(b.settled||'')));
+  drawChart();
 }
+
+/* profit chart: running total, green above $0 / red below, hover or tap for each bet */
+let CHPTS=[], CHR=(()=>{try{return localStorage.getItem('ot-ch-range')||'all';}catch(e){return 'all';}})();
+$('chRange').onclick=e=>{const t=e.target.closest('button');if(!t)return;CHR=t.dataset.r;try{localStorage.setItem('ot-ch-range',CHR);}catch(_){} drawChart();};
+function niceStep(r){const raw=r/4,p=Math.pow(10,Math.floor(Math.log10(raw||1))),f=raw/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p;}
+function drawChart(){
+  $('chRange').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.r===CHR));
+  let pts=CHPTS, base=0;
+  if(CHR!=='all'){const from=addDays(sydDate(),-(+CHR-1)); const before=pts.filter(b=>b.date<from); base=before.reduce((s,b)=>s+profit(b),0); pts=pts.filter(b=>b.date>=from);}
+  $('chartWrap').hidden=CHPTS.length<2;
+  if(CHPTS.length<2) return;
+  let c=base; const ys=[base,...pts.map(b=>c+=profit(b))], last=ys[ys.length-1], chg=last-base;
+  $('chNow').className='tr-ch-now '+(last>0.005?'pos':last<-0.005?'neg':'');
+  $('chNow').innerHTML=`${pm(last)}${CHR!=='all'&&pts.length?`<small>${pm(chg)} in ${CHR} days</small>`:''}`;
+  if(pts.length<1){$('chart').innerHTML='<div style="color:#87978f;font-size:13px;padding:30px 0;text-align:center">No settled bets in this range.</div>';return;}
+  const W=Math.max(300,$('chart').clientWidth||600), H=Math.round(Math.min(240,Math.max(160,W*0.32))), L=48, Rp=10, T=10, B=24;
+  let mx=Math.max(...ys,0), mn=Math.min(...ys,0); if(mx-mn<1){mx+=1;mn-=1;}
+  const st=niceStep(mx-mn); mx=Math.ceil(mx/st)*st; mn=Math.floor(mn/st)*st;
+  const n=ys.length-1, X=i=>L+i*(W-L-Rp)/Math.max(1,n), Y=v=>T+(mx-v)/(mx-mn)*(H-T-B), y0=Y(0);
+  const line=ys.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const area=`M${X(0).toFixed(1)},${y0.toFixed(1)} L${line.split(' ').join(' L')} L${X(n).toFixed(1)},${y0.toFixed(1)} Z`;
+  const fmt=v=>(v<0?'-$':'$')+(Math.abs(v)>=1000?(Math.abs(v)/1000).toFixed(1).replace(/\.0$/,'')+'k':Math.abs(v)%1?Math.abs(v).toFixed(2):Math.abs(v));
+  let grid=''; for(let v=mn;v<=mx+1e-9;v+=st){const y=Y(v).toFixed(1); grid+=`<line x1="${L}" x2="${W-Rp}" y1="${y}" y2="${y}" stroke="${Math.abs(v)<1e-9?'#3a4a45':'#18211f'}" ${Math.abs(v)<1e-9?'':'stroke-dasharray="2 4"'}/><text x="${L-8}" y="${(+y+4).toFixed(1)}" text-anchor="end" fill="#6f7f78" font-size="11">${fmt(v)}</text>`;}
+  // date labels: first, last and up to 3 in between, spaced out
+  const lab=[0]; if(pts.length){const k=Math.min(3,Math.floor((W-L)/140)); for(let j=1;j<=k;j++) lab.push(Math.round(j*n/(k+1))); lab.push(n);}
+  const dateAt=i=>i===0?(pts[0]?pts[0].date:''):pts[i-1].date;
+  const xs=[...new Set(lab)].map(i=>`<text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="${i===0?'start':i===n?'end':'middle'}" fill="#6f7f78" font-size="11">${dateAt(i)?esc(fmtDay(dateAt(i)).replace(/^\w+,?\s/,'')):''}</text>`).join('');
+  const up='#62f0a8', dn='#ff6b6b', id='ch'+Math.random().toString(36).slice(2,7);
+  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Profit over time: ${esc(pm(last))} after ${pts.length} settled bets">
+    <defs><clipPath id="${id}a"><rect x="0" y="0" width="${W}" height="${y0}"/></clipPath><clipPath id="${id}b"><rect x="0" y="${y0}" width="${W}" height="${H}"/></clipPath>
+      <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${up}" stop-opacity=".28"/><stop offset="1" stop-color="${up}" stop-opacity="0"/></linearGradient>
+      <linearGradient id="${id}r" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${dn}" stop-opacity=".28"/><stop offset="1" stop-color="${dn}" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <path d="${area}" fill="url(#${id}g)" clip-path="url(#${id}a)"/><path d="${area}" fill="url(#${id}r)" clip-path="url(#${id}b)"/>
+    <polyline points="${line}" fill="none" stroke="${up}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${id}a)"/>
+    <polyline points="${line}" fill="none" stroke="${dn}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${id}b)"/>
+    ${xs}
+    <line id="${id}x" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="#3a4a45" visibility="hidden"/>
+    <circle id="${id}d" r="5" fill="#0e1312" stroke-width="2" visibility="hidden"/>
+    <circle cx="${X(n).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4.5" fill="${last>=0?up:dn}" stroke="#0e1312" stroke-width="2"/>
+    <rect x="${L}" y="0" width="${W-L-Rp}" height="${H}" fill="transparent" id="${id}h"/></svg>`;
+  const svg=$('chart').querySelector('svg'), tip=$('chTip'), cx=svg.querySelector('#'+id+'x'), dot=svg.querySelector('#'+id+'d');
+  const show=ev=>{
+    const r=svg.getBoundingClientRect(), px=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, sx=px*W/r.width;
+    const i=Math.max(0,Math.min(n,Math.round((sx-L)/((W-L-Rp)/Math.max(1,n)))));
+    const v=ys[i], col=v>=0?up:dn;
+    cx.setAttribute('x1',X(i));cx.setAttribute('x2',X(i));cx.setAttribute('visibility','visible');
+    dot.setAttribute('cx',X(i));dot.setAttribute('cy',Y(v));dot.setAttribute('stroke',col);dot.setAttribute('visibility','visible');
+    const b=pts[i-1], p=b?profit(b):0, c2=x=>x>0.005?'pos':x<-0.005?'neg':'';
+    tip.innerHTML=b?`<b>${esc(label(b))}</b>${esc(fmtDay(b.date))} · ${b.result==='won'?'Won':b.result==='lost'?'Lost':'Void'} <span class="${c2(p)}">${pm(p)}</span><br>Running total <span class="${c2(v)}">${pm(v)}</span>`:`<b>Start</b>Running total ${pm(v)}`;
+    tip.hidden=false;
+    const wr=$('chartWrap').getBoundingClientRect(), tx=r.left-wr.left+X(i)*r.width/W, ty=r.top-wr.top+Y(v)*r.height/H-10;
+    tip.style.left=Math.max(90,Math.min(wr.width-90,tx))+'px'; tip.style.top=Math.max(48,ty)+'px';
+  };
+  const hide=()=>{tip.hidden=true;cx.setAttribute('visibility','hidden');dot.setAttribute('visibility','hidden');};
+  const h=svg.querySelector('#'+id+'h'); h.addEventListener('mousemove',show); h.addEventListener('mouseleave',hide);
+  h.addEventListener('touchstart',show,{passive:true}); h.addEventListener('touchmove',show,{passive:true}); h.addEventListener('touchend',()=>setTimeout(hide,1800));
+}
+let chRs; addEventListener('resize',()=>{clearTimeout(chRs);chRs=setTimeout(drawChart,150);});
 
 /* ---------- list ---------- */
 let FILTER='open', PICKED=false;
