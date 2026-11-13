@@ -1,0 +1,22 @@
+name: NBL debug
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          K: ${{ secrets.APISPORTS_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request,collections
+          def api(p):
+              r=urllib.request.Request("https://v1.basketball.api-sports.io"+p,headers={"x-apisports-key":os.environ["K"]})
+              return json.load(urllib.request.urlopen(r))
+          for gid in (501239,501238):
+              j=api(f"/games/statistics/players?id={gid}")
+              c=collections.defaultdict(list)
+              for p in j["response"]: c[p["team"]["id"]].append(f'{p["player"]["name"]}:{p.get("type")}:{p.get("minutes")}:{p.get("points")}')
+              for t,v in c.items(): print("RES",gid,t,len(v),v)
+          for t in (3404,4):
+              j=api(f"/players?team={t}&season=2026-2027"); print("RES roster",t,j.get("results"))
+          PY
