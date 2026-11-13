@@ -28,7 +28,7 @@ BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U
 def push(title, lines, click=None, actions=()):
     """Send to Jayden's topic and, if set, the VIP members' topic. True if any send worked."""
     ok = False
-    for t in [x for x in (TOPIC, MEMBER_TOPIC) if x]:
+    for t in dict.fromkeys(x for x in (TOPIC, MEMBER_TOPIC) if x):   # same topic in both secrets = send once
         ok = _push(t, title, lines, click, actions) or ok
     if not TOPIC and not MEMBER_TOPIC:
         print("::warning::NTFY_TOPIC secret is empty - value alerts not sent")
