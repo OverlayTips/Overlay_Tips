@@ -206,15 +206,12 @@ function fair(it){
   const f=1/it.prob; return `<span class="hs-pill fair ${it.price>f?'over':''}" title="Our rated chance (${Math.round(it.prob*100)}%) as odds. Price above this = value.">Fair ${f.toFixed(2)}</span>`;
 }
 function lastGame(it){
-  const g=it.games||[]; if(!g.length) return '';
-  const under=/^u/i.test(String(it.line||'')), pt=it.point;
-  const hit=v=>under?v<pt:v>pt;
-  const d=x=>new Date(x+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'});
-  const one=(lab,x)=>`${lab} <b>${x[3]}</b> ${x[2]==='@'?'@':'v'} ${esc(x[1])} <span class="hs-dt">${d(x[0])}</span> <span class="${hit(x[3])?'hs-y':'hs-n'}">${hit(x[3])?'✓ cleared':'✗ missed'}</span>`;
-  const parts=[one('Last game:',g[0])];
-  const vo=g.find(x=>x[1]===it.opp);
-  if(vo&&vo!==g[0]) parts.push(one(`Last v ${esc(it.opp)}:`,vo));
-  return `<div class="hs-last">${parts.join('<br>')}</div>`;
+  const m=it.h2h||[]; if(!it.opp) return '';
+  if(!m.length) return `<div class="hs-last">Hasn't played ${esc(it.opp)} in the last two seasons</div>`;
+  const under=/^u/i.test(String(it.line||'')), pt=it.point, hit=v=>under?v<pt:v>pt;
+  const d=x=>new Date(x+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+  const one=x=>`<b>${x[3]}</b> <span class="hs-dt">${d(x[0])}</span> <span class="${hit(x[3])?'hs-y':'hs-n'}">${hit(x[3])?'✓':'✗'}</span>`;
+  return `<div class="hs-last">Last time v ${esc(it.opp)}: ${one(m[0])}${m.length>1?`<br><span class="hs-dt">Before that:</span> ${m.slice(1).map(one).join(' · ')}`:''}</div>`;
 }
 function card(it,val){
   const ls=status(it);
