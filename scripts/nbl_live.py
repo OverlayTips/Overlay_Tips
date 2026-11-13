@@ -14,6 +14,9 @@ import base64, hashlib, json, os, secrets, subprocess, sys, time, urllib.request
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import nbl_names
+
 KEY = os.environ.get("APISPORTS_KEY", "").strip()
 PW = os.environ.get("LIVE_PASSWORD", "").strip()
 OUT = os.environ.get("OUT", "nbl-live")
@@ -55,7 +58,7 @@ def snapshot():
         ps = []
         for p in by.get((g["id"], t["id"]), []):
             tp, ft, rb = p.get("threepoint_goals") or {}, p.get("freethrows_goals") or {}, p.get("rebounds") or {}
-            ps.append({"name": p["player"]["name"], "min": p.get("minutes") or "", "pts": p.get("points") or 0,
+            ps.append({"name": nbl_names.fix(p["player"]["name"]), "min": p.get("minutes") or "", "pts": p.get("points") or 0,
                        "reb": rb.get("total") or 0, "ast": p.get("assists") or 0, "fg3m": tp.get("total") or 0,
                        "fg3a": tp.get("attempts") or 0, "ftm": ft.get("total") or 0, "fta": ft.get("attempts") or 0,
                        "stl": 0, "blk": 0, "tov": 0, "pf": 0, "fgm": 0, "fga": 0, "oreb": 0, "dreb": 0, "pm": None,

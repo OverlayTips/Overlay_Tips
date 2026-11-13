@@ -168,8 +168,8 @@ def update(prev, prop_events, now, ts):
 
 def _given_first(n):
     """The feed mostly writes 'Cotton Bryce' (surname first): flip plain two-word names to 'Bryce Cotton'."""
-    t = n.split()
-    return f"{t[1]} {t[0]}" if len(t) == 2 and "." not in n else n
+    import nbl_names
+    return nbl_names.fix(n)
 
 
 def player_list(st, ts):
