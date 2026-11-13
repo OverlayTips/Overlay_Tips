@@ -40,16 +40,8 @@
 .tr-stat b{display:block;font-size:24px;font-weight:900;color:#ecf5f1;font-variant-numeric:tabular-nums;margin-top:2px}
 .tr-stat b.pos{color:var(--mint)}.tr-stat b.neg{color:#ff8a8a}
 .tr-chart{background:#0e1312;border:1px solid #1b2523;border-radius:14px;padding:10px 12px 6px;margin-bottom:18px}
-.tr-chart{position:relative}
-.tr-chart svg{width:100%;height:auto;display:block;touch-action:pan-y}
+.tr-chart svg{width:100%;height:auto;display:block}
 .tr-chart .cap{color:#87978f;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-.tr-ch-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:4px}
-.tr-ch-now{font:800 22px Archivo,system-ui,sans-serif;margin-top:2px}.tr-ch-now.pos{color:var(--mint)}.tr-ch-now.neg{color:#ff8a8a}
-.tr-ch-now small{font-size:12px;font-weight:600;color:#87978f;margin-left:6px}
-.tr-ch-r{display:flex;gap:4px}.tr-ch-r button{background:transparent;border:1px solid #1b2523;color:#87978f;border-radius:999px;padding:3px 9px;font:700 11.5px Archivo,system-ui,sans-serif;cursor:pointer}
-.tr-ch-r button.on{background:#1b2523;color:#e8f0ec}
-.tr-ch-tip{position:absolute;pointer-events:none;background:#141b19;border:1px solid #26332f;border-radius:10px;padding:7px 9px;font-size:12px;color:#c9d6d0;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.4);transform:translate(-50%,-100%);z-index:2}
-.tr-ch-tip b{display:block;color:#e8f0ec;font-size:13px}.tr-ch-tip .pos{color:var(--mint)}.tr-ch-tip .neg{color:#ff8a8a}
 .tr-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 12px}
 .tr-chips{display:flex;flex-wrap:wrap;gap:8px}
 .tr-chips button,.tr-btn{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
@@ -148,8 +140,9 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
 .tr-more{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 @media(max-width:600px){.tr-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:520px){.tr-form .three{grid-template-columns:1fr 1fr}.tr-form .three label:first-child{grid-column:1/-1}}
+.tr-shotnote{margin:12px 0 0;padding:9px 12px;border-radius:10px;background:rgba(76,208,125,.1);border:1px solid rgba(76,208,125,.3);font-size:13.5px;line-height:1.4}
 </style>
-<script src="nav.js?v=4"></script>
+<script src="nav.js?v=3"></script>
 <script src="keys.js?v=2"></script>
 </head>
 <body class="no-js">
@@ -204,7 +197,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
     <div class="tr-stats" id="stats"></div>
-    <div class="tr-chart" id="chartWrap" hidden><div class="tr-ch-h"><div><div class="cap">Profit over time</div><div class="tr-ch-now" id="chNow"></div></div><div class="tr-ch-r" id="chRange"><button type="button" data-r="7">7D</button><button type="button" data-r="30">30D</button><button type="button" data-r="all" class="on">All</button></div></div><div id="chart"></div><div class="tr-ch-tip" id="chTip" hidden></div></div>
+    <div class="tr-chart" id="chartWrap" hidden><div class="cap">Profit over time</div><div id="chart"></div></div>
     <div class="tr-bar">
       <div class="tr-chips" id="filt">
         <button type="button" data-f="live">Live <span id="liveN"></span></button>
@@ -217,6 +210,8 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
         <select id="bookF" class="tr-bookf" aria-label="Filter by bookie" hidden><option value="">All bookies</option></select>
         <select id="typeF" class="tr-bookf" aria-label="Filter by prop type" hidden><option value="">All prop types</option></select>
         <button type="button" class="tr-btn main" id="addBtn">+ Add bet</button>
+        <button type="button" class="tr-btn" id="shotBtn" title="Read a bet slip screenshot">📷 From screenshot</button>
+        <input type="file" id="shotFile" accept="image/*" hidden>
       </div>
     </div>
     <div class="tr-lb" id="liveBar" hidden></div>
@@ -227,7 +222,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <label class="tr-btn" style="cursor:pointer">Restore backup<input type="file" id="impFile" accept=".json,application/json" hidden></label>
       <button type="button" class="tr-btn reset" id="resetBtn">Reset tracker</button>
     </div>
-    <p class="tr-note"><span id="syncNote">Your bets are saved in this browser only, on this device. Nobody else can see them.</span> Export a backup now and then. Members can turn on live tracking to follow open NBA props during the game; they settle themselves at full time. Anything else, settle with the Won, Lost or Void buttons. <a href="hot.html">Hot stats →</a></p>
+    <p class="tr-note">Your bets are saved in this browser only, on this device. Nobody else can see them. Export a backup now and then, or to move them to another phone. Members can turn on live tracking to follow open NBA props during the game; they settle themselves at full time. Anything else, settle with the Won, Lost or Void buttons. <a href="hot.html">Hot stats →</a></p>
   </div>
 </section>
 </main>
@@ -251,13 +246,9 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <button type="button" data-k="sgm">SGM</button>
       <button type="button" data-k="other">Any other bet</button>
     </div>
-    <div class="tr-seg" id="lgSeg" style="margin-top:8px">
-      <button type="button" data-lg="NBA" class="on">NBA</button>
-      <button type="button" data-lg="NBL">NBL</button>
-    </div>
     <div id="propF">
       <label>Player<input id="fPlayer" list="players" autocomplete="off" placeholder="e.g. Jayson Tatum"></label>
-      <datalist id="players"></datalist><datalist id="playersNBL"></datalist>
+      <datalist id="players"></datalist>
       <div class="three" style="margin-top:12px">
         <label>Stat<select id="fStat"></select></label>
         <label>Over / Under<select id="fSide"><option>Over</option><option>Under</option></select></label>
@@ -282,6 +273,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <label>Date<input id="fDate" type="date"></label>
       <label>Type<select id="fBonus"><option value="">Cash bet</option><option value="bonus">Bonus bet (stake not returned)</option></select></label>
     </div>
+    <div class="tr-shotnote" id="fShot" hidden></div>
     <div class="err" id="fErr"></div>
     <div class="foot">
       <span class="ret" id="fRet"></span>
@@ -304,6 +296,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
   </div>
 </footer>
 
+<script src="slip.js?v=1" defer></script>
 <script>
 document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
@@ -325,11 +318,7 @@ const altKeys=n=>{const t=key(n).length?String(n).normalize('NFD').replace(/[̀-
 const STATS={'Points':r=>r.pts,'Rebounds':r=>r.reb,'Assists':r=>r.ast,'Threes':r=>r.tpm,'Pts + Reb + Ast':r=>r.pts+r.reb+r.ast,
   'Pts + Reb':r=>r.pts+r.reb,'Pts + Ast':r=>r.pts+r.ast,'Reb + Ast':r=>r.reb+r.ast,'Steals':r=>r.stl,'Blocks':r=>r.blk,
   'Steals + Blocks':r=>r.stl+r.blk,'Turnovers':r=>r.to};
-// API-Sports has no steals, blocks or turnovers for NBL players, so NBL bets can't use (or be settled on) those
-const NBL_NO=['Steals','Blocks','Steals + Blocks','Turnovers'];
-const statsFor=lg=>Object.keys(STATS).filter(s=>lg!=='NBL'||!NBL_NO.includes(s));
-const statOpts=lg=>statsFor(lg).map(s=>`<option>${esc(s)}</option>`).join('');
-$('fStat').innerHTML=statOpts('NBA');
+$('fStat').innerHTML=Object.keys(STATS).map(s=>`<option>${esc(s)}</option>`).join('');
 
 const sydDate=(d=new Date())=>d.toLocaleDateString('en-CA',{timeZone:TZ});
 const fmtDay=s=>new Date(s+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
@@ -340,32 +329,8 @@ const addDays=(s,n)=>{const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate
 
 /* ---------- storage ---------- */
 let BETS=[];
-// Saved on this device, and (when logged in to the members portal) to your account so every device has them.
-// Each bet carries "mod" (last changed); deletions are kept as {id,t} so they stay deleted on other devices.
-const DELK='ot-bets-del'; let DEL=[], SNAP={};
-const bare=b=>{const c={...b};delete c.mod;return JSON.stringify(c);};
-function snap(){SNAP={};for(const b of BETS)SNAP[b.id]=bare(b);}
-function load(){try{BETS=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(BETS))BETS=[];}catch(e){BETS=[];}
-  try{DEL=JSON.parse(localStorage.getItem(DELK)||'[]');if(!Array.isArray(DEL))DEL=[];}catch(e){DEL=[];} snap();}
-function store(){localStorage.setItem(KEY,JSON.stringify(BETS));localStorage.setItem(DELK,JSON.stringify(DEL.slice(-500)));}
-function save(){
-  const now=Date.now(), have=new Set(BETS.map(b=>b.id));
-  for(const b of BETS){const j=bare(b); if(SNAP[b.id]!==j){b.mod=now;SNAP[b.id]=j;}}
-  for(const id of Object.keys(SNAP)) if(!have.has(id)){DEL.push({id,t:now});delete SNAP[id];}
-  try{store();}catch(e){alert("Couldn't save in this browser (private mode?). Export a backup so you don't lose it.");return false;}
-  if(window.otPush) window.otPush();
-  return true;}
-// account sync hooks (used by the module script at the bottom)
-window.otPayload=()=>({bets:BETS,del:DEL.slice(-500)});
-window.otMergeCloud=c=>{
-  const by={}, dels={};
-  for(const d of [...DEL,...((c&&c.del)||[])]) if(d&&d.id) dels[d.id]=Math.max(dels[d.id]||0,+d.t||0);
-  for(const b of [...((c&&c.bets)||[]),...BETS]) if(b&&b.id&&(!by[b.id]||(+b.mod||0)>=(+by[b.id].mod||0))) by[b.id]=b;
-  BETS=Object.values(by).filter(b=>!(dels[b.id]>=(+b.mod||0)));
-  DEL=Object.entries(dels).map(([id,t])=>({id,t})).sort((a,b)=>a.t-b.t);
-  try{store();}catch(e){} snap(); draw(); if(typeof tick==='function') tick();
-};
-window.otSyncNote=on=>{const n=$('syncNote'); if(n) n.innerHTML=on?'Your bets are saved to your Overlay Tips account, so they show on any device you log in on. Nobody else can see them.':'Your bets are saved in this browser only, on this device. <a href="portal.html">Log in</a> to keep them in your account on every device. Nobody else can see them.';};
+function load(){try{BETS=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(BETS))BETS=[];}catch(e){BETS=[];}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(BETS));return true;}catch(e){alert("Couldn't save in this browser (private mode?). Export a backup so you don't lose it.");return false;}}
 const label=b=>b.kind==='prop'?`${b.player} ${b.side} ${b.line} ${b.stat}`:b.kind==='sgm'?`SGM · ${(b.legs||[]).length} legs`:b.desc;
 const legLabel=l=>`${l.player} ${l.side} ${l.line} ${l.stat}`;
 const profit=b=>!(b.stake>0)?0:b.result==='won'?b.stake*(b.odds-1):b.result==='lost'?(b.bonus?0:-b.stake):0;
@@ -405,68 +370,16 @@ function drawStats(){
     ['Open',`<b>${open.length}</b>`],
     ['Riding on open',`<b>${money(open.reduce((s,b)=>s+(b.bonus?0:(b.stake||0)),0))}</b>`]
   ].map(([k,v])=>`<div class="tr-stat"><span>${k}</span>${v}</div>`).join('');
-  CHPTS=set.slice().sort((a,b)=>(a.date+(a.settled||'')).localeCompare(b.date+(b.settled||'')));
-  drawChart();
-}
-
-/* profit chart: running total, green above $0 / red below, hover or tap for each bet */
-let CHPTS=[], CHR=(()=>{try{return localStorage.getItem('ot-ch-range')||'all';}catch(e){return 'all';}})();
-$('chRange').onclick=e=>{const t=e.target.closest('button');if(!t)return;CHR=t.dataset.r;try{localStorage.setItem('ot-ch-range',CHR);}catch(_){} drawChart();};
-function niceStep(r){const raw=r/4,p=Math.pow(10,Math.floor(Math.log10(raw||1))),f=raw/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p;}
-function drawChart(){
-  $('chRange').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.r===CHR));
-  let pts=CHPTS, base=0;
-  if(CHR!=='all'){const from=addDays(sydDate(),-(+CHR-1)); const before=pts.filter(b=>b.date<from); base=before.reduce((s,b)=>s+profit(b),0); pts=pts.filter(b=>b.date>=from);}
-  $('chartWrap').hidden=CHPTS.length<2;
-  if(CHPTS.length<2) return;
-  let c=base; const ys=[base,...pts.map(b=>c+=profit(b))], last=ys[ys.length-1], chg=last-base;
-  $('chNow').className='tr-ch-now '+(last>0.005?'pos':last<-0.005?'neg':'');
-  $('chNow').innerHTML=`${pm(last)}${CHR!=='all'&&pts.length?`<small>${pm(chg)} in ${CHR} days</small>`:''}`;
-  if(pts.length<1){$('chart').innerHTML='<div style="color:#87978f;font-size:13px;padding:30px 0;text-align:center">No settled bets in this range.</div>';return;}
-  const W=Math.max(300,$('chart').clientWidth||600), H=Math.round(Math.min(240,Math.max(160,W*0.32))), L=48, Rp=10, T=10, B=24;
-  let mx=Math.max(...ys,0), mn=Math.min(...ys,0); if(mx-mn<1){mx+=1;mn-=1;}
-  const st=niceStep(mx-mn); mx=Math.ceil(mx/st)*st; mn=Math.floor(mn/st)*st;
-  const n=ys.length-1, X=i=>L+i*(W-L-Rp)/Math.max(1,n), Y=v=>T+(mx-v)/(mx-mn)*(H-T-B), y0=Y(0);
+  const pts=set.slice().sort((a,b)=>(a.date+(a.settled||'')).localeCompare(b.date+(b.settled||'')));
+  $('chartWrap').hidden=pts.length<2;
+  if(pts.length<2) return;
+  let c=0; const ys=[0,...pts.map(b=>c+=profit(b))];
+  const W=600,H=150,P=8,mx=Math.max(...ys,0),mn=Math.min(...ys,0),rg=(mx-mn)||1;
+  const X=i=>P+i*(W-2*P)/(ys.length-1), Y=v=>P+(mx-v)/rg*(H-2*P);
   const line=ys.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-  const area=`M${X(0).toFixed(1)},${y0.toFixed(1)} L${line.split(' ').join(' L')} L${X(n).toFixed(1)},${y0.toFixed(1)} Z`;
-  const fmt=v=>(v<0?'-$':'$')+(Math.abs(v)>=1000?(Math.abs(v)/1000).toFixed(1).replace(/\.0$/,'')+'k':Math.abs(v)%1?Math.abs(v).toFixed(2):Math.abs(v));
-  let grid=''; for(let v=mn;v<=mx+1e-9;v+=st){const y=Y(v).toFixed(1); grid+=`<line x1="${L}" x2="${W-Rp}" y1="${y}" y2="${y}" stroke="${Math.abs(v)<1e-9?'#3a4a45':'#18211f'}" ${Math.abs(v)<1e-9?'':'stroke-dasharray="2 4"'}/><text x="${L-8}" y="${(+y+4).toFixed(1)}" text-anchor="end" fill="#6f7f78" font-size="11">${fmt(v)}</text>`;}
-  // date labels: first, last and up to 3 in between, spaced out
-  const lab=[0]; if(pts.length){const k=Math.min(3,Math.floor((W-L)/140)); for(let j=1;j<=k;j++) lab.push(Math.round(j*n/(k+1))); lab.push(n);}
-  const dateAt=i=>i===0?(pts[0]?pts[0].date:''):pts[i-1].date;
-  const xs=[...new Set(lab)].map(i=>`<text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="${i===0?'start':i===n?'end':'middle'}" fill="#6f7f78" font-size="11">${dateAt(i)?esc(fmtDay(dateAt(i)).replace(/^\w+,?\s/,'')):''}</text>`).join('');
-  const up='#62f0a8', dn='#ff6b6b', id='ch'+Math.random().toString(36).slice(2,7);
-  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Profit over time: ${esc(pm(last))} after ${pts.length} settled bets">
-    <defs><clipPath id="${id}a"><rect x="0" y="0" width="${W}" height="${y0}"/></clipPath><clipPath id="${id}b"><rect x="0" y="${y0}" width="${W}" height="${H}"/></clipPath>
-      <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${up}" stop-opacity=".28"/><stop offset="1" stop-color="${up}" stop-opacity="0"/></linearGradient>
-      <linearGradient id="${id}r" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${dn}" stop-opacity=".28"/><stop offset="1" stop-color="${dn}" stop-opacity="0"/></linearGradient></defs>
-    ${grid}
-    <path d="${area}" fill="url(#${id}g)" clip-path="url(#${id}a)"/><path d="${area}" fill="url(#${id}r)" clip-path="url(#${id}b)"/>
-    <polyline points="${line}" fill="none" stroke="${up}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${id}a)"/>
-    <polyline points="${line}" fill="none" stroke="${dn}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${id}b)"/>
-    ${xs}
-    <line id="${id}x" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="#3a4a45" visibility="hidden"/>
-    <circle id="${id}d" r="5" fill="#0e1312" stroke-width="2" visibility="hidden"/>
-    <circle cx="${X(n).toFixed(1)}" cy="${Y(last).toFixed(1)}" r="4.5" fill="${last>=0?up:dn}" stroke="#0e1312" stroke-width="2"/>
-    <rect x="${L}" y="0" width="${W-L-Rp}" height="${H}" fill="transparent" id="${id}h"/></svg>`;
-  const svg=$('chart').querySelector('svg'), tip=$('chTip'), cx=svg.querySelector('#'+id+'x'), dot=svg.querySelector('#'+id+'d');
-  const show=ev=>{
-    const r=svg.getBoundingClientRect(), px=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, sx=px*W/r.width;
-    const i=Math.max(0,Math.min(n,Math.round((sx-L)/((W-L-Rp)/Math.max(1,n)))));
-    const v=ys[i], col=v>=0?up:dn;
-    cx.setAttribute('x1',X(i));cx.setAttribute('x2',X(i));cx.setAttribute('visibility','visible');
-    dot.setAttribute('cx',X(i));dot.setAttribute('cy',Y(v));dot.setAttribute('stroke',col);dot.setAttribute('visibility','visible');
-    const b=pts[i-1], p=b?profit(b):0, c2=x=>x>0.005?'pos':x<-0.005?'neg':'';
-    tip.innerHTML=b?`<b>${esc(label(b))}</b>${esc(fmtDay(b.date))} · ${b.result==='won'?'Won':b.result==='lost'?'Lost':'Void'} <span class="${c2(p)}">${pm(p)}</span><br>Running total <span class="${c2(v)}">${pm(v)}</span>`:`<b>Start</b>Running total ${pm(v)}`;
-    tip.hidden=false;
-    const wr=$('chartWrap').getBoundingClientRect(), tx=r.left-wr.left+X(i)*r.width/W, ty=r.top-wr.top+Y(v)*r.height/H-10;
-    tip.style.left=Math.max(90,Math.min(wr.width-90,tx))+'px'; tip.style.top=Math.max(48,ty)+'px';
-  };
-  const hide=()=>{tip.hidden=true;cx.setAttribute('visibility','hidden');dot.setAttribute('visibility','hidden');};
-  const h=svg.querySelector('#'+id+'h'); h.addEventListener('mousemove',show); h.addEventListener('mouseleave',hide);
-  h.addEventListener('touchstart',show,{passive:true}); h.addEventListener('touchmove',show,{passive:true}); h.addEventListener('touchend',()=>setTimeout(hide,1800));
+  const last=ys[ys.length-1], col=last>=0?'#62f0a8':'#ff6b6b';
+  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Profit over time, now ${esc(pm(last))}"><line x1="${P}" x2="${W-P}" y1="${Y(0)}" y2="${Y(0)}" stroke="#1b2523" stroke-dasharray="4 5"/><polyline points="${line}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${X(ys.length-1)}" cy="${Y(last)}" r="4" fill="${col}"/></svg>`;
 }
-let chRs; addEventListener('resize',()=>{clearTimeout(chRs);chRs=setTimeout(drawChart,150);});
 
 /* ---------- list ---------- */
 let FILTER='open', PICKED=false;
@@ -566,7 +479,7 @@ $('list').onclick=e=>{
   if(t.dataset.g){const g=t.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]) fetchPlays(g);} drawList(); return;}
   const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del||t.dataset.copy)); if(!b) return;
   if(t.dataset.copy){
-    openForm(null,{kind:b.kind,lg:b.lg,player:b.player,stat:b.stat,side:b.side,event:b.event,book:b.book,stake:b.stake,bonus:b.bonus,date:sydDate(),legs:b.kind==='sgm'?(b.legs||[]).map(l=>({player:l.player,stat:l.stat,side:l.side})):undefined});
+    openForm(null,{kind:b.kind,player:b.player,stat:b.stat,side:b.side,event:b.event,book:b.book,stake:b.stake,bonus:b.bonus,date:sydDate(),legs:b.kind==='sgm'?(b.legs||[]).map(l=>({player:l.player,stat:l.stat,side:l.side})):undefined});
     $('dlgTitle').textContent='Add a bet (copied)';
     setTimeout(()=>(b.kind==='prop'?$('fStat'):$('fDesc')).focus(),60);
     return;
@@ -582,22 +495,17 @@ $('typeF').onchange=e=>{PTYPE=e.target.value;try{localStorage.setItem('ot-type-f
 $('bookF').onchange=e=>{BOOK=e.target.value;try{localStorage.setItem('ot-book-filter',BOOK);}catch(_){} draw();};
 
 /* ---------- add / edit ---------- */
-let KIND='prop', EDIT=null, LGF='NBA';
-function setLg(lg){LGF=lg==='NBL'?'NBL':'NBA';$('lgSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.lg===LGF));
-  const list=LGF==='NBL'?'playersNBL':'players', ph=LGF==='NBL'?'e.g. Bryce Cotton':'e.g. Jayson Tatum';
-  const fix=(sel,inp)=>{const v=sel.value;sel.innerHTML=statOpts(LGF);sel.value=statsFor(LGF).includes(v)?v:'Points';inp.setAttribute('list',list);inp.placeholder=ph;};
-  fix($('fStat'),$('fPlayer')); $('legs').querySelectorAll('.tr-leg').forEach(d=>fix(d.querySelector('.ls'),d.querySelector('.lp')));}
-$('lgSeg').onclick=e=>{const t=e.target.closest('button');if(t)setLg(t.dataset.lg);};
-function setKind(k){KIND=k;$('kind').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===k));$('propF').hidden=k!=='prop';$('sgmF').hidden=k!=='sgm';$('otherF').hidden=k!=='other';$('lgSeg').hidden=k==='other';
+let KIND='prop', EDIT=null;
+function setKind(k){KIND=k;$('kind').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===k));$('propF').hidden=k!=='prop';$('sgmF').hidden=k!=='sgm';$('otherF').hidden=k!=='other';
   if(k==='sgm'&&!$('legs').children.length){addLegRow();addLegRow();}}
 function addLegRow(l={}){
   const d=document.createElement('div'); d.className='tr-leg';
   d.innerHTML=`<div class="lh"><span>Leg</span><button type="button" aria-label="Remove leg">×</button></div>
-    <label>Player<input class="lp" list="${LGF==='NBL'?'playersNBL':'players'}" autocomplete="off" placeholder="${LGF==='NBL'?'e.g. Bryce Cotton':'e.g. Jayson Tatum'}"></label>
-    <div class="three" style="margin-top:8px"><label>Stat<select class="ls">${statOpts(LGF)}</select></label>
+    <label>Player<input class="lp" list="players" autocomplete="off" placeholder="e.g. Jayson Tatum"></label>
+    <div class="three" style="margin-top:8px"><label>Stat<select class="ls">${Object.keys(STATS).map(s=>`<option>${esc(s)}</option>`).join('')}</select></label>
     <label>Over / Under<select class="lo"><option>Over</option><option>Under</option></select></label>
     <label>Line<input class="ll" type="number" step="0.5" inputmode="decimal" placeholder="24.5"></label></div>`;
-  d.querySelector('.lp').value=l.player||''; d.querySelector('.ls').value=statsFor(LGF).includes(l.stat)?l.stat:'Points';
+  d.querySelector('.lp').value=l.player||''; d.querySelector('.ls').value=STATS[l.stat]?l.stat:'Points';
   d.querySelector('.lo').value=l.side==='Under'?'Under':'Over'; d.querySelector('.ll').value=l.line??'';
   d.querySelector('.lh button').onclick=()=>{d.remove();numberLegs();};
   $('legs').appendChild(d); numberLegs(); return d;
@@ -607,11 +515,11 @@ $('addLeg').onclick=()=>addLegRow().querySelector('.lp').focus();
 function readLegs(){return [...$('legs').children].map(d=>({player:d.querySelector('.lp').value.trim(),stat:d.querySelector('.ls').value,side:d.querySelector('.lo').value,line:d.querySelector('.ll').value===''?NaN:+d.querySelector('.ll').value}));}
 $('kind').onclick=e=>{const t=e.target.closest('button');if(t)setKind(t.dataset.k);};
 function openForm(b,pre){
-  EDIT=b||null; const v=b||pre||{};
+  $('fShot').hidden=true; EDIT=b||null; const v=b||pre||{};
   $('dlgTitle').textContent=b?'Edit bet':'Add a bet'; $('fSave').textContent=b?'Save changes':'Save bet';
-  $('legs').innerHTML=''; setLg(v.lg); (v.legs||[]).forEach(l=>addLegRow(l));
+  $('legs').innerHTML=''; (v.legs||[]).forEach(l=>addLegRow(l));
   setKind(v.kind||'prop');
-  $('fPlayer').value=v.player||''; $('fStat').value=statsFor(LGF).includes(v.stat)?v.stat:'Points'; $('fSide').value=v.side==='Under'?'Under':'Over';
+  $('fPlayer').value=v.player||''; $('fStat').value=STATS[v.stat]?v.stat:'Points'; $('fSide').value=v.side==='Under'?'Under':'Over';
   $('fLine').value=v.line??''; $('fDesc').value=v.desc||''; $('fEvent').value=v.event||'';
   $('fBook').value=v.book||(()=>{try{return localStorage.getItem('ot-last-book')||'';}catch(e){return '';}})();
   $('fOdds').value=v.odds||''; $('fStake').value=v.stake>0?v.stake:''; $('fDate').value=v.date||sydDate(); $('fBonus').value=v.bonus?'bonus':'';
@@ -620,7 +528,24 @@ function openForm(b,pre){
 }
 function ret(){const o=+$('fOdds').value,s=+$('fStake').value;$('fRet').textContent=o>1&&s>0?`Pays ${money(o*s-($('fBonus').value?s:0))}${$('fBonus').value?' (bonus)':''}`:'';}
 ['fOdds','fStake','fBonus'].forEach(i=>$(i).addEventListener('input',ret));
-$('addBtn').onclick=()=>openForm();
+$('addBtn').onclick=()=>{$('fShot').hidden=true;openForm();};
+/* ---------- add from a bet slip screenshot (read on this device, nothing is uploaded) ---------- */
+$('shotBtn').onclick=()=>$('shotFile').click();
+$('shotFile').onchange=async()=>{
+  const f=$('shotFile').files[0]; $('shotFile').value=''; if(!f) return;
+  const btn=$('shotBtn'), was=btn.textContent; btn.disabled=true;
+  const names=[...$('players').options].map(o=>o.value);
+  try{
+    const {bet}=await OTSlip.read(f,names,msg=>{btn.textContent=msg;});
+    const found=bet.kind==='sgm'?`${bet.legs.length}-leg SGM`:bet.kind==='prop'?`${bet.player} ${bet.side} ${bet.line} ${bet.stat}`:bet.desc||'a bet';
+    const miss=[bet.kind==='prop'&&!bet.player&&'player',!(bet.odds>1)&&'odds',!(bet.stake>0)&&'stake'].filter(Boolean);
+    openForm(null,{...bet,date:sydDate()});
+    $('fShot').innerHTML=`📷 Read from your screenshot: <b>${esc(found)}</b>. Check everything before saving${miss.length?` (couldn't read the ${miss.join(', ')})`:''}.${bet.more?` That screenshot had ${bet.more+1} bets: this is the first one.`:''}`;
+    $('fShot').hidden=false;
+  }catch(e){
+    alert("Couldn't read that screenshot ("+(e&&e.message||e)+"). Try a clearer screenshot of just the bet slip, or add it by hand.");
+  }finally{btn.textContent=was;btn.disabled=false;}
+};
 $('fCancel').onclick=()=>$('dlg').close();
 $('form').onsubmit=e=>{
   e.preventDefault();
@@ -637,8 +562,7 @@ $('form').onsubmit=e=>{
   if(!(odds>1)) return err('Odds need to be more than 1.00.');
   if($('fStake').value!==''&&!(stake>0)) return err('Stake needs to be more than $0, or leave it blank.');
   const b=EDIT||{id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),created:Date.now(),result:'open'};
-  const changed=EDIT&&((EDIT.lg||'NBA')!==LGF||EDIT.player!==$('fPlayer').value.trim()||EDIT.stat!==$('fStat').value||EDIT.side!==$('fSide').value||+EDIT.line!==line||EDIT.date!==$('fDate').value);
-  if(KIND!=='other') b.lg=LGF; else delete b.lg;
+  const changed=EDIT&&(EDIT.player!==$('fPlayer').value.trim()||EDIT.stat!==$('fStat').value||EDIT.side!==$('fSide').value||+EDIT.line!==line||EDIT.date!==$('fDate').value);
   Object.assign(b,{kind:KIND,player:KIND==='prop'?$('fPlayer').value.trim():'',stat:$('fStat').value,side:$('fSide').value,line:KIND==='prop'?line:null,
     desc:KIND==='other'?$('fDesc').value.trim():'',event:KIND==='other'?$('fEvent').value.trim():'',book:$('fBook').value.trim(),
     odds:Math.round(odds*100)/100,stake:stake>0?Math.round(stake*100)/100:0,date:$('fDate').value||sydDate(),bonus:!!$('fBonus').value});
@@ -654,7 +578,7 @@ $('form').onsubmit=e=>{
 function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 $('expBtn').onclick=()=>dl(`overlay-bets-${sydDate()}.json`,JSON.stringify({v:1,bets:BETS},null,1),'application/json');
 $('resetBtn').onclick=()=>{const d=$('resetDlg'); if(d.showModal) d.showModal(); else if(confirm("Reset your tracker? This deletes every bet and your stats. FYI this can't be undone.")) doReset();};
-function doReset(){BETS=[];save(); draw(); const d=$('resetDlg'); if(d.open) d.close();}
+function doReset(){BETS=[];try{localStorage.removeItem(KEY);}catch(e){} draw(); const d=$('resetDlg'); if(d.open) d.close();}
 $('resetCancel').onclick=()=>$('resetDlg').close();
 $('resetExp').onclick=()=>$('expBtn').click();
 $('resetGo').onclick=doReset;
@@ -746,7 +670,6 @@ async function tick(){
   let changed=false, anyLive=false;
   const legLive=b=>{
     const m=rowOf(b.player); if(!m||!STATS[b.stat]) return false;
-    if(m.g.lg==='NBL'&&NBL_NO.includes(b.stat)) return false;
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
@@ -792,37 +715,14 @@ Promise.all([
 ]).then(([h,pl,nb])=>{
   const names=new Map();
   for(const p of pl.players||[]) names.set(p.n,p.t);
-  const nbl=new Map(); for(const p of nb.players||[]) nbl.set(p.n,p.t||'NBL');
-  $('playersNBL').innerHTML=[...nbl].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
+  for(const p of nb.players||[]) if(!names.has(p.n)) names.set(p.n,(p.t?p.t+' · ':'')+'NBL');
   for(const i of (h.items||[]).concat(h.value||[])) if(i.player&&!names.has(i.player)) names.set(i.player,'');
   $('players').innerHTML=[...names].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
 });
 if(Q.get('add')){
-  openForm(null,{kind:'prop',lg:Q.get('lg')||'NBA',player:Q.get('player')||'',stat:Q.get('stat')||'Points',side:Q.get('side')||'Over',line:Q.get('line')||'',odds:Q.get('odds')||'',book:Q.get('book')||''});
+  openForm(null,{kind:'prop',player:Q.get('player')||'',stat:Q.get('stat')||'Points',side:Q.get('side')||'Over',line:Q.get('line')||'',odds:Q.get('odds')||'',book:Q.get('book')||''});
   history.replaceState(null,'',location.pathname);
 }
-</script>
-<script type="module">
-// account sync: pull this member's saved bets, merge with this device, then keep the account up to date
-(async()=>{
-  try{
-    const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-    const sb=createClient('https://enldqvdxygppxwrauqlw.supabase.co','sb_publishable_Zznc-4Nv6Ibb_SyE55jn6A_IqSxnYW8');
-    const {data:{session}}=await sb.auth.getSession();
-    if(!session){window.otSyncNote(false);return;}
-    const uid=session.user.id;
-    const {data,error}=await sb.from('user_bets').select('bets,del').eq('user_id',uid).maybeSingle();
-    if(error){console.warn('bet sync',error.message);window.otSyncNote(false);return;}
-    let t=null, busy=false, again=false;
-    const push=async()=>{ if(busy){again=true;return;} busy=true;
-      try{const p=window.otPayload(); const {error}=await sb.from('user_bets').upsert({user_id:uid,bets:p.bets,del:p.del,updated_at:new Date().toISOString()}); if(error)console.warn('bet sync',error.message);}catch(e){}
-      busy=false; if(again){again=false;push();} };
-    window.otPush=()=>{clearTimeout(t);t=setTimeout(push,1200);};
-    window.otMergeCloud(data||{bets:[],del:[]});
-    window.otSyncNote(true);
-    push();
-  }catch(e){console.warn('bet sync',e);}
-})();
 </script>
 </body>
 </html>
