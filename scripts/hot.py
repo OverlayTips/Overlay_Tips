@@ -4,9 +4,16 @@ Published UNENCRYPTED as odds-data/hot.json, so keep it to what the public page 
 For each player + stat we look at every over line the Aussie bookies offer (main over/unders and
 ladders like 25+), keep the lines he's cleared in 80%+ of his last 10 games, and show the one that
 pays the most. Ranked by last-10 hit rate, then last-5, then price.
-"value" = best value picks: where his hit rate beats the chance the price implies by the most
-(prob x price - 1; prob = 30% his last 10 + season hit rate, nudged toward 50% for small samples,
- 70% the bookies' consensus at that line with the margin taken off).
+"value" = best value picks: expected return per $1 at the best price (prob x price - 1).
+prob leans mostly on the market, because bookie prices already know about minutes, injuries and
+matchups that a 10-game hit rate can't see:
+  market chance: Pinnacle's no-vig price at that line if it has one (sharpest), else the median no-vig
+                 chance across Aussie bookies pricing both Over and Under, else the median Over price
+                 with a ~10% ladder margin taken off;
+  form chance:   last 5 / last 10 / season hit rates (recent games count more), shrunk toward the
+                 market chance so a hot small sample can't run away with it;
+  prob = 15-25% form + the rest market. Anything above 15% expected return is treated as a likely
+  stale or wrong price and left out.
 """
 from datetime import datetime, timedelta
 
@@ -29,7 +36,16 @@ MIN_GAMES, MIN_HIT, MIN_PRICE, MAX_PRICE = 6, 0.8, 1.30, 4.0
 LIMIT, PER_PLAYER = 30, 2
 VALUE_MIN_HIT, VALUE_MIN, VALUE_LIMIT = 0.7, 4.0, 8   # value picks: 70%+ last 10, 4%+ expected return, one per player
 VALUE_BOOKS, VALUE_MAX_PRICE = 3, 3.0   # need 3+ bookies on the line; skip long shots
-HIT_WEIGHT, MARGIN = 0.3, 0.94           # 30% hit rate, 70% bookie consensus; ~6% margin off the median
+MARGIN_ONE_SIDED = 0.90                  # Over-only (ladder) prices: ~10% margin off the median
+FORM_W = {"pin": 0.15, "two": 0.2, "one": 0.25}   # how much form counts vs the market, by market source
+SHRINK = 8                               # pseudo-games pulling the form estimate toward the market
+VALUE_CAP = 15.0                         # expected return above this = stale/wrong price, not value
+
+
+def _median(xs):
+    xs = sorted(xs)
+    n = len(xs)
+    return xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2
 
 
 def _book(b):
@@ -46,7 +62,7 @@ def build(prop_events, stats, now, ts):
         if start <= now:
             continue
         # best over price per (market, player, point)
-        best, allp = {}, {}
+        best, allp, allu = {}, {}, {}
         for b in ev.get("bookmakers", []):
             if b["key"] in SKIP_BOOKS:
                 continue
@@ -55,13 +71,34 @@ def build(prop_events, stats, now, ts):
                 if mk not in STAT:
                     continue
                 for o in m.get("outcomes", []):
-                    if o.get("name") != "Over" or o.get("point") is None or not o.get("description"):
+                    if o.get("point") is None or not o.get("description"):
                         continue
                     k = (mk, o["description"], float(o["point"]))
+                    if o.get("name") == "Under":
+                        bu = allu.setdefault(k, {})
+                        bu[_book(b)] = max(bu.get(_book(b), 0), o["price"])
+                        continue
+                    if o.get("name") != "Over":
+                        continue
                     bp = allp.setdefault(k, {})
                     bp[_book(b)] = max(bp.get(_book(b), 0), o["price"])
                     if k not in best or o["price"] > best[k][0]:
                         best[k] = (o["price"], _book(b), m["key"].endswith("_alternate"))
+        # Pinnacle (sharp) no-vig chance of the Over, per (market, player, point)
+        pin = {}
+        sb = ev.get("sharp") or {}
+        for m in sb.get("markets", []):
+            mk = m["key"].replace("_alternate", "")
+            if mk not in STAT:
+                continue
+            pr = {}
+            for o in m.get("outcomes", []):
+                if o.get("point") is not None and o.get("description"):
+                    pr.setdefault((mk, o["description"], float(o["point"])), {})[o.get("name")] = o["price"]
+            for k, sides in pr.items():
+                if "Over" in sides and "Under" in sides:
+                    io, iu = 1 / sides["Over"], 1 / sides["Under"]
+                    pin[k] = io / (io + iu)
         h, a = teams.get(ev["home_team"]), teams.get(ev["away_team"])
         top, vtop = {}, {}
         for (mk, desc, pt), (price, book, ladder) in best.items():
@@ -83,22 +120,33 @@ def build(prop_events, stats, now, ts):
                 continue
             opp = a if p.get("team") == h else h if p.get("team") == a else None
             vs = [g for g in gs if opp and g[1] == opp]
-            # chance he clears it: last 10 counted twice (once on its own, once in the season), pulled
-            # a little toward 50% so a perfect small sample doesn't read as a sure thing
-            p_hit = (h10 + hs + 1) / (len(l10) + len(gs) + 2)
-            # then blended with what the bookies as a group think (median price, margin taken off),
-            # because a hit rate over ~10 games misses a lot (minutes, matchups, injuries)
             ps = sorted(allp[(mk, desc, pt)].values())
-            med = ps[len(ps) // 2] if len(ps) % 2 else (ps[len(ps) // 2 - 1] + ps[len(ps) // 2]) / 2
-            p_mkt = min(0.97, MARGIN / med)
-            prob = HIT_WEIGHT * p_hit + (1 - HIT_WEIGHT) * p_mkt
+            med = _median(ps)
+            # market chance: sharp first, then two-sided Aussie consensus, then one-sided with a margin off
+            k3 = (mk, desc, pt)
+            ov, un = allp.get(k3, {}), allu.get(k3, {})
+            both = [(1 / ov[bk]) / (1 / ov[bk] + 1 / un[bk]) for bk in ov if bk in un]
+            if k3 in pin:
+                p_mkt, src = pin[k3], "pin"
+            elif len(both) >= 3:
+                p_mkt, src = _median(sorted(both)), "two"
+            else:
+                p_mkt, src = min(0.95, MARGIN_ONE_SIDED / med), "one"
+            # form chance: last 5 x3, last 10 x2, season x1, shrunk toward the market
+            wh = 3 * h5 + 2 * h10 + hs
+            wn = 3 * len(l5) + 2 * len(l10) + len(gs)
+            wn_eff = wn / 6   # weighted games -> roughly "games of evidence"
+            p_form = (wh / wn * wn_eff + SHRINK * p_mkt) / (wn_eff + SHRINK)
+            p_hit = (h10 + hs + 1) / (len(l10) + len(gs) + 2)   # shown on the card as "Form"
+            w = FORM_W[src]
+            prob = w * p_form + (1 - w) * p_mkt
             item = {
                 "player": p.get("n") or desc, "team": p.get("team"), "opp": opp,
                 "game": f"{ev['away_team']} @ {ev['home_team']}", "start": ev["commence_time"],
                 "stat": label, "line": f"{int(pt + 0.5)}+", "point": pt, "price": price, "book": book,
                 "l10": [h10, len(l10)], "l5": [h5, len(l5)], "vs": [hit(vs), len(vs)], "season": [hs, len(gs)],
                 "avg": round(sum(f(g) for g in l10) / len(l10), 1),
-                "prob": round(prob, 3), "hit": round(p_hit, 3), "mkt": round(p_mkt, 3), "books": len(ps), "value": round((prob * price - 1) * 100, 1),
+                "prob": round(prob, 3), "hit": round(p_hit, 3), "mkt": round(p_mkt, 3), "msrc": src, "books": len(ps), "value": round((prob * price - 1) * 100, 1),
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
                 "games": [[g[0], g[1], g[2], f(g)] for g in l10],
             }
@@ -106,7 +154,7 @@ def build(prop_events, stats, now, ts):
             key = (desc, mk)
             if h10 / len(l10) >= MIN_HIT and (key not in top or price > top[key]["price"]):
                 top[key] = item
-            if (item["value"] >= VALUE_MIN and len(ps) >= VALUE_BOOKS and price <= VALUE_MAX_PRICE
+            if (VALUE_MIN <= item["value"] <= VALUE_CAP and len(ps) >= VALUE_BOOKS and price <= VALUE_MAX_PRICE
                     and price <= med * 1.25) and (key not in vtop or item["value"] > vtop[key]["value"]):
                 vtop[key] = item
         cands += top.values()
