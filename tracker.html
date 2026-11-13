@@ -148,6 +148,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
 .tr-more{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 @media(max-width:600px){.tr-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:520px){.tr-form .three{grid-template-columns:1fr 1fr}.tr-form .three label:first-child{grid-column:1/-1}}
+.tr-shotnote{margin:12px 0 0;padding:9px 12px;border-radius:10px;background:rgba(76,208,125,.1);border:1px solid rgba(76,208,125,.3);font-size:13.5px;line-height:1.4}
 </style>
 <script src="nav.js?v=4"></script>
 <script src="keys.js?v=2"></script>
@@ -217,6 +218,8 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
         <select id="bookF" class="tr-bookf" aria-label="Filter by bookie" hidden><option value="">All bookies</option></select>
         <select id="typeF" class="tr-bookf" aria-label="Filter by prop type" hidden><option value="">All prop types</option></select>
         <button type="button" class="tr-btn main" id="addBtn">+ Add bet</button>
+        <button type="button" class="tr-btn" id="shotBtn" title="Read a bet slip screenshot">📷 From screenshot</button>
+        <input type="file" id="shotFile" accept="image/*" hidden>
       </div>
     </div>
     <div class="tr-lb" id="liveBar" hidden></div>
@@ -282,6 +285,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <label>Date<input id="fDate" type="date"></label>
       <label>Type<select id="fBonus"><option value="">Cash bet</option><option value="bonus">Bonus bet (stake not returned)</option></select></label>
     </div>
+    <div class="tr-shotnote" id="fShot" hidden></div>
     <div class="err" id="fErr"></div>
     <div class="foot">
       <span class="ret" id="fRet"></span>
@@ -304,6 +308,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
   </div>
 </footer>
 
+<script src="slip.js?v=1" defer></script>
 <script>
 document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
@@ -607,7 +612,7 @@ $('addLeg').onclick=()=>addLegRow().querySelector('.lp').focus();
 function readLegs(){return [...$('legs').children].map(d=>({player:d.querySelector('.lp').value.trim(),stat:d.querySelector('.ls').value,side:d.querySelector('.lo').value,line:d.querySelector('.ll').value===''?NaN:+d.querySelector('.ll').value}));}
 $('kind').onclick=e=>{const t=e.target.closest('button');if(t)setKind(t.dataset.k);};
 function openForm(b,pre){
-  EDIT=b||null; const v=b||pre||{};
+  $('fShot').hidden=true; EDIT=b||null; const v=b||pre||{};
   $('dlgTitle').textContent=b?'Edit bet':'Add a bet'; $('fSave').textContent=b?'Save changes':'Save bet';
   $('legs').innerHTML=''; setLg(v.lg); (v.legs||[]).forEach(l=>addLegRow(l));
   setKind(v.kind||'prop');
@@ -620,7 +625,24 @@ function openForm(b,pre){
 }
 function ret(){const o=+$('fOdds').value,s=+$('fStake').value;$('fRet').textContent=o>1&&s>0?`Pays ${money(o*s-($('fBonus').value?s:0))}${$('fBonus').value?' (bonus)':''}`:'';}
 ['fOdds','fStake','fBonus'].forEach(i=>$(i).addEventListener('input',ret));
-$('addBtn').onclick=()=>openForm();
+$('addBtn').onclick=()=>{$('fShot').hidden=true;openForm();};
+/* ---------- add from a bet slip screenshot (read on this device, nothing is uploaded) ---------- */
+$('shotBtn').onclick=()=>$('shotFile').click();
+$('shotFile').onchange=async()=>{
+  const f=$('shotFile').files[0]; $('shotFile').value=''; if(!f) return;
+  const btn=$('shotBtn'), was=btn.textContent; btn.disabled=true;
+  const names=[...$('players').options].map(o=>o.value);
+  try{
+    const {bet}=await OTSlip.read(f,names,msg=>{btn.textContent=msg;});
+    const found=bet.kind==='sgm'?`${bet.legs.length}-leg SGM`:bet.kind==='prop'?`${bet.player} ${bet.side} ${bet.line} ${bet.stat}`:bet.desc||'a bet';
+    const miss=[bet.kind==='prop'&&!bet.player&&'player',!(bet.odds>1)&&'odds',!(bet.stake>0)&&'stake'].filter(Boolean);
+    openForm(null,{...bet,date:sydDate()});
+    $('fShot').innerHTML=`📷 Read from your screenshot: <b>${esc(found)}</b>. Check everything before saving${miss.length?` (couldn't read the ${miss.join(', ')})`:''}.${bet.more?` That screenshot had ${bet.more+1} bets: this is the first one.`:''}`;
+    $('fShot').hidden=false;
+  }catch(e){
+    alert("Couldn't read that screenshot ("+(e&&e.message||e)+"). Try a clearer screenshot of just the bet slip, or add it by hand.");
+  }finally{btn.textContent=was;btn.disabled=false;}
+};
 $('fCancel').onclick=()=>$('dlg').close();
 $('form').onsubmit=e=>{
   e.preventDefault();
