@@ -8,7 +8,8 @@ take the legs that bookie prices and look for 2-3 leg combos where:
     the same team (they eat into each other), no same-team stacking of the same stat
   - the multi (legs multiplied) lands in the 1.70-2.30 range
 "Fair" = 1 / (our chances multiplied), treating legs as independent. Bookies price SGMs below the
-straight multi, so the bet is only value if their SGM price is at or above fair.
+straight multi (TABtouch: 2 legs at 1.54 x 1.30 = 2.00 multi, SGM 1.82), so we estimate the SGM price
+with SGM_CUT and only keep combos where that estimate still beats fair by MIN_EDGE.
 """
 from itertools import combinations
 
@@ -16,6 +17,8 @@ MIN_PROB, MIN_LEGS, MAX_LEGS = 0.55, 2, 3
 MULTI_MIN, MULTI_MAX = 1.70, 2.30
 LEG_MIN_PRICE = 1.15
 PER_GAME, LIMIT = 3, 12
+SGM_CUT = {2: 0.91, 3: 0.86}   # bookie SGM price / legs multiplied (typical)
+MIN_EDGE = 2.0                 # % value needed at the estimated SGM price
 SCORING = {"Points", "Pts + Reb + Ast", "Pts + Reb", "Pts + Ast"}
 
 
@@ -67,16 +70,19 @@ def build(legs):
                         prob *= l["prob"]
                     if not (MULTI_MIN <= multi <= MULTI_MAX) or not _ok(c):
                         continue
+                    est = multi * SGM_CUT[n]
+                    if (prob * est - 1) * 100 < MIN_EDGE:
+                        continue
                     sig = frozenset((l["player"], l["stat"]) for l in c)
                     item = {
                         "game": c[0]["game"], "start": c[0]["start"], "book": book,
-                        "multi": round(multi, 2), "fair": round(1 / prob, 2), "prob": round(prob, 3),
-                        "value": round((prob * multi - 1) * 100, 1),
+                        "multi": round(multi, 2), "est": round(est, 2), "fair": round(1 / prob, 2), "prob": round(prob, 3),
+                        "value": round((prob * est - 1) * 100, 1),
                         "legs": [{k: l[k] for k in ("player", "team", "stat", "line", "point", "prob", "l10", "l5", "avg")}
                                  | {"price": l["bp"]} for l in c],
                     }
                     # same legs at several bookies: keep the bookie that pays the most
-                    if sig not in found or item["multi"] > found[sig]["multi"]:
+                    if sig not in found or item["est"] > found[sig]["est"]:
                         found[sig] = item
         game = sorted(found.values(), key=lambda x: -x["value"])
         picked, used = [], set()
