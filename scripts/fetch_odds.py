@@ -24,7 +24,8 @@ API = os.environ.get("ODDS_API_BASE", "https://api.the-odds-api.com/v4")
 KEY = os.environ.get("ODDS_API_KEY", "").strip()
 PASSWORD = os.environ.get("ODDS_PAGE_PASSWORD", "")
 SPORTS = [s.strip() for s in os.environ.get("SPORTS",
-          "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,soccer_epl,americanfootball_nfl,soccer_*").split(",") if s.strip()]
+          "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,soccer_epl,americanfootball_nfl,mma_mixed_martial_arts,"
+          "tennis_*,soccer_*").split(",") if s.strip()]
 MARKETS = os.environ.get("MARKETS", "h2h,spreads,totals")
 PROP_SPORTS = [s.strip() for s in os.environ.get("PROP_SPORTS",
                "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,americanfootball_nfl,soccer_epl").split(",") if s.strip()]
