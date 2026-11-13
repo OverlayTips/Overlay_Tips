@@ -197,14 +197,35 @@ async function nbl(url, env, ctx, cors) {
   const cache = caches.default;
   const key = new Request("https://overlay-live.cache/nbl?d=" + dates.join(","));
   const hit = await cache.match(key);
-  if (hit) return new Response(hit.body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  if (hit) return new Response(hit.body, { status: hit.status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
   let body;
   try {
     const now = new Date(), y = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
     const season = `${y}-${y + 1}`;
-    const games = (await Promise.all(dates.map((d) =>
-      as(env, `/games?league=1&season=${season}&date=${d}&timezone=Australia/Sydney`)))).flat();
-    const started = games.filter((g) => !["NS", "CANC", "POST"].includes(g.status && g.status.short)).map((g) => g.id);
+    // one call for the whole season (cached 2 min), filtered to the asked-for Australian dates
+    const skey = new Request("https://overlay-live.cache/nbl-season?s=" + season);
+    let all = null;
+    const sh = await cache.match(skey);
+    if (sh) all = await sh.json();
+    else {
+      all = await as(env, `/games?league=1&season=${season}&timezone=Australia/Sydney`);
+      ctx.waitUntil(cache.put(skey, new Response(JSON.stringify(all), {
+        headers: { "Content-Type": "application/json", "Cache-Control": "max-age=120" } })));
+    }
+    const auDate = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Australia/Sydney" });
+    let games = all.filter((g) => dates.includes(auDate(g.date)));
+    // games in progress: the season list is up to 2 min old, so refresh just today's games (1 call)
+    if (games.some((g) => !["NS", "FT", "AOT", "POST", "CANC"].includes(g.status && g.status.short))
+        || games.some((g) => g.status && g.status.short === "NS" && Date.parse(g.date) < Date.now())) {
+      const ids = new Set(games.map((g) => g.id));
+      const today = auDate(new Date().toISOString());
+      const fresh = await as(env, `/games?league=1&season=${season}&date=${today}&timezone=Australia/Sydney`);
+      const byId = Object.fromEntries(fresh.map((g) => [g.id, g]));
+      games = games.map((g) => byId[g.id] || g).concat(fresh.filter((g) => !ids.has(g.id) && dates.includes(auDate(g.date))));
+    }
+    // box scores only for games on now or finished in the last 6 hours
+    const started = games.filter((g) => !["NS", "CANC", "POST"].includes(g.status && g.status.short)
+      && Date.now() - Date.parse(g.date) < 9 * 3600e3).map((g) => g.id);
     const rows = started.length ? await as(env, `/games/statistics/players?ids=${started.join("-")}`) : [];
     const byTeam = {};
     for (const r of rows) (byTeam[`${r.game && r.game.id}|${r.team && r.team.id}`] ||= []).push(r);
@@ -231,7 +252,10 @@ async function nbl(url, env, ctx, cors) {
     });
     body = JSON.stringify({ updated: new Date().toISOString(), games: out });
   } catch (e) {
-    return json({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) }, 502, cors);
+    const err = JSON.stringify({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) });
+    ctx.waitUntil(cache.put(key, new Response(err, {   // don't retry API-Sports for a minute after an error
+      status: 502, headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" } })));
+    return new Response(err, { status: 502, headers: { ...cors, "Content-Type": "application/json" } });
   }
   ctx.waitUntil(cache.put(key, new Response(body, {
     headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_SECONDS}` },
