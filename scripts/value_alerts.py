@@ -317,7 +317,8 @@ def main():
                  f"Best Betfair arb right now: {BEST_ARB:.2f}%" if BEST_ARB is not None else "No Betfair arbs right now"]
         if allv:
             lines.append("Top value:")
-            lines += [f"+{p['edge']:.1f}% {p['text']}" for p in allv[:3]]
+            for p in allv[:3]:
+                lines += ["", f"+{p['edge']:.1f}% {p['text']}"] + (p.get("why") or [p["sub"].capitalize()])
         try:
             _push(TOPIC, f"📊 Odds updated {when}", lines, click=SITE + "/odds.html", priority=3)
         except Exception as e:
