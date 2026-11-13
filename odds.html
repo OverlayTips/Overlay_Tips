@@ -1154,7 +1154,7 @@ function renderMovers(){
       });});
   });
   out.sort((a,b)=>b.size-a.size);
-  if(!out.length){$('list').innerHTML='<div class="empty"><h3>No big moves yet</h3>Player prop moves show up once the tracker has seen a prop more than once (it updates about 7am, 9:30am and 5:45pm). Check back after the next update.</div>';return;}
+  if(!out.length){$('list').innerHTML='<div class="empty"><h3>No big moves yet</h3>Player prop moves show up once the tracker has seen a prop more than once (it updates every 15 minutes). Check back after the next update.</div>';return;}
   const rows=out.slice(0,60).map(({e,mk,r,m,pct,steam,ptMove})=>{
     const lbl=MKT_LABEL[mk]||PROP_LABEL[mk]||mk;
     const sel=r.s.desc?`${esc(r.s.desc)} <span class="pt">${esc(r.s.name)}${r.point!=null?' '+r.point:''}</span>`:`${esc(r.s.name)}${r.point!=null?' <span class="pt">'+fmtPt(mk,r.point)+'</span>':''}`;

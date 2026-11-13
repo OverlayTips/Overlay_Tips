@@ -1,9 +1,11 @@
 name: Update odds
 
-# 3 updates a day (Sydney time), each started by a Claude scheduled task that waits for it and then
-# sends a picks alert: 6:45am "Early odds picks", 9:13am "Morning odds picks", 5:45pm "Daily odds picks".
-# Use "Run workflow" in the Actions tab for an extra refresh any time.
+# Every 15 minutes, all day (Odds API 5M plan): game odds every run, player props re-pulled every 30 min.
+# Claude scheduled tasks still start runs for the 6:45am / 9:13am / 5:45pm picks alerts, and the NBA/NBL
+# pre-tip checks start quick sport-only refreshes. "Run workflow" in the Actions tab refreshes any time.
 on:
+  schedule:
+    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
       fresh_props:
@@ -31,19 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PW_SET: ${{ secrets.ODDS_PAGE_PASSWORD != '' }}
-      PROPS_EVERY_HOURS: ${{ (inputs.nba_only || inputs.only != '') && '0.25' || (inputs.fresh_props && '0' || '2') }}
+      PROPS_EVERY_HOURS: ${{ (inputs.nba_only || inputs.only != '') && '0.25' || (inputs.fresh_props && '0' || '0.5') }}
       ONLY: ${{ inputs.only || (inputs.nba_only && 'basketball_nba' || '') }}
     steps:
-      - name: Check Sydney time
-        run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then echo "RUN=true" >> "$GITHUB_ENV"; exit 0; fi
-          T=$(TZ=Australia/Sydney date +%H%M); echo "Sydney time $T"
-          # allow for GitHub's scheduling delays; skip the cron that lands in the wrong daylight-saving hour
-          if [ "$T" -ge 0645 ] && [ "$T" -le 0745 ]; then
-            echo "RUN=true" >> "$GITHUB_ENV"
-          else
-            echo "RUN=false" >> "$GITHUB_ENV"; echo "Not an update slot in Sydney, skipping."
-          fi
+      - name: Check run
+        run: echo "RUN=true" >> "$GITHUB_ENV"   # every trigger runs (schedule is every 15 min)
 
       - uses: actions/checkout@v4
         if: env.RUN == 'true'
