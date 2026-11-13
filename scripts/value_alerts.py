@@ -310,7 +310,8 @@ def main():
     except Exception as e:
         print(f"::warning::arb alerts failed: {e}")
     # every update: a short status ping to Jayden's own channel only (UPDATE_PING=1), even when nothing is new
-    if os.environ.get("UPDATE_PING") == "1" and TOPIC:
+    # only when something changed: new value bets or new arbs (no repeat "nothing new" pings)
+    if os.environ.get("UPDATE_PING") == "1" and TOPIC and (new or arb_sent):
         allv = sorted(collect(now), key=lambda x: -x["edge"])
         when = datetime.now(SYD).strftime("%-I:%M%p").lower()
         lines = [f"{len(allv)} value bets live · {len(new)} new this update" + (f" · {arb_sent} new arbs" if arb_sent else ""),
