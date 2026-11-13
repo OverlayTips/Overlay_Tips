@@ -178,24 +178,45 @@
     });
   }
   var worker = null;
+  function timeout(p, ms, msg) {
+    return Promise.race([p, new Promise(function (_, bad) { setTimeout(function () { bad(new Error(msg)); }, ms); })]);
+  }
   function read(file, names, onProgress) {
     var prog = onProgress || function () {};
     return (window.Tesseract ? Promise.resolve() : loadScript(BASE + 'tesseract.min.js')).then(function () {
       if (worker) return worker;
       prog('Loading the reader (first time only)…');
-      worker = Tesseract.createWorker('eng', 1, {
+      worker = timeout(Tesseract.createWorker('eng', 1, {
         workerPath: BASE + 'worker.min.js', corePath: BASE, langPath: BASE, gzip: false,
         logger: function (m) { if (m.status === 'recognizing text') prog('Reading the slip… ' + Math.round(m.progress * 100) + '%'); }
-      }).catch(function (e) { worker = null; throw e; });
+      }), 90000, 'the reader took too long to load, check your connection and try again').catch(function (e) { worker = null; throw e; });
       return worker;
     }).then(function (w) {
-      return prep(file).then(function (canvas) { prog('Reading the slip…'); return w.recognize(canvas); });
+      return prep(file).then(function (canvas) { prog('Reading the slip…'); return timeout(w.recognize(canvas), 60000, 'reading took too long, try a smaller screenshot'); });
     }).then(function (r) {
       var text = r.data.text || '';
-      return { bet: parse(text, names), text: text };
+      var bets = parseAll(text, names);
+      return { bet: bets[0], bets: bets, text: text };
     });
   }
 
-  var api = { parse: parse, read: read, snapName: snapName };
+  // every bet on the screenshot: blocks end at each stake line (plus the return/payout lines after it)
+  function parseAll(text, names) {
+    var lines = clean(text).split('\n').map(function (x) { return x.trim(); }).filter(Boolean), blocks = [], cur = [];
+    for (var i = 0; i < lines.length; i++) {
+      cur.push(lines[i]);
+      if (/stake|wager|bet amount/i.test(lines[i])) {
+        while (i + 1 < lines.length && /return|payout|to win|winnings/i.test(lines[i + 1])) cur.push(lines[++i]);
+        blocks.push(cur); cur = [];
+      }
+    }
+    if (cur.length && (!blocks.length || cur.some(function (l) { return selectionLike(l); }))) blocks.push(cur);
+    var bets = blocks.map(function (b) { return parse(b.join('\n'), names); })
+      .filter(function (b) { return b.kind !== 'other' || b.odds > 1 || b.stake > 0; });
+    return bets.length ? bets : [parse(text, names)];
+  }
+  function selectionLike(l) { return /\b(over|under)\s*\d|\d\s*\+/i.test(l); }
+
+  var api = { parse: parse, parseAll: parseAll, read: read, snapName: snapName };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.OTSlip = api;
 })(typeof window !== 'undefined' ? window : this);
