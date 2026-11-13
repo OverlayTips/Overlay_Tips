@@ -207,7 +207,7 @@ function fair(it){
 }
 function lastGame(it){
   const m=it.h2h||[]; if(!it.opp) return '';
-  if(!m.length) return `<div class="hs-last">Hasn't played ${esc(it.opp)} in the last two seasons</div>`;
+  if(!m.length) return '';
   const under=/^u/i.test(String(it.line||'')), pt=it.point, hit=v=>under?v<pt:v>pt;
   const d=x=>new Date(x+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
   const one=x=>`<b>${x[3]}</b> <span class="hs-dt">${d(x[0])}</span> <span class="${hit(x[3])?'hs-y':'hs-n'}">${hit(x[3])?'✓':'✗'}</span>`;
