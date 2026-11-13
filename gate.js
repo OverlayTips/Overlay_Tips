@@ -1,7 +1,7 @@
 /* Overlay Tips members gate.
    Pages that include this script (with data-need="member") are shown only to people logged in to the
    members portal with an active account (Founding, Core/Daily card or VIP). Everyone else sees a
-   "Sign up free" card. It reads the Supabase login the portal saves in this browser and asks Supabase
+   "Sign up" card. It reads the Supabase login the portal saves in this browser and asks Supabase
    for the account's tier, refreshing the login if it has expired. */
 (function () {
   var SB = 'https://enldqvdxygppxwrauqlw.supabase.co';
@@ -42,7 +42,7 @@
     } else if (kind === 'upgrade') {
       c.innerHTML = '<h2>This is for ' + (needRank === 3 ? 'VIP' : 'Daily card') + ' members</h2><p>Upgrade to unlock ' + label + '.</p><div class="og-btns"><a class="p" href="' + base + 'membership.html">See memberships →</a></div>';
     } else {
-      c.innerHTML = '<h2>Sign up free to see ' + label + '</h2><p>Free members get Overlay Wire, Hot stats and the daily tips in WhatsApp. Takes 30 seconds.</p><div class="og-btns"><a class="p" href="' + portal + '?signup">Sign up free</a><a class="s" href="' + portal + '">Log in</a></div><small>18+ only. Gamble responsibly.</small>';
+      c.innerHTML = '<h2>Sign up to see ' + label + '</h2><p>Get access to Overlay Wire, Hot stats and the bet tracker. Takes 30 seconds.</p><div class="og-btns"><a class="p" href="' + portal + '?signup">Sign up</a><a class="s" href="' + portal + '">Log in</a></div><small>18+ only. Gamble responsibly.</small>';
     }
     var head = document.querySelector('main .page-head') || document.querySelector('main');
     if (head && head.parentNode) head.parentNode.insertBefore(c, head.nextSibling);
