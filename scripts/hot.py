@@ -195,6 +195,10 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba"):
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
                 "games": [[g[0], g[1], g[2], f(g)] for g in l10],
             }
+            # last meetings with tonight's opponent, this season then last season (newest first)
+            meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
+            if meet:
+                item["h2h"] = [[g[0], g[1], g[2], f(g)] for g in meet[:3]]
             if wo:
                 item["wo"] = wo
             legs.append({**item, "ev": ev["id"], "mk": mk})   # SGM builder (members only, see sgm.py)

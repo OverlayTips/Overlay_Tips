@@ -11,6 +11,7 @@ Output (goes into the encrypted bundle as bundle["stats"]["nba"], same shape hot
    "players": {norm(name): {"n": name, "id": BDL id, "team": "LAL", "f": TS fetched, "s": TS last seen,
                             "g": [[date, opp, "@"|"vs", min, pts, reb, ast, 3pm, blk, stl, tov], ...]}}}
 Games are newest first, this season only (regular season + playoffs), games he actually played.
+"p" = last season's games v his next opponent "po" (up to 3), for "last time v this team".
 Everything here is best effort: any failure keeps the previous stats and never stops the odds run.
 """
 import json, os, re, time, unicodedata, urllib.error, urllib.parse, urllib.request
@@ -142,13 +143,15 @@ def update(prev, prop_events, now, ts, extra=()):
     out["ids"] = ids
     roster = {k: {"id": v[0], "team": v[1], "n": v[2]} for k, v in (ids.get("map") or {}).items()}
 
-    seen, unmatched, by, todo = set(), [], {}, {}
+    seen, unmatched, by, todo, evteams = set(), [], {}, {}, {}
     for ev in nba:
         descs = {o.get("description") for b in ev.get("bookmakers", []) for mk in b.get("markets", [])
                  for o in mk.get("outcomes", []) if o.get("description")}
+        evt = {out["teams"].get(ev.get("home_team")), out["teams"].get(ev.get("away_team"))} - {None}
         for d in sorted(descs):
             key = norm(d)
             by[d] = key
+            evteams.setdefault(key, evt)
             if key in seen:
                 continue
             seen.add(key)
@@ -198,8 +201,36 @@ def update(prev, prop_events, now, ts, extra=()):
         for s in stats:
             per.setdefault((s.get("player") or {}).get("id"), []).append(s)
         for pid, (key, a) in chunk:
+            keep = {x: out["players"][key][x] for x in ("p", "pf", "po") if x in out["players"].get(key, {})}
             out["players"][key] = {"n": a["n"], "id": pid, "team": a["team"], "f": ts, "s": ts,
-                                   "g": rows_from_stats(per.get(pid, []), abbr_by_id)}
+                                   "g": rows_from_stats(per.get(pid, []), abbr_by_id), **keep}
+        time.sleep(0.2)
+
+    # last season's logs (for "last time v this team"), once a fortnight per player, with what's left of the call budget
+    prev_season, stale = season - 1, now - timedelta(days=14)
+    want = []
+    for k, v in out["players"].items():
+        opps = sorted(evteams.get(k, set()) - {v.get("team")})
+        if v.get("s") != ts or not v.get("id") or len(opps) != 1:
+            continue
+        if v.get("po") != opps[0] or not v.get("pf") or datetime.fromisoformat(v["pf"].replace("Z", "+00:00")) < stale:
+            want.append((k, v, opps[0]))
+    for i in range(0, len(want), BATCH):
+        if api.calls >= MAX_CALLS - 10:
+            break
+        chunk = want[i:i + BATCH]
+        try:
+            stats = api.pages("/stats", [("seasons[]", prev_season)] + [("player_ids[]", v["id"]) for _, v, _ in chunk], limit=25)
+        except Exception as e:
+            fails += 1
+            print("  last-season batch failed:", type(e).__name__, e)
+            continue
+        per = {}
+        for st in stats:
+            per.setdefault((st.get("player") or {}).get("id"), []).append(st)
+        for k, v, opp in chunk:   # keep only the games v the next opponent (keeps the bundle small)
+            v["p"] = [r for r in rows_from_stats(per.get(v["id"], []), abbr_by_id) if r[1] == opp][:3]
+            v["po"], v["pf"] = opp, ts
         time.sleep(0.2)
 
     # forget players who haven't had props for a while
