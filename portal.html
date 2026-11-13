@@ -196,6 +196,10 @@
         <p class="pt-sub" id="waTxt">Every play lands in the group first.</p>
         <a class="pt-btn" id="waBtn" style="display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener">Join the group</a>
       </div>
+      <div class="pt-card pt-sec" id="alertCard">
+        <h3 class="pt-h3">Value bet alerts <span class="pt-tier vip" style="font-size:11px;vertical-align:middle">VIP</span></h3>
+        <div id="alertBody"><p class="pt-sub" style="margin:0">Loading…</p></div>
+      </div>
       <div class="pt-card pt-sec">
         <h3 class="pt-h3">Refer a mate</h3>
         <p class="pt-sub">Your mates get <b>50% off their first month</b> with your code. You get <b>a week free</b> for every mate who joins.</p>
@@ -354,9 +358,31 @@ async function boot(){
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => openTab(b.dataset.t));
   if (member) { await loadTips(); await loadMyBets(); }
   await loadGroup(member, tier);
+  loadAlerts(tier, prof.is_admin);
   loadPlans(prof);
   if (prof.is_admin) initAdmin();
   openTab(tabs[0][0]);
+}
+// VIP value bet alerts: a private ntfy topic (kept in member_keys, readable by VIP only)
+async function loadAlerts(tier, admin){
+  const box=$('alertBody');
+  if (!(tier==='vip'||admin)) {
+    box.innerHTML='<p class="pt-sub" style="margin:0 0 10px">VIP members get a phone notification the moment the odds tracker finds a new value bet: the player, line, price, bookie and a suggested stake, before the price moves.</p><a class="pt-btn" href="#vPlans" style="display:block;text-align:center;text-decoration:none">Go VIP</a>';
+    return;
+  }
+  const { data } = await sb.from('member_keys').select('value').eq('name','alerts').maybeSingle();
+  const topic = data && data.value;
+  if (!topic) { box.innerHTML='<p class="pt-sub" style="margin:0">Value bet alerts are being set up. Check back soon.</p>'; return; }
+  const esc2 = x => String(x).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  box.innerHTML=`<p class="pt-sub" style="margin:0 0 10px">Get a notification on your phone the moment the odds tracker finds a new value bet: player, line, price, bookie and a suggested stake.</p>
+    <ol class="pt-sub" style="margin:0 0 12px;padding-left:18px;line-height:1.6">
+      <li>Install the free <b>ntfy</b> app (<a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a> · <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a>).</li>
+      <li>Tap <b>+</b> in the app and paste your alert channel below (leave the server as ntfy.sh).</li>
+      <li>Allow notifications. That's it.</li>
+    </ol>
+    <div class="pt-copy"><input id="alertTopic" readonly value="${esc2(topic)}" style="font:700 15px 'Space Mono',monospace"><button class="pt-btn sm" id="alertCopy" type="button">Copy</button></div>
+    <p class="pt-sub" style="margin:10px 0 0;font-size:12px">Keep this channel to yourself: it's for members only. Alerts are price signals, not sure things. 18+, gamble responsibly.</p>`;
+  $('alertCopy').onclick = async () => { try { await navigator.clipboard.writeText(topic); } catch(e) { $('alertTopic').select(); document.execCommand('copy'); } $('alertCopy').textContent='Copied'; setTimeout(()=>$('alertCopy').textContent='Copy',1500); };
 }
 function openTab(id){
   ['tTips','tStats','tGroup','tAdmin'].forEach(t => show(t, t===id));
