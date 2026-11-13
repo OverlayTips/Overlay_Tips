@@ -100,6 +100,7 @@
       return a;
     }
     if (who) root.classList.add('sbx-member');   // members don't need the "Join free" button
+    if (who) { var sj = side.querySelector('.sbx-join'); if (sj) { sj.textContent = 'Members portal'; sj.href = portal; } }   // logged in: menu button goes to the portal, not Sign up
     var accts = [acct(''), acct('sbx-acct-fix')];
     links.appendChild(accts[0]);
     d.body.appendChild(accts[1]);
