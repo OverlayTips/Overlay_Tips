@@ -314,6 +314,8 @@ function loadGame(){
 }
 function drawGame(){
   const e=EVENTS.find(x=>String(x.id)===SEL); if(!e) return;
+  const nbl=e.lg==='NBL'; if(nbl&&VIEW==='pbp') VIEW='box';
+  $('tabs').querySelector('[data-v=pbp]').hidden=nbl;
   $('tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===VIEW));
   $('pBar').hidden=VIEW!=='props';
   if(VIEW==='box') return drawBox(e);
