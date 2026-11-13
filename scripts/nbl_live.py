@@ -47,6 +47,19 @@ def snapshot():
     y = now.year if now.month >= 7 else now.year - 1
     days = [(now.astimezone(SYD) + timedelta(days=d)).strftime("%Y-%m-%d") for d in (-1, 0, 1)]
     games = [g for g in api(f"/games?league=1&season={y}-{y + 1}&timezone=Australia/Sydney") if g["date"][:10] in days]
+    # The season list is cached for a while on API-Sports' side; asking for a game by its id gets the fresh
+    # score. So re-pull every game that's on now (or due to tip / marked postponed in the last few hours).
+    def due(g):
+        d = now - datetime.fromisoformat(g["date"])
+        return g["status"]["short"] not in ("FT", "AOT", "CANC") and timedelta(minutes=-20) < d < timedelta(hours=4)
+    for i, g in enumerate(games):
+        if due(g):
+            try:
+                fresh = api(f"/games?id={g['id']}&timezone=Australia/Sydney")
+                if fresh:
+                    games[i] = fresh[0]
+            except Exception as e:
+                print("::warning::fresh pull failed:", g["id"], e)
     started = [g["id"] for g in games if g["status"]["short"] not in ("NS", "CANC", "POST")
                and now - datetime.fromisoformat(g["date"]) < timedelta(hours=9)]
     rows = api("/games/statistics/players?ids=" + "-".join(map(str, started))) if started else []
