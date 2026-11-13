@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 OUT = os.environ.get("OUT", "odds-data")
 TOPIC = re.sub(r"[^A-Za-z0-9_-]", "", os.environ.get("NTFY_TOPIC", ""))
+MEMBER_TOPIC = re.sub(r"[^A-Za-z0-9_-]", "", os.environ.get("NTFY_MEMBER_TOPIC", ""))   # VIP members' channel
 SYD = ZoneInfo("Australia/Sydney")
 SITE = "https://overlay.tips"
 FOOT = "Overlay Tips | 18+ Gamble responsibly"
@@ -24,14 +25,21 @@ BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U
 
 
 def push(title, lines, click=None, actions=()):
-    if not TOPIC:
+    """Send to Jayden's topic and, if set, the VIP members' topic. True if any send worked."""
+    ok = False
+    for t in [x for x in (TOPIC, MEMBER_TOPIC) if x]:
+        ok = _push(t, title, lines, click, actions) or ok
+    if not TOPIC and not MEMBER_TOPIC:
         print("::warning::NTFY_TOPIC secret is empty - value alerts not sent")
-        return False
+    return ok
+
+
+def _push(topic, title, lines, click=None, actions=()):
     body = "\n".join(lines)
     wa = f"{title}\n\n{body}\n\n{FOOT}"
     acts = list(actions)[:2] + [{"action": "view", "label": "Share to WhatsApp",
                                  "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]
-    msg = {"topic": TOPIC, "title": title, "message": body, "tags": ["moneybag"], "priority": 4, "actions": acts}
+    msg = {"topic": topic, "title": title, "message": body, "tags": ["moneybag"], "priority": 4, "actions": acts}
     if click:
         msg["click"] = click
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(msg).encode(),
@@ -39,7 +47,7 @@ def push(title, lines, click=None, actions=()):
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             r.read()
-        print(f"pushed: {title}")
+        print(f"pushed: {title}" + (" (members)" if topic == MEMBER_TOPIC and topic != TOPIC else ""))
         return True
     except urllib.error.HTTPError as e:
         print(f"::error::ntfy {e.code}: {e.read()[:300]!r}")
