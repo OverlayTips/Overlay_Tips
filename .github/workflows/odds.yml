@@ -74,6 +74,7 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           NTFY_MEMBER_TOPIC: ${{ secrets.NTFY_MEMBER_TOPIC }}
+          UPDATE_PING: "1"   # status ping to Jayden's own channel after every update
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
         run: python scripts/value_alerts.py
 

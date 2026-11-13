@@ -35,12 +35,12 @@ def push(title, lines, click=None, actions=()):
     return ok
 
 
-def _push(topic, title, lines, click=None, actions=()):
+def _push(topic, title, lines, click=None, actions=(), priority=4):
     body = "\n".join(lines)
     wa = f"{title}\n\n{body}\n\n{FOOT}"
     acts = list(actions)[:2] + [{"action": "view", "label": "Share to WhatsApp",
                                  "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]
-    msg = {"topic": topic, "title": title, "message": body, "tags": ["moneybag"], "priority": 4, "actions": acts}
+    msg = {"topic": topic, "title": title, "message": body, "tags": ["moneybag"], "priority": priority, "actions": acts}
     if click:
         msg["click"] = click
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(msg).encode(),
@@ -167,6 +167,7 @@ def collect(now):
 
 
 ARB_MIN = float(os.environ.get("ARB_MIN", "1.0"))   # % profit needed to alert an arb
+BEST_ARB = None
 
 
 def collect_arbs(now):
@@ -184,6 +185,8 @@ def collect_arbs(now):
         return []
     print("arbs seen: bookie v bookie " + ", ".join(f"{a['margin_pct']}%" for a in summ.get("arbs") or []) +
           " | back/lay " + ", ".join(f"{a['margin_pct']}%" for a in summ.get("layarbs") or []))
+    global BEST_ARB
+    BEST_ARB = max([a["margin_pct"] for a in (summ.get("arbs") or []) + (summ.get("layarbs") or [])], default=None)
     out = []
     for a in summ.get("arbs") or []:
         if a["margin_pct"] < ARB_MIN or started(a.get("start", ""), now):
@@ -224,6 +227,7 @@ def send_arbs(state, now):
             state[a["key"]] = {"edge": a["margin"], "price": 0, "tag": "", "at": now.isoformat()}
             sent += 1
     print(f"arb alerts: {len(arbs)} at {ARB_MIN}%+, {sent} sent")
+    return sent
 
 
 def main():
@@ -269,10 +273,24 @@ def main():
                 sent += rest
         for p in sent:
             state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
+    arb_sent = 0
     try:
-        send_arbs(state, now)
+        arb_sent = send_arbs(state, now) or 0
     except Exception as e:
         print(f"::warning::arb alerts failed: {e}")
+    # every update: a short status ping to Jayden's own channel only (UPDATE_PING=1), even when nothing is new
+    if os.environ.get("UPDATE_PING") == "1" and TOPIC:
+        allv = sorted(collect(now), key=lambda x: -x["edge"])
+        when = datetime.now(SYD).strftime("%-I:%M%p").lower()
+        lines = [f"{len(allv)} value bets live · {len(new)} new this update" + (f" · {arb_sent} new arbs" if arb_sent else ""),
+                 f"Best arb right now: {BEST_ARB:.2f}%" if BEST_ARB is not None else "No arbs right now"]
+        if allv:
+            lines.append("Top value:")
+            lines += [f"+{p['edge']:.1f}% {p['text']}" for p in allv[:3]]
+        try:
+            _push(TOPIC, f"📊 Odds updated {when}", lines, click=SITE + "/odds.html", priority=3)
+        except Exception as e:
+            print(f"::warning::update ping failed: {e}")
     with open(state_path, "w") as f:
         json.dump(state, f, separators=(",", ":"))
 
