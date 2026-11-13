@@ -312,6 +312,7 @@ const store = {get(k,d){try{const v=localStorage.getItem('odds.'+k);return v==nu
                set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v))}catch(e){}},
                del(k){try{localStorage.removeItem('odds.'+k)}catch(e){}}};
 
+const sportTab=e=>String(e&&e.sport_key||'').startsWith('soccer_')?'Soccer':e.sport_title;   // all soccer leagues = one tab
 let DATA=null, view=(v=>v.startsWith('bk:')?(store.set('bookFilter',v.slice(3)),'ev'):v)(store.get('view','ev')), sport=store.get('sport','all'), movers=store.get('movers',false);
 let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
@@ -629,13 +630,13 @@ function render(){
 
   const H2H=view==='h2h', gv=H2H?'games':view;   // Head to head = game lines locked to the H2H market
   const evs = gv==='games'?O.events.filter(e=>!H2H||e.bookmakers.some(b=>b.markets.some(m=>m.key==='h2h'))):P.events;
-  const counts={}; evs.forEach(e=>counts[e.sport_title]=(counts[e.sport_title]||0)+1);
+  const counts={}; evs.forEach(e=>counts[sportTab(e)]=(counts[sportTab(e)]||0)+1);
   if(sport!=='all'&&!counts[sport]) sport='all';
   $('sports').innerHTML=[['all',evs.length],...Object.entries(counts)].map(([s,n])=>
     `<button class="chip ${s===sport?'on':''}" data-s="${esc(s)}">${s==='all'?'All':esc(s)}<span class="n">${n}</span></button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{sport=b.dataset.s;store.set('sport',sport);render();});
 
-  const inSport=evs.filter(e=>sport==='all'||e.sport_title===sport);
+  const inSport=evs.filter(e=>sport==='all'||sportTab(e)===sport);
   let markets;
   if(H2H) markets=[['h2h','Head to head']];
   else if(view==='games') markets=GAME_MKTS;
@@ -812,7 +813,7 @@ const MKT_LABEL={h2h:'H2H',spreads:'Line',totals:'Total'};
 function renderEV(){
   const O=DATA.odds, P=DATA.props||{events:[]};
   const evs=O.events.concat(P.events);
-  const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
+  const counts={}; evs.forEach(e=>counts[sportTab(e)]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
   $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
@@ -820,7 +821,7 @@ function renderEV(){
   $('q').placeholder='Search team or player';
   $('legend').textContent='Every game market and player prop, ranked by edge: how much the best bookie price beats the fair price (bookie margins removed). Higher = more +EV. Check the price is still there before betting. Price signals, not sure things.';
   const q=$('q').value.trim().toLowerCase();
-  const pool=evs.filter(e=>sport==='all'||e.sport_title===sport);
+  const pool=evs.filter(e=>sport==='all'||sportTab(e)===sport);
   $('evtSel').value=evType;
   $('list').innerHTML=topEV(pool,q,{limit:60,type:evType,maxOdds,chart:true,title:(evType==='props'?'Highest EV player overs/unders':evType==='games'?'Highest EV game markets':'Highest EV bets')+` under $${maxOdds.toFixed(2)}`,
     meta:'Games and player props, best edge first.',
@@ -1060,7 +1061,7 @@ function renderSGM(){
 function renderPropPicks(){
   const P=DATA.props||{events:[]};
   $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
-  const counts={}; P.events.forEach(e=>counts[e.sport_title]=1);
+  const counts={}; P.events.forEach(e=>counts[sportTab(e)]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
   $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
@@ -1068,7 +1069,7 @@ function renderPropPicks(){
   $('q').placeholder='Search team or player';
   $('legend').textContent=`Player prop overs and unders priced at $${maxOdds.toFixed(2)} or less, where one bookie pays at least ${gapMin}% more than the other bookies (median) at the same line. Gap = how far above the others it is. Edge = vs the fair price. Check the price is still there before betting. Price signals, not sure things.`;
   const q=$('q').value.trim().toLowerCase();
-  $('list').innerHTML=ppHTML(P.events.filter(e=>sport==='all'||e.sport_title===sport),q);
+  $('list').innerHTML=ppHTML(P.events.filter(e=>sport==='all'||sportTab(e)===sport),q);
 }
 function ppHTML(evs,q){
   const now=new Date(), out=[];
@@ -1104,7 +1105,7 @@ function renderBook(){
   const O=DATA.odds, P=DATA.props||{events:[]}, nm=BOOK_NAMES[myBook]||myBook;
   $('gapSel').value=String(gapMin); $('maxSel').value=String(maxOdds);
   const evs=O.events.concat(P.events);
-  const counts={}; evs.forEach(e=>{ if(e.bookmakers.some(b=>b.key===myBook)) counts[e.sport_title]=1; });
+  const counts={}; evs.forEach(e=>{ if(e.bookmakers.some(b=>b.key===myBook)) counts[sportTab(e)]=1; });
   if(sport!=='all'&&!counts[sport]) sport='all';
   $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
@@ -1112,7 +1113,7 @@ function renderBook(){
   $('q').placeholder='Search team or player';
   $('legend').textContent=`Best bets at ${nm} only. +EV = ${nm}'s price at $${maxOdds.toFixed(2)} or less beats the fair price (all bookies, margins removed). Prop picks = overs/unders at $${maxOdds.toFixed(2)} or less where ${nm} pays ${gapMin}%+ more than the other bookies. Check prices before betting. Price signals, not sure things.`;
   const q=$('q').value.trim().toLowerCase();
-  const pool=e=>sport==='all'||e.sport_title===sport;
+  const pool=e=>sport==='all'||sportTab(e)===sport;
   $('list').innerHTML=topEV(evs.filter(pool),q,{limit:40,maxOdds,title:`+EV under $${maxOdds.toFixed(2)}`,meta:`Games and player props at $${maxOdds.toFixed(2)} or less where ${nm} beats the fair price, best edge first.`,
       empty:`<div class="empty" style="padding:18px 22px"><b style="color:var(--text)">No +EV bets at ${nm} under $${maxOdds.toFixed(2)} right now.</b></div>`})
     +ppHTML(P.events.filter(pool),q);
@@ -1127,7 +1128,7 @@ function renderMovers(){
   const O=DATA.odds, P=DATA.props||{events:[]};
   $('mvSel').value=mvMode;
   const evs=P.events;
-  const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
+  const counts={}; evs.forEach(e=>counts[sportTab(e)]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
   $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
@@ -1135,7 +1136,7 @@ function renderMovers(){
   $('q').placeholder='Search player or team';
   $('legend').textContent='Player prop overs and unders that have moved since the tracker first saw them (best price across bookies, updated 3× a day). Line moves, e.g. Points 25.5 → 26.5 (money on the Over), and price moves on the same line. Steamer = that side is being backed. Drifter = it’s going the other way.';
   const q=$('q').value.trim().toLowerCase(), now=new Date(), out=[];
-  evs.filter(e=>(sport==='all'||e.sport_title===sport)&&new Date(e.commence_time)>now).forEach(e=>{
+  evs.filter(e=>(sport==='all'||sportTab(e)===sport)&&new Date(e.commence_time)>now).forEach(e=>{
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>k.startsWith('player_'));
     mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
       t.rows.forEach(r=>{ if(!r.s.desc||r.point==null) return;   // over/under player props only
@@ -1272,7 +1273,7 @@ function renderRacing(){
 function renderArbs(){
   const O=DATA.odds, P=DATA.props||{events:[]};
   const evs=O.events.concat(P.events);
-  const counts={}; evs.forEach(e=>counts[e.sport_title]=1);
+  const counts={}; evs.forEach(e=>counts[sportTab(e)]=1);
   if(sport!=='all'&&!counts[sport]) sport='all';
   $('sports').innerHTML=[['all'],...Object.keys(counts).map(k=>[k])].map(([k])=>
     `<button class="chip ${k===sport?'on':''}" data-s="${esc(k)}">${k==='all'?'All sports':esc(k)}</button>`).join('');
@@ -1284,7 +1285,7 @@ function renderArbs(){
     ?`Back at the bookie, lay the same selection on Betfair: every result pays the same, after ${bcomm}% Betfair commission (set yours in Betfair comm %). Lay prices are from the last update, so check the lay price and the money available on Betfair before betting. Bookies may limit accounts that arb a lot.`
     :'Bet every side at the bookies shown and you profit whatever happens. Stakes are split so every outcome pays the same. Prices are from the last update and arbs vanish fast, so confirm every leg is still there (same line) before betting. Watch for different void rules if a player is scratched, and bookies may limit accounts that arb a lot.');
   $('arbSeg').onclick=e=>{const b=e.target.closest('button'); if(!b||b.dataset.m===arbMode) return; arbMode=b.dataset.m; store.set('arbMode',arbMode); render();};
-  const q=$('q').value.trim().toLowerCase(), list=evs.filter(e=>sport==='all'||e.sport_title===sport);
+  const q=$('q').value.trim().toLowerCase(), list=evs.filter(e=>sport==='all'||sportTab(e)===sport);
   $('list').innerHTML=lay?layArbsHTML(list,q):arbsHTML(list,q);
 }
 function layArbsHTML(evs,q){
