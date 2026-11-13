@@ -227,6 +227,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
     <div class="tr-list" id="list"></div>
     <div class="tr-more">
       <button type="button" class="tr-btn" id="expBtn">Export backup</button>
+      <button type="button" class="tr-btn" id="xlsBtn">Monthly summary (Excel)</button>
       <button type="button" class="tr-btn" id="csvBtn">Download CSV</button>
       <label class="tr-btn" style="cursor:pointer">Restore backup<input type="file" id="impFile" accept=".json,application/json" hidden></label>
       <button type="button" class="tr-btn reset" id="resetBtn">Reset tracker</button>
@@ -695,6 +696,58 @@ $('csvBtn').onclick=()=>{
   const q=s=>`"${String(s??'').replace(/"/g,'""')}"`;
   const rows=[['Date','Bet','Event','Bookie','Odds','Stake','Bonus','Result','Profit']].concat(BETS.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(b=>[b.date,label(b),b.live&&b.live.game||b.event||'',b.book,b.odds,b.stake>0?b.stake:'',b.bonus?'yes':'',b.result,b.stake>0?profit(b).toFixed(2):'']));
   dl(`overlay-bets-${sydDate()}.csv`,rows.map(r=>r.map(q).join(',')).join('\n'),'text/csv');
+};
+/* ---------- monthly summary as an Excel file (built on this device) ---------- */
+// sheets: "Summary" (one row per month + total), "By type", then one sheet per month listing its bets
+$('xlsBtn').onclick=async()=>{
+  if(!BETS.length){alert('No bets to export yet.');return;}
+  const btn=$('xlsBtn'), was=btn.textContent; btn.disabled=true; btn.textContent='Building…';
+  try{
+    if(!window.XLSX) await new Promise((ok,bad)=>{const s=document.createElement('script');s.src='vendor/xlsx.mini.min.js';s.onload=ok;s.onerror=()=>bad(new Error('could not load the Excel writer'));document.head.appendChild(s);});
+    const R=n=>Math.round(n*100)/100, mKey=b=>String(b.date||'').slice(0,7);
+    const mName=k=>new Date(k+'-15T12:00:00').toLocaleDateString('en-AU',{month:'short',year:'numeric'});
+    const sum=list=>{
+      const set=list.filter(b=>b.result!=='open'), wl=set.filter(b=>b.result==='won'||b.result==='lost'), won=wl.filter(b=>b.result==='won');
+      const staked=wl.filter(b=>!b.bonus).reduce((s,b)=>s+(b.stake||0),0), pl=set.reduce((s,b)=>s+profit(b),0);
+      const ps=set.filter(b=>b.stake>0).map(profit);
+      return {bets:list.length,won:won.length,lost:wl.length-won.length,voids:set.filter(b=>b.result==='void').length,open:list.length-set.length,
+        strike:wl.length?won.length/wl.length:null,staked:R(staked),profit:R(pl),roi:staked?pl/staked:null,
+        best:ps.some(v=>v>0)?R(Math.max(...ps)):null,worst:ps.some(v=>v<0)?R(Math.min(...ps)):null,
+        avgOdds:wl.length?R(wl.reduce((s,b)=>s+(+b.odds||0),0)/wl.length):null};
+    };
+    const head=['Bets','Won','Lost','Void','Open','Strike rate','Staked ($)','Profit ($)','ROI','Avg odds','Best win ($)','Worst loss ($)'];
+    const rowOf=x=>[x.bets,x.won,x.lost,x.voids,x.open,x.strike,x.staked,x.profit,x.roi,x.avgOdds,x.best,x.worst];
+    const months=[...new Set(BETS.map(mKey).filter(Boolean))].sort().reverse();
+    const fmt=(ws,cols)=>{   // number formats by column letter
+      const r=XLSX.utils.decode_range(ws['!ref']);
+      for(let R0=1;R0<=r.e.r;R0++) for(const [c,z] of Object.entries(cols)){const cell=ws[c+(R0+1)]; if(cell&&typeof cell.v==='number') cell.z=z;}
+    };
+    const money='$#,##0.00;-$#,##0.00', pct='0.0%';
+    const wb=XLSX.utils.book_new();
+    // Summary
+    const sm=[['Month',...head]].concat(months.map(k=>[mName(k),...rowOf(sum(BETS.filter(b=>mKey(b)===k)))]));
+    sm.push(['All time',...rowOf(sum(BETS))]);
+    let ws=XLSX.utils.aoa_to_sheet(sm); fmt(ws,{G:pct,H:money,I:money,J:pct,L:money,M:money});
+    ws['!cols']=[{wch:12},...head.map(h=>({wch:Math.max(9,h.length+2)}))]; XLSX.utils.book_append_sheet(wb,ws,'Summary');
+    // By type (props by stat, SGMs, racing etc.)
+    const types=[...new Set(BETS.map(typeOf))].sort();
+    ws=XLSX.utils.aoa_to_sheet([['Type',...head]].concat(types.map(t=>[t,...rowOf(sum(BETS.filter(b=>typeOf(b)===t)))])));
+    fmt(ws,{G:pct,H:money,I:money,J:pct,L:money,M:money}); ws['!cols']=[{wch:18},...head.map(h=>({wch:Math.max(9,h.length+2)}))];
+    XLSX.utils.book_append_sheet(wb,ws,'By type');
+    // one sheet per month
+    for(const k of months){
+      const list=BETS.filter(b=>mKey(b)===k).sort((a,b)=>a.date.localeCompare(b.date));
+      const rows=[['Date','Type','Bet','Event','Bookie','Odds','Stake ($)','Bonus bet','Result','Profit ($)']].concat(list.map(b=>[
+        b.date,typeOf(b),b.kind==='sgm'?`SGM: ${(b.legs||[]).map(legLabel).join(' + ')}`:label(b),b.live&&b.live.game||b.event||'',b.book||'',
+        +b.odds||null,b.stake>0?+b.stake:null,b.bonus?'Yes':'',b.result[0].toUpperCase()+b.result.slice(1),b.stake>0&&b.result!=='open'?R(profit(b)):null]));
+      const x=sum(list); rows.push([],['Total','','','','','',x.staked,'',`${x.won}-${x.lost}`,x.profit]);
+      ws=XLSX.utils.aoa_to_sheet(rows); fmt(ws,{G:money,J:money});
+      ws['!cols']=[{wch:11},{wch:14},{wch:46},{wch:28},{wch:12},{wch:7},{wch:10},{wch:9},{wch:8},{wch:10}];
+      XLSX.utils.book_append_sheet(wb,ws,mName(k));
+    }
+    XLSX.writeFile(wb,`overlay-bets-monthly-${sydDate()}.xlsx`);
+  }catch(e){alert("Couldn't build the Excel file ("+(e&&e.message||e)+").");}
+  finally{btn.disabled=false;btn.textContent=was;}
 };
 $('impFile').onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
