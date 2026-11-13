@@ -103,6 +103,10 @@ def write(snap):
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, "nbl.json"), "w") as f:
         json.dump(encrypt(snap), f)
+    # plain scoreboard (scores only, no player stats) so it's easy to check the feed is moving
+    with open(os.path.join(OUT, "status.json"), "w") as f:
+        json.dump({"updated": snap["updated"], "games": [f"{g['away']['abbr']} {g['away']['score']}-{g['home']['score']} {g['home']['abbr']} {g['status']} {g['clock']}"
+                                                          for g in snap["games"] if g["state"] == "in"]}, f)
     if os.environ.get("PUBLISH"):
         subprocess.run(os.environ["PUBLISH"], shell=True, check=False)
 

@@ -30,7 +30,7 @@ jobs:
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
           OUT: nbl-live
           PUBLISH: >-
-            rm -rf pub && mkdir pub && cp nbl-live/nbl.json pub/ && cd pub && git init -q -b nbl-live . &&
+            rm -rf pub && mkdir pub && cp nbl-live/*.json pub/ && cd pub && git init -q -b nbl-live . &&
             git add -A && git -c user.name=odds-bot -c user.email=odds-bot@users.noreply.github.com commit -qm "nbl" &&
             git push -qf "$REPO_URL" nbl-live:nbl-live; cd ..
         run: |
