@@ -28,22 +28,11 @@ for l in lg.get("response", []):
         nbl = l
 if not nbl:
     raise SystemExit("no NBL league found")
-for s in nbl["seasons"][-3:]:
-    print("season", s["season"], "coverage", json.dumps(s.get("coverage")))
-for season in [s["season"] for s in nbl["seasons"]][::-1][:3]:
-    g = get(f"/games?league={nbl['id']}&season={season}")
-    print(f"games {season}: {len(g.get('response', []))} errors: {g.get('errors')}")
-    fin = [x for x in g.get("response", []) if x["status"]["short"] in ("FT", "AOT")]
-    if not fin:
-        continue
-    last = fin[-1]
-    print("last finished:", last["date"], last["teams"]["home"]["name"], last["scores"]["home"]["total"],
-          "v", last["teams"]["away"]["name"], last["scores"]["away"]["total"])
-    ps = get(f"/games/statistics/players?ids={last['id']}")
-    print("player stats errors:", ps.get("errors"), "rows:", len(ps.get("response", [])))
-    for r in ps.get("response", [])[:6]:
-        print("  ", json.dumps(r)[:300])
-    up = [x for x in g.get("response", []) if x["status"]["short"] == "NS"][:3]
-    for x in up:
-        print("upcoming:", x["date"], x["teams"]["home"]["name"], "v", x["teams"]["away"]["name"])
-    break
+seasons = sorted(nbl["seasons"], key=lambda s: str(s["season"]))
+for s in seasons:
+    c = s.get("coverage") or {}
+    print("season", s["season"], "player stats:", c.get("games", {}).get("statistics", {}).get("players"),
+          "players:", c.get("players"), "odds:", c.get("odds"))
+cur = seasons[-1]["season"]
+g = get(f"/games?league={nbl['id']}&season={cur}")
+print(f"games {cur}: {len(g.get('response', []))} errors: {g.get('errors')}")
