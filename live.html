@@ -340,7 +340,7 @@ function drawGame(){
     const hit=i.v!=null&&i.v>i.line, need=i.v==null?null:Math.floor(i.line)+1-i.v, close=!hit&&need!=null&&need<=Math.max(2,i.line*0.12)&&s==='in';
     const max=Math.max(i.line*1.35,(i.v||0)+1,1);
     const msg=s==='pre'?`Tips ${tip(e.start)}`:i.v==null?'Not in the box score yet':i.r&&i.r.dnp?(s==='post'?'Did not play':'Hasn\'t played yet'):hit?'✅ Cashed':s==='post'?`Missed by ${+(i.line-i.v).toFixed(1)}`:`Needs ${need} more`;
-    const trk=`tracker.html?add=1&player=${encodeURIComponent(i.player)}&stat=${encodeURIComponent(i.stat)}&side=Over&line=${i.line}`;
+    const trk=`tracker.html?add=1&lg=${e.lg||'NBA'}&player=${encodeURIComponent(i.player)}&stat=${encodeURIComponent(i.stat)}&side=Over&line=${i.line}`;
     return `<div class="lv-p ${hit?'hit':close?'close':''}"><div class="r1"><span><b>${esc(i.player)}</b><small>${esc(i.r?i.r.team:'')}</small></span><span class="v">${i.v==null?'–':i.v} <small>/ ${i.line} ${esc(i.stat)}</small></span></div>
       <div class="lv-track"><div class="lv-fill ${hit?'hit':''}" style="width:${i.v==null?0:Math.min(100,i.v/max*100).toFixed(1)}%"></div><div class="lv-line" style="left:${(i.line/max*100).toFixed(1)}%"></div></div>
       <div class="r2"><span>${esc(msg)}${i.r&&!i.r.dnp&&s!=='pre'?` · ${mins(i.r.min)} min`:''}</span>${s==='post'?'':`<a href="${trk}">+ Track</a>`}</div></div>`;
