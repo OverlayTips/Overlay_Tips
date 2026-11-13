@@ -182,6 +182,8 @@ def collect_arbs(now):
     except Exception as e:
         print(f"::warning::couldn't read picks.json: {e}")
         return []
+    print("arbs seen: bookie v bookie " + ", ".join(f"{a['margin_pct']}%" for a in summ.get("arbs") or []) +
+          " | back/lay " + ", ".join(f"{a['margin_pct']}%" for a in summ.get("layarbs") or []))
     out = []
     for a in summ.get("arbs") or []:
         if a["margin_pct"] < ARB_MIN or started(a.get("start", ""), now):
@@ -209,7 +211,8 @@ def collect_arbs(now):
 
 
 def send_arbs(state, now):
-    for a in collect_arbs(now):
+    arbs, sent = collect_arbs(now), 0
+    for a in arbs:
         old = state.get(a["key"])
         if old and a["margin"] < old["edge"] + 1:
             continue
@@ -219,6 +222,8 @@ def send_arbs(state, now):
         if push(a["title"], lines, click=SITE + "/odds.html",
                 actions=[{"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False}]):
             state[a["key"]] = {"edge": a["margin"], "price": 0, "tag": "", "at": now.isoformat()}
+            sent += 1
+    print(f"arb alerts: {len(arbs)} at {ARB_MIN}%+, {sent} sent")
 
 
 def main():
