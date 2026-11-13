@@ -25,6 +25,12 @@ def dispatch(wf, inputs=None):
         r.read()
 
 
+# keep the 15-minute odds ticker going (queues behind the running one, so there's never a gap)
+try:
+    dispatch("ticker.yml")
+except Exception as e:
+    print("::warning::couldn't start the odds ticker:", e)
+
 # live scoreboard: one snapshot every hour, polling every 30s while a game is on or within 80 min
 dispatch("nbl-live.yml")
 print("NBL live scoreboard update started")

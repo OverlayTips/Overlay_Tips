@@ -1,0 +1,34 @@
+name: Odds ticker
+
+# Starts "Update odds" every 15 minutes. GitHub's own 15-minute cron is unreliable (new schedules can take
+# hours to start, and busy times skip runs), so this job loops for ~5h45m dispatching the update itself.
+# The hourly "NBL pre-tip refresh" also starts this, so one is always queued behind the running one:
+# when a ticker ends, the next takes over straight away.
+on:
+  schedule:
+    - cron: "7 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+concurrency:
+  group: odds-ticker
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: Start an odds update every 15 minutes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          end=$(( $(date +%s) + 345*60 ))
+          while [ $(date +%s) -lt $end ]; do
+            curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/odds.yml/dispatches" \
+              -d '{"ref":"main"}' && echo "$(date -u +%H:%M) odds update started" || echo "::warning::dispatch failed"
+            sleep 900
+          done
