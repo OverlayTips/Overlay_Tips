@@ -10,6 +10,10 @@ on:
         description: "Re-pull every game's player props now (ignore the 2-hour cache)"
         type: boolean
         default: false
+      nba_only:
+        description: "NBA only (pre-tip refresh after lineups confirm; other sports keep their last odds)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -23,7 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PW_SET: ${{ secrets.ODDS_PAGE_PASSWORD != '' }}
-      PROPS_EVERY_HOURS: ${{ inputs.fresh_props && '0' || '2' }}
+      PROPS_EVERY_HOURS: ${{ inputs.nba_only && '0.25' || (inputs.fresh_props && '0' || '2') }}
+      NBA_ONLY: ${{ inputs.nba_only && '1' || '0' }}
     steps:
       - name: Check Sydney time
         run: |
@@ -43,6 +48,10 @@ jobs:
         if: env.RUN == 'true'
         run: |
           git fetch --depth=1 origin odds-data && git worktree add odds-data FETCH_HEAD || mkdir -p odds-data
+          # NBA injury report + confirmed starters (written by the NBA alerts workflow)
+          mkdir -p alerts-state lineups-data
+          git fetch -q --depth=1 origin alerts-state && git show FETCH_HEAD:state.json > alerts-state/state.json || echo "no injury data"
+          git fetch -q --depth=1 origin lineups-data && git show FETCH_HEAD:lineups.json > lineups-data/lineups.json || echo "no lineups data"
 
       - uses: actions/setup-python@v5
         if: env.RUN == 'true'

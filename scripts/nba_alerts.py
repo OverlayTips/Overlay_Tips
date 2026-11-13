@@ -18,7 +18,7 @@ Usage: python scripts/nba_alerts.py
 """
 import json
 import re, os, sys, time, urllib.error, urllib.parse, urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 API = "https://api.balldontlie.io/v1"
@@ -72,6 +72,29 @@ def push(title, lines, tags="basketball"):
         ok = bool(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", TOPIC))
         print(f"::error::ntfy {e.code}: {e.read()[:300]!r} (topic valid format: {ok}, length {len(TOPIC)})")
         raise
+
+
+REFRESH_BEFORE = 120   # minutes before tip: a lineup confirming inside this window triggers an NBA odds refresh
+REFRESH_GAP = 40       # minutes between refreshes (Odds API credits)
+
+
+def refresh_odds():
+    """Start the 'Update odds' workflow in NBA-only mode (needs GH_TOKEN with actions: write)."""
+    tok, repo = os.environ.get("GH_TOKEN", ""), os.environ.get("GITHUB_REPOSITORY", "")
+    if not tok or not repo:
+        return False
+    req = urllib.request.Request(f"https://api.github.com/repos/{repo}/actions/workflows/odds.yml/dispatches",
+                                 data=json.dumps({"ref": "main", "inputs": {"nba_only": "true"}}).encode(),
+                                 headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"},
+                                 method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            r.read()
+        print("lineups confirmed before tip: NBA odds refresh started")
+        return True
+    except urllib.error.HTTPError as e:
+        print(f"::warning::couldn't start odds refresh: {e.code} {e.read()[:200]!r}")
+        return False
 
 
 def sydtime(iso):
@@ -154,7 +177,7 @@ def main():
 
     games = api("/games", [("dates[]", day), ("per_page", 100)]).get("data") or []
     all_lineups = pages("/projected_lineups", [("dates[]", day)]) if games else []
-    teams, opp, tip = {}, {}, {}
+    teams, opp, tip, tipdt = {}, {}, {}, {}
     for g in games:
         h, v = g.get("home_team") or {}, g.get("visitor_team") or {}
         for a, b, at in ((h, v, "vs"), (v, h, "@")):
@@ -162,11 +185,15 @@ def main():
                 teams[a["id"]] = a.get("abbreviation") or a.get("name") or "?"
                 opp[a["id"]] = f"{at} {b.get('abbreviation', '?')}"
                 tip[a["id"]] = sydtime(g.get("datetime") or "")
+                try:
+                    tipdt[a["id"]] = datetime.fromisoformat((g.get("datetime") or "").replace("Z", "+00:00"))
+                except ValueError:
+                    pass
     playing = set(teams)
 
     # ---- confirmed lineups ----
     sent = state.get("lineups", {}) if state.get("day") == day else {}
-    lineup_lines = []
+    lineup_lines, pretip = [], False
     if games:
         for lu in all_lineups:
             if lu.get("status") != "confirmed":
@@ -181,6 +208,9 @@ def main():
             change = " (CHANGED)" if k in sent else ""
             lineup_lines.append(f"✅ {head}{change}: {', '.join(names)}")
             sent[k] = sig
+            t0 = tipdt.get(tid)
+            if t0 and timedelta(0) < t0 - datetime.now(timezone.utc) <= timedelta(minutes=REFRESH_BEFORE):
+                pretip = True
 
     # ---- injuries (whole league, so tomorrow's teams are already known; only alert for today's) ----
     old = state.get("injuries", {})
@@ -222,7 +252,13 @@ def main():
     except Exception as e:
         print(f"::warning::player list skipped: {e}")
 
-    state = {"day": day, "lineups": sent, "injuries": new,
+    # ---- lineups just confirmed before tip-off: refresh NBA odds so the value picks use them ----
+    last = state.get("odds_refresh", "")
+    if pretip and (not last or datetime.now(timezone.utc) - datetime.fromisoformat(last) >= timedelta(minutes=REFRESH_GAP)):
+        if refresh_odds():
+            last = datetime.now(timezone.utc).isoformat()
+
+    state = {"day": day, "lineups": sent, "injuries": new, "odds_refresh": last,
              "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     json.dump(state, open(STATE, "w"), separators=(",", ":"))
     print(f"{day}: {len(games)} games, {len(lineup_lines)} lineup alerts, {len(inj_lines)} injury alerts"

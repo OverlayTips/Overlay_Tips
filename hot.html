@@ -71,6 +71,7 @@
 .hs-card.out{opacity:.55}
 .hs-track{color:var(--mint);font-weight:700}
 @media(max-width:420px){.hs-grid{grid-template-columns:1fr}}
+.hs-inj{margin-left:6px;font-size:11px;font-weight:700;color:#f5b041;white-space:nowrap}.hs-inj.ok{color:#4cd07d}
 </style>
 <script src="nav.js?v=3"></script>
 <script src="gate.js?v=2" data-need="member" data-label="Hot stats"></script>
@@ -198,7 +199,7 @@ function fair(it){
 function card(it,val){
   const ls=status(it);
   return `<article class="hs-card ${ls.cls}">
-    <div class="hs-top"><div><div class="hs-name">${esc(it.player)}<small>${esc(it.team||'')}</small></div>
+    <div class="hs-top"><div><div class="hs-name">${esc(it.player)}<small>${esc(it.team||'')}</small>${it.inj==='Q'||it.inj==='GTD'?`<span class="hs-inj" title="${it.inj==='Q'?'Questionable':'Game-time decision'}: check team news">⚠️ ${it.inj}</span>`:it.starting?'<span class="hs-inj ok" title="Confirmed starter">✅ Starting</span>':''}</div>
       <div class="hs-line">🔥 ${esc(it.line)} ${esc(it.stat)}</div></div>
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}

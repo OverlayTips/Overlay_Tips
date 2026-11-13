@@ -17,7 +17,7 @@ Env:
   PROPS_WINDOW_HOURS   only pull props for games starting within this many hours (default 24)
   MIN_CREDITS          stop spending once remaining credits drop below this (default 50)
 """
-import base64, gzip, hashlib, json, os, secrets, sys, urllib.request, urllib.parse, urllib.error
+import base64, gzip, hashlib, json, os, re, secrets, sys, urllib.request, urllib.parse, urllib.error
 from datetime import datetime, timezone, timedelta
 
 API = os.environ.get("ODDS_API_BASE", "https://api.the-odds-api.com/v4")
@@ -240,11 +240,12 @@ def main():
     sports = api.get("/sports")          # free
     active = {s["key"]: s["title"] for s in sports if s.get("active")}
     games = [s["key"] for s in sports if s.get("active") and not s.get("has_outrights")]
+    nba_only = os.environ.get("NBA_ONLY") == "1"
     wanted = []
-    for pat in SPORTS:  # named sports first, so wildcards never starve them of credits
+    for pat in (["basketball_nba"] if nba_only else SPORTS):  # named sports first, so wildcards never starve them of credits
         if not pat.endswith("*") and pat in active and pat not in wanted:
             wanted.append(pat)
-    for pat in SPORTS:
+    for pat in ([] if nba_only else SPORTS):
         if pat.endswith("*"):
             wanted += [k for k in games if k.startswith(pat[:-1]) and k not in wanted]
 
@@ -312,6 +313,16 @@ def main():
         if ev.get("fetched") == TS:
             record(hist, ev)
             record_bookies(hist, ev)
+    if nba_only:   # pre-tip NBA refresh: every other sport keeps its last odds + props unchanged
+        keep_from = NOW - KEEP_AFTER_START
+        prev_o = (prev.get("odds") or {}).get("events", [])
+        events += [e for e in prev_o if e.get("sport_key") not in wanted and parse(e["commence_time"]) > keep_from]
+        for i, e in old_props.items():
+            if e.get("sport_key") not in wanted and i not in props and parse(e["commence_time"]) > keep_from:
+                props[i] = e
+                if i in (prev.get("props") or {}).get("fetched", {}):
+                    fetched[i] = prev["props"]["fetched"][i]
+        wanted = sorted(set(wanted) | set((prev.get("odds") or {}).get("sports_checked") or []))
     cutoff = NOW - KEEP_AFTER_START
     hist = {i: e for i, e in hist.items() if parse(e["commence_time"]) > cutoff}
 
@@ -343,12 +354,38 @@ def main():
     except Exception as e:
         print("player stats failed:", type(e).__name__, e)
 
+    # ---- NBA availability (injury report + confirmed starters from the NBA alerts feed) ----
+    avail = None
+    try:
+        import injuries
+        avail = injuries.Availability()
+        print(f"availability: {len(avail.inj)} on injury report, {len(avail.confirmed)} confirmed lineups"
+              if avail.ok else "availability: no injury/lineup data found")
+        if not avail.ok:
+            avail = None
+    except Exception as e:
+        print("availability failed:", type(e).__name__, e)
+
     sgms = []
     # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
     try:
         import hot
         hj = hot.build(list(props.values()), stats.get("nba") or {}, NOW, TS)
         legs = hj.pop("_legs", [])
+        if avail:   # drop Out/Doubtful players, flag Questionable / not starting
+            for lst in ("items", "value"):
+                keep = []
+                for it in hj.get(lst) or []:
+                    a = avail.check(it.get("player"), it.get("team"))
+                    if a["drop"]:
+                        continue
+                    if a["flag"]:
+                        it["inj"] = a["flag"]
+                    if a["start"]:
+                        it["starting"] = True
+                    keep.append(it)
+                hj[lst] = keep
+            legs = [l for l in legs if not avail.check(l.get("player"), l.get("team"))["drop"]]
         with open(os.path.join(OUT, "hot.json"), "w") as f:
             json.dump(hj, f, separators=(",", ":"))
         print(f"hot stats: {len(hj['items'])} props")
@@ -375,6 +412,8 @@ def main():
         "stats": stats,
         "sgm": {"updated": TS, "items": sgms},
         "racing": racing,
+        "avail": {"updated": avail.updated, "nba": avail.map(),
+                  "starters": sorted(avail.starters)} if avail else None,
         "odds": {
             "updated": TS,
             "credits_remaining": api.remaining,
@@ -398,6 +437,17 @@ def main():
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import picks
         summary = picks.compute(events, list(props.values()), hist, NOW)
+        if avail:   # NBA player props: same availability rules as Hot stats
+            keep = []
+            for o in summary["overlays"]:
+                if o.get("sport") == "NBA" and re.search(r" (Over|Under|Yes)\b", o["pick"]):
+                    a = avail.check(re.split(r" (?:Over|Under|Yes)\b", o["pick"])[0])
+                    if a["drop"]:
+                        continue
+                    if a["flag"]:
+                        o["inj"] = a["flag"]
+                keep.append(o)
+            summary["overlays"] = keep
         summary.update({"generated": TS, "credits_remaining": api.remaining, "errors": api.errors})
         with open(os.path.join(OUT, "picks.json"), "w") as f:
             json.dump(picks.encrypt_with_key(summary, alerts_key), f)

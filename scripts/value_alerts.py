@@ -75,6 +75,16 @@ def load(path, default):
         return default
 
 
+def tag(x):
+    """Availability marker added by fetch_odds (NBA): starting / questionable / game-time / bench."""
+    f = x.get("inj") or ""
+    if f in ("Q", "GTD"):
+        return f" ⚠️{f}"
+    if f == "Bench":
+        return " (bench)"
+    return " ✅starting" if x.get("starting") else ""
+
+
 def collect(now):
     out = []
     hot = load(os.path.join(OUT, "hot.json"), {})
@@ -85,9 +95,9 @@ def collect(now):
         add = SITE + "/tracker.html?" + urllib.parse.urlencode({
             "add": 1, "player": v["player"], "stat": v["stat"], "side": side,
             "line": v.get("point", ""), "odds": v["price"], "book": v["book"]})
-        out.append({"key": f"hot|{v['player']}|{v['stat']}|{v.get('point')}|{side}",
+        out.append({"tag": tag(v), "key": f"hot|{v['player']}|{v['stat']}|{v.get('point')}|{side}",
                     "edge": v["value"], "price": v["price"], "start": v.get("start", ""),
-                    "text": f"{v['player']} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
+                    "text": f"{v['player']}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
                     "sub": f"{v.get('team','')} v {v.get('opp','')} · {tip(v.get('start',''))} · fair {100*v.get('prob',0):.0f}%",
                     "add": add})
     key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
@@ -103,9 +113,9 @@ def collect(now):
         for o in summ.get("overlays") or []:
             if o["edge_pct"] < MIN_VALUE or started(o.get("start", ""), now):
                 continue
-            out.append({"key": f"ov|{o['game']}|{o['market']}|{o['pick']}",
+            out.append({"tag": tag(o), "key": f"ov|{o['game']}|{o['market']}|{o['pick']}",
                         "edge": o["edge_pct"], "price": o["price"], "start": o.get("start", ""),
-                        "text": f"{o['pick']} ({o['market']}) @ {o['price']:.2f} {o['book']}",
+                        "text": f"{o['pick']}{tag(o)} ({o['market']}) @ {o['price']:.2f} {o['book']}",
                         "sub": f"{o['game']} · {tip(o.get('start',''))} · fair {o['fair']:.2f}",
                         "add": None})
     return out
@@ -125,7 +135,8 @@ def main():
     new = []
     for p in sorted(collect(now), key=lambda x: -x["edge"]):
         old = state.get(p["key"])
-        if old and p["edge"] < old["edge"] + 3 and p["price"] <= old["price"]:
+        cleared = "⚠️" in old.get("tag", "") if old else False   # was questionable, now isn't
+        if old and p["edge"] < old["edge"] + 3 and p["price"] <= old["price"] and not (cleared and "⚠️" not in p["tag"]):
             continue
         new.append(p)
     if not new:
@@ -144,7 +155,7 @@ def main():
             acts.append({"action": "view", "label": "Log top bet", "url": top[0]["add"], "clear": False})
         if push(title, lines, click=SITE + "/odds.html", actions=acts):
             for p in new:
-                state[p["key"]] = {"edge": p["edge"], "price": p["price"], "at": now.isoformat()}
+                state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
     with open(state_path, "w") as f:
         json.dump(state, f, separators=(",", ":"))
 

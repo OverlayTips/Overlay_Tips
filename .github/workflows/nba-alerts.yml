@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # start the NBA odds refresh when lineups confirm before tip
 
 concurrency:
   group: nba-alerts-${{ inputs.test && 'test' || 'live' }}
@@ -39,6 +40,7 @@ jobs:
           NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           STATE: st/state.json
+          GH_TOKEN: ${{ github.token }}
           TEST: ${{ inputs.test && '1' || '0' }}
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
         run: |

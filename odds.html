@@ -230,6 +230,7 @@
 .og-up details{border-top:1px solid #1b2523;padding-top:10px;color:#87978f;font-size:13.5px}
 .og-up details summary{cursor:pointer}
 .og-up details[open]{display:flex;flex-direction:column;gap:10px}
+.inj{font-size:11px;font-weight:700;color:#f5b041;white-space:nowrap}.inj.ok{color:#4cd07d}
 </style>
 <link rel="stylesheet" href="plain.css?v=6">
 <script src="keys.js?v=2"></script>
@@ -868,6 +869,16 @@ function pickPrice(t,r){
 const myName=()=>myBook==='all'?'':' at '+(BOOK_NAMES[myBook]||SHORT[myBook]||myBook);
 
 /* highest +EV props across every market, best first */
+/* NBA availability (injury report + confirmed starters, from the NBA alerts feed) */
+const pkey=n=>String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[.'’`]/g,'').replace(/-/g,' ').split(/\s+/).filter(t=>t&&!['jr','sr','ii','iii','iv','v'].includes(t)).join('');
+function availOf(e,r){
+  const A=DATA.avail; if(!A||!r.s.desc||e.sport_key!=='basketball_nba') return '';
+  const s=(A.nba||{})[pkey(r.s.desc)]||'';
+  if(s==='Out'||s==='Doubtful') return 'drop';
+  if(s==='Questionable') return 'Q'; if(s==='Day-To-Day') return 'GTD';
+  return (A.starters||[]).includes(pkey(r.s.desc))?'start':'';
+}
+const availChip=a=>a==='Q'||a==='GTD'?` <span class="inj" title="${a==='Q'?'Questionable':'Game-time decision'}: check team news">⚠️ ${a}</span>`:a==='start'?' <span class="inj ok" title="Confirmed starter">✅ starting</span>':'';
 function topEV(evs,q,o={}){
   const limit=o.limit||25;
   const now=new Date(), out=[];
@@ -875,15 +886,15 @@ function topEV(evs,q,o={}){
     if(new Date(e.commence_time)<=now) return;
     const mks=[...new Set(e.bookmakers.flatMap(b=>b.markets.map(m=>m.key)))].filter(k=>!k.endsWith('_lay'));
     mks.forEach(mk=>{const t=eventRows(e,mk); if(!t) return;
-      t.rows.forEach(r=>{ if(!r.fair||r.nfair<3) return;
+      t.rows.forEach(r=>{ if(!r.fair||r.nfair<3) return; const av=availOf(e,r); if(av==='drop') return;
         if(o.type==='props'&&!(r.s.desc&&(r.point!=null||r.ladder))) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r);
         const hit=!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q);
         // an off-line price (e.g. Over 31.5 when the main line is 32.5) that beats the main line
         const a=r.alt; if(a&&a.edge>0.5&&a.edge<=EDGE_CAP&&hit&&!(o.maxOdds&&a.price>o.maxOdds)&&(myBook==='all'||o.noBook||a.book.key===myBook)){
-          out.push({e,mk,r,pk:{price:a.price,book:a.book},edge:a.edge,pt:a.point,fair:a.price/(1+a.edge/100)}); return; }
+          out.push({e,mk,r,av,pk:{price:a.price,book:a.book},edge:a.edge,pt:a.point,fair:a.price/(1+a.edge/100)}); return; }
         if(!pk||(o.maxOdds&&pk.price>o.maxOdds)) return;
         const edge=(pk.price/r.fair-1)*100;
-        if(edge>0.5&&edge<=EDGE_CAP&&hit) out.push({e,mk,r,pk,edge}); });});
+        if(edge>0.5&&edge<=EDGE_CAP&&hit) out.push({e,mk,r,av,pk,edge}); });});
   });
   out.sort((a,b)=>b.edge-a.edge);
   const ptOf=x=>x.pt!=null?x.pt:x.r.point;
@@ -891,7 +902,7 @@ function topEV(evs,q,o={}){
   if(!out.length) return o.empty||'';
   const rows=out.slice(0,limit).map(x=>{const {e,mk,r,pk,edge}=x, pt=ptOf(x); return `<tr>
     <td class="c-edge"><span class="evp">+${edge.toFixed(1)}%</span></td>
-    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>'+hitChip(e,mk,r,pt):esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
+    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>'+availChip(x.av)+hitChip(e,mk,r,pt):esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
     <td class="c-fair">${(x.fair||r.fair).toFixed(2)}${r.fairSrc==='pin'?' <span class="pin">PIN</span>':''}</td>
     <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');
