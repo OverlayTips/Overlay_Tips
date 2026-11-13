@@ -1,11 +1,12 @@
 name: NBL pre-tip refresh
 
-# Hourly through the Aussie afternoon/evening (3pm-midnight AEDT): if an NBL game tips in the next
-# 15-80 min, run an NBL-only odds update so value picks + phone alerts land before the game.
+# Hourly 11am-midnight AEDT: updates the NBL live scoreboard ("NBL live", which keeps polling while a
+# game is on), and if an NBL game tips in the next 15-80 min, runs an NBL-only odds update so value
+# picks + phone alerts land before the game.
 # Costs 1 API-Sports call per run, and Odds API credits only when a game is coming up.
 on:
   schedule:
-    - cron: "40 4-13 * * *"
+    - cron: "40 0-13 * * *"
   workflow_dispatch:
 
 permissions:

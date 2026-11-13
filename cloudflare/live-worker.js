@@ -7,7 +7,6 @@
 // Cloudflare settings (Worker -> Settings -> Variables and Secrets), both as "Secret":
 //   BDL_KEY        your BALLDONTLIE API key
 //   LIVE_PASSWORD  the members password (same one as the Odds board)
-//   APISPORTS_KEY  your API-Sports key (NBL live scores; optional)
 //
 // GET /nba?dates=YYYY-MM-DD,YYYY-MM-DD   (US dates, up to 3)  header X-Members-Password
 // -> {"updated", "games": [{"id", "start", "state": "pre"|"in"|"post", "status", "period", "clock",
@@ -16,8 +15,8 @@
 //                                                  "stl", "blk", "tov", "pf", "fgm", "fga", "fg3a",
 //                                                  "ftm", "fta", "oreb", "dreb", "pm"}]}
 // GET /nbl?dates=YYYY-MM-DD,...   (Australian dates, up to 3)  header X-Members-Password
-// -> same shape as /nba, with "lg": "NBL" and ids like "nbl501238". Needs the APISPORTS_KEY secret
-//    (API-Sports Pro). No steals/blocks/turnovers/play-by-play for the NBL.
+// -> same shape as /nba, with "lg": "NBL" and ids like "nbl501238", from the encrypted feed the
+//    "NBL live" GitHub Action publishes. No steals/blocks/turnovers/play-by-play for the NBL.
 // GET /plays?game_id=N   header X-Members-Password   (play-by-play, BALLDONTLIE GOAT tier)
 // -> {"updated", "game_id", "plays": [{"n", "period", "clock", "text", "team", "home", "away",
 //                                      "scoring", "value"}]}   oldest first
@@ -173,110 +172,41 @@ async function build(env, dates) {
   return { updated: new Date().toISOString(), games: out };
 }
 
-// ---------------- NBL (API-Sports / API-Basketball) ----------------
-const AS = "https://v1.basketball.api-sports.io";
-const NBL_ABBR = { "Adelaide": "ADL", "Brisbane": "BRI", "Cairns": "CNS", "Illawarra": "ILL", "Melbourne": "MEL",
-  "New Zealand": "NZB", "Perth": "PER", "South East Melbourne": "SEM", "Sydney": "SYD", "Tasmania": "TAS" };
-const nblAbbr = (n) => {
-  const k = Object.keys(NBL_ABBR).filter((k) => String(n || "").startsWith(k)).sort((a, b) => b.length - a.length)[0];
-  return k ? NBL_ABBR[k] : String(n || "").slice(0, 3).toUpperCase();
-};
+// ---------------- NBL ----------------
+// API-Sports blocks Cloudflare's network, so a GitHub Action ("NBL live") fetches the NBL scoreboard every
+// 30s during games and publishes it encrypted to the nbl-live branch. This decrypts it for members
+// (AES-GCM, key = SHA-256("nbl-live:" + LIVE_PASSWORD)) and keeps it in memory for 15s.
+const NBL_SRC = "https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/nbl-live/nbl.json";
+const MEM = { at: 0, data: null };
 
-// The Cache API does nothing on *.workers.dev, so NBL answers are also kept in memory (per Worker
-// instance): the season list for 5 min, a full answer for 30s, and after an API-Sports error we
-// wait 90s before asking again.
-const MEM = { season: null, seasonAt: 0, answers: {}, backoffUntil: 0, lastErr: "" };
-
-async function as(env, path) {
-  if (Date.now() < MEM.backoffUntil) throw new Error("waiting after API-Sports limit: " + MEM.lastErr);
-  const r = await fetch(AS + path, { headers: { "x-apisports-key": env.APISPORTS_KEY } });
-  const left = r.headers.get("x-ratelimit-remaining"), perMin = r.headers.get("x-ratelimit-limit");
-  if (!r.ok) throw new Error(`${path} ${r.status}`);
-  const j = await r.json();
-  if (j.errors && Object.keys(j.errors).length) {
-    MEM.backoffUntil = Date.now() + 90e3;
-    MEM.lastErr = JSON.stringify(j.errors).slice(0, 120) + (perMin ? ` (limit ${perMin}/min, ${left} left)` : "");
-    throw new Error(MEM.lastErr);
+async function nblFeed(env) {
+  if (MEM.data && Date.now() - MEM.at < 15e3) return MEM.data;
+  const r = await fetch(`${NBL_SRC}?t=${Math.floor(Date.now() / 15e3)}`, { cf: { cacheTtl: 0 } });
+  if (!r.ok) throw new Error(`NBL feed ${r.status}`);
+  const b = await r.json();
+  const b64 = (x) => Uint8Array.from(atob(x), (c) => c.charCodeAt(0));
+  const raw = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("nbl-live:" + env.LIVE_PASSWORD));
+  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+  let pt;
+  try {
+    pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(b.iv) }, key, b64(b.ct));
+  } catch (e) {
+    throw new Error("NBL feed: LIVE_PASSWORD in GitHub secrets doesn't match Cloudflare");
   }
-  return j.response || [];
+  MEM.data = JSON.parse(new TextDecoder().decode(pt));
+  MEM.at = Date.now();
+  return MEM.data;
 }
 
 async function nbl(url, env, ctx, cors) {
-  if (!env.APISPORTS_KEY) return json({ updated: new Date().toISOString(), games: [], note: "APISPORTS_KEY not set" }, 200, cors);
   const dates = (url.searchParams.get("dates") || "").split(",").filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 3);
   if (!dates.length) return json({ error: "dates" }, 400, cors);
-  const cache = caches.default;
-  const key = new Request("https://overlay-live.cache/nbl?d=" + dates.join(","));
-  const mem = MEM.answers[dates.join(",")];
-  if (mem && Date.now() - mem.at < 30e3)
-    return new Response(mem.body, { status: mem.status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
-  const hit = await cache.match(key);
-  if (hit) return new Response(hit.body, { status: hit.status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
-  let body;
   try {
-    const now = new Date(), y = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
-    const season = `${y}-${y + 1}`;
-    // one call for the whole season (cached 2 min), filtered to the asked-for Australian dates
-    const skey = new Request("https://overlay-live.cache/nbl-season?s=" + season);
-    let all = MEM.season && Date.now() - MEM.seasonAt < 300e3 ? MEM.season : null;
-    const sh = all ? null : await cache.match(skey);
-    if (all) {}
-    else if (sh) all = await sh.json();
-    else {
-      all = await as(env, `/games?league=1&season=${season}&timezone=Australia/Sydney`);
-      MEM.season = all; MEM.seasonAt = Date.now();
-      ctx.waitUntil(cache.put(skey, new Response(JSON.stringify(all), {
-        headers: { "Content-Type": "application/json", "Cache-Control": "max-age=120" } })));
-    }
+    const d = await nblFeed(env);
     const auDate = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Australia/Sydney" });
-    let games = all.filter((g) => dates.includes(auDate(g.date)));
-    // games in progress: the season list is up to 2 min old, so refresh just today's games (1 call)
-    if (games.some((g) => !["NS", "FT", "AOT", "POST", "CANC"].includes(g.status && g.status.short))
-        || games.some((g) => g.status && g.status.short === "NS" && Date.parse(g.date) < Date.now())) {
-      const ids = new Set(games.map((g) => g.id));
-      const today = auDate(new Date().toISOString());
-      const fresh = await as(env, `/games?league=1&season=${season}&date=${today}&timezone=Australia/Sydney`);
-      const byId = Object.fromEntries(fresh.map((g) => [g.id, g]));
-      games = games.map((g) => byId[g.id] || g).concat(fresh.filter((g) => !ids.has(g.id) && dates.includes(auDate(g.date))));
-    }
-    // box scores only for games on now or finished in the last 6 hours
-    const started = games.filter((g) => !["NS", "CANC", "POST"].includes(g.status && g.status.short)
-      && Date.now() - Date.parse(g.date) < 9 * 3600e3).map((g) => g.id);
-    const rows = started.length ? await as(env, `/games/statistics/players?ids=${started.join("-")}`) : [];
-    const byTeam = {};
-    for (const r of rows) (byTeam[`${r.game && r.game.id}|${r.team && r.team.id}`] ||= []).push(r);
-    const side = (g, t, score) => ({
-      abbr: nblAbbr(t.name), name: t.name, score: score ?? null,
-      players: (byTeam[`${g.id}|${t.id}`] || []).map((p) => ({
-        name: (p.player && p.player.name) || "", min: p.minutes || "", pts: p.points ?? 0,
-        reb: (p.rebounds && p.rebounds.total) ?? 0, ast: p.assists ?? 0,
-        fg3m: (p.threepoint_goals && p.threepoint_goals.total) ?? 0, fg3a: (p.threepoint_goals && p.threepoint_goals.attempts) ?? 0,
-        ftm: (p.freethrows_goals && p.freethrows_goals.total) ?? 0, fta: (p.freethrows_goals && p.freethrows_goals.attempts) ?? 0,
-        stl: 0, blk: 0, tov: 0, pf: 0, fgm: 0, fga: 0, oreb: 0, dreb: 0, pm: null, starter: p.type === "starters",
-      })),
-    });
-    const per = { Q1: 1, Q2: 2, HT: 2, Q3: 3, Q4: 4, BT: 0, OT: 5 };
-    const out = games.map((g) => {
-      const st = (g.status && g.status.short) || "";
-      const state = st === "NS" ? "pre" : ["FT", "AOT", "POST", "CANC"].includes(st) ? "post" : "in";
-      return {
-        id: "nbl" + g.id, lg: "NBL", start: g.date, state, status: (g.status && g.status.long) || st,
-        period: per[st] ?? 0, clock: st === "HT" ? "Half" : g.status && g.status.timer ? `${g.status.timer}'` : "",
-        home: side(g, g.teams.home, g.scores && g.scores.home && g.scores.home.total),
-        away: side(g, g.teams.away, g.scores && g.scores.away && g.scores.away.total),
-      };
-    });
-    body = JSON.stringify({ updated: new Date().toISOString(), games: out });
+    const games = (d.games || []).filter((g) => dates.includes(auDate(g.start)));
+    return json({ updated: d.updated, games }, 200, { ...cors, "Cache-Control": "no-store" });
   } catch (e) {
-    const err = JSON.stringify({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) });
-    MEM.answers[dates.join(",")] = { at: Date.now(), status: 502, body: err };
-    ctx.waitUntil(cache.put(key, new Response(err, {   // don't retry API-Sports for a minute after an error
-      status: 502, headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" } })));
-    return new Response(err, { status: 502, headers: { ...cors, "Content-Type": "application/json" } });
+    return json({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) }, 502, cors);
   }
-  MEM.answers[dates.join(",")] = { at: Date.now(), status: 200, body };
-  ctx.waitUntil(cache.put(key, new Response(body, {
-    headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_SECONDS}` },
-  })));
-  return new Response(body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 }
