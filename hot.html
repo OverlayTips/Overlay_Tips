@@ -14,18 +14,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Overlay">
 <script src="/pwa.js" defer></script>
-<meta name="description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 15 minutes.">
+<meta name="description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <link rel="canonical" href="https://overlay.tips/hot.html">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overlay Tips">
 <meta property="og:title" content="Hot Stats | Free NBA + NBL player prop hit rates | Overlay Tips">
-<meta property="og:description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 15 minutes.">
+<meta property="og:description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <meta property="og:url" content="https://overlay.tips/hot.html">
 <meta property="og:image" content="https://overlay.tips/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Hot Stats | Free NBA + NBL player prop hit rates | Overlay Tips">
-<meta name="twitter:description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 15 minutes.">
+<meta name="twitter:description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
 <meta name="theme-color" content="#060807">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,6 +35,10 @@
 <link rel="stylesheet" href="plain.css?v=6">
 <style>
 .hs-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 10px}
+.hs-lgs{display:flex;gap:6px;margin:0 0 12px;padding:4px;background:#0e1312;border:1px solid #1b2523;border-radius:14px;width:max-content}
+.hs-lgs button{border:0;background:none;color:#c9d6d0;font:800 15px Archivo,system-ui,sans-serif;padding:9px 22px;border-radius:10px;cursor:pointer}
+.hs-lgs button.on{background:var(--mint);color:#04130b}
+.hs-lgs small{font-weight:600;opacity:.7;margin-left:6px}
 .hs-chips{display:flex;flex-wrap:wrap;gap:8px}
 .hs-chips button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
 .hs-chips button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
@@ -124,12 +128,13 @@
   <div class="wrap">
     <div class="mono">Free · NBA + NBL player props</div>
     <h1>Hot stats</h1>
-    <p>Props the player keeps clearing. Each card shows the player's last 10 games against the line, the hit rate, and the best price at the Aussie bookies. Updated 3× a day.</p>
+    <p>Props the player keeps clearing. Each card shows the player's last 10 games against the line, the hit rate, and the best price at the Aussie bookies. Updated every 5 minutes.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
     <div class="hs-meta" id="meta">Loading…</div>
+    <div class="hs-lgs" id="lgs" role="tablist" aria-label="League"></div>
     <div class="hs-bar">
       <div class="hs-chips" id="chips"></div>
       <div class="hs-ctl"><label class="hs-sort">Bookie <select id="book"><option value="all">All bookies (best price)</option></select></label>
@@ -211,8 +216,19 @@ function card(it,val){
     <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;
 }
+let LG=(()=>{try{return localStorage.getItem('hs-lg')||'NBA';}catch(_){return 'NBA';}})();
+const lgOf=i=>i.lg==='NBL'?'NBL':'NBA';
 function draw(){
+  const ALLI=ITEMS, ALLV=VALUE, live=i=>new Date(i.start)>new Date();
+  const cnt=l=>new Set(ALLI.concat(ALLV).filter(i=>lgOf(i)===l&&live(i)).map(i=>i.player+'|'+i.stat)).size;
+  $('lgs').innerHTML=['NBA','NBL'].map(l=>`<button type="button" role="tab" aria-selected="${l===LG}" class="${l===LG?'on':''}" data-l="${l}">${l}<small>${cnt(l)}</small></button>`).join('');
+  $('lgs').querySelectorAll('button').forEach(b=>b.onclick=()=>{LG=b.dataset.l;stat='All';try{localStorage.setItem('hs-lg',LG);}catch(_){}draw();});
+  ITEMS=ALLI.filter(i=>lgOf(i)===LG); VALUE=ALLV.filter(i=>lgOf(i)===LG);
+  try{ drawLg(); } finally { ITEMS=ALLI; VALUE=ALLV; }
+}
+function drawLg(){
   const stats=['All',...new Set(ITEMS.concat(VALUE).map(i=>i.stat))];
+  if(!stats.includes(stat)) stat='All';
   $('chips').innerHTML=stats.map(s=>`<button type="button" class="${s===stat?'on':''}" data-s="${esc(s)}">${esc(s)}</button>`).join('');
   $('chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{stat=b.dataset.s;draw();});
   const books=[...new Set(ITEMS.concat(VALUE).flatMap(i=>Object.keys(i.prices||{})))].sort((a,b)=>a.localeCompare(b));
@@ -220,11 +236,11 @@ function draw(){
   $('book').innerHTML='<option value="all">All bookies (best price)</option>'+books.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
   $('book').value=book;
   const vs=VALUE.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()).sort((a,b)=>val(b)-val(a));
-  $('valWrap').hidden=!VALUE.length; $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):`<div class="hs-empty">No value picks for this ${book==='all'?'stat':'stat at '+esc(book)} right now.</div>`;
+  $('valWrap').hidden=!VALUE.some(i=>new Date(i.start)>new Date()); $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):`<div class="hs-empty">No value picks for this ${book==='all'?'stat':'stat at '+esc(book)} right now.</div>`;
   const shown=new Set(vs.map(i=>i.player+'|'+i.stat));   // already in Best value picks: don't show the same prop twice
   let xs=ITEMS.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()&&!shown.has(i.player+'|'+i.stat));
   if(sort==='value') xs.sort((a,b)=>val(b)-val(a)); else if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
-  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA or NBL games in the next 24 hours and a player has been clearing the line. Check back after the next update (every 15 minutes).</div>`;
+  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are ${LG} games in the next 24 hours and a player has been clearing the line. Check back after the next update (every 5 minutes).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
 $('book').onchange=e=>{book=e.target.value;try{localStorage.setItem('hs-book',book);}catch(_){}draw();};
