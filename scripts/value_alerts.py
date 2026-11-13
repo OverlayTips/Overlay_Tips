@@ -129,27 +129,28 @@ def _frac(x):
 
 
 def analysis(v, side):
-    """Short case for an NBA/NBL prop: form, hit rates, market v fair, best price, teammate news."""
-    out, pt = [], v.get("point")
+    """Short tipster-style case for an NBA/NBL prop."""
+    out, pt, sd = [], v.get("point"), side.lower()
     games = v.get("games") or []
     if games:
-        last = ", ".join(str(g[3]) for g in games[:5])
-        out.append(f"📈 Last 5: {last} (line {pt}) · avg {v.get('avg')}")
-    hits = [f"{lab} {_frac(v.get(k))}" for lab, k in (("L5", "l5"), ("L10", "l10"), ("Season", "season")) if _frac(v.get(k))]
-    if v.get("vs") and v["vs"][1]:
-        hits.append(f"v {v.get('opp')} {_frac(v['vs'])}")
-    if hits:
-        out.append(f"🎯 Hit {side.lower()}: " + " · ".join(hits))
-    if v.get("prob") and v.get("mkt"):
-        out.append(f"🧮 Our chance {100*v['prob']:.0f}% v market {100*v['mkt']:.0f}% ({v.get('books', '?')} books)")
-    pr = sorted((v.get("prices") or {}).items(), key=lambda x: -x[1])
-    if len(pr) > 1:
-        out.append("💵 " + " · ".join(f"{b} {p:.2f}" for b, p in pr[:4]))
+        out.append(f"Last 5: {', '.join(str(g[3]) for g in games[:5])}. Averaging {v.get('avg')} on a {pt} line")
+    l10, l5 = v.get("l10"), v.get("l5")
+    if l10 and l10[1]:
+        bit = f"Gone {sd} in {l10[0]} of his last {l10[1]}"
+        if l5 and l5[1]:
+            bit += f", {l5[0]} of the last {l5[1]}"
+        if v.get("vs") and v["vs"][1]:
+            bit += f", {v['vs'][0]} of {v['vs'][1]} v {v.get('opp')}"
+        out.append(bit)
     if v.get("wo"):
         w = v["wo"]
-        out.append(f"🩼 {w['n']} out: avg {w['avg']} without him v {w['with']} with ({_frac(w.get('hit')) or '?'} hit, {w.get('g', '?')} games)")
+        last = w["n"].split()[-1]
+        out.append(f"{last} out. He's averaging {w['avg']} without him, {w['with']} with")
+    pr = sorted((v.get("prices") or {}).items(), key=lambda x: -x[1])
+    if len(pr) > 1:
+        out.append(f"Best price {pr[0][1]:.2f} {pr[0][0]}, most books {sorted(p for _, p in pr)[len(pr)//2]:.2f}")
     if v.get("inj"):
-        out.append(f"⚠️ {v['player']} listed {v['inj']} — check he plays")
+        out.append(f"He's listed {v['inj']}, make sure he plays")
     return out
 
 
