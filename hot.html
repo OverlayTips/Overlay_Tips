@@ -217,14 +217,15 @@ function draw(){
   $('book').value=book;
   const vs=VALUE.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()).sort((a,b)=>val(b)-val(a));
   $('valWrap').hidden=!VALUE.length; $('vgrid').innerHTML=vs.length?vs.map(i=>card(i,true)).join(''):`<div class="hs-empty">No value picks for this ${book==='all'?'stat':'stat at '+esc(book)} right now.</div>`;
-  let xs=ITEMS.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
+  const shown=new Set(vs.map(i=>i.player+'|'+i.stat));   // already in Best value picks: don't show the same prop twice
+  let xs=ITEMS.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()&&!shown.has(i.player+'|'+i.stat));
   if(sort==='value') xs.sort((a,b)=>val(b)-val(a)); else if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
   $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are NBA games in the next 24 hours and a player has been clearing the line. Check back after the next update (about 7am, 9:30am and 5:45pm).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
 $('book').onchange=e=>{book=e.target.value;try{localStorage.setItem('hs-book',book);}catch(_){}draw();};
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
-  ITEMS=d.items||[]; VALUE=d.value||[]; $('meta').textContent=`${ITEMS.length} hot props · updated ${ago(d.updated)}`; draw();
+  ITEMS=d.items||[]; VALUE=d.value||[]; const vk=new Set(VALUE.map(i=>i.player+'|'+i.stat)); $('meta').textContent=`${VALUE.length+ITEMS.filter(i=>!vk.has(i.player+'|'+i.stat)).length} hot props · updated ${ago(d.updated)}`; draw();
 }).catch(()=>{ $('meta').textContent=''; $('grid').innerHTML='<div class="hs-empty"><h3>Hot stats are loading soon</h3>The first batch lands with the next odds update.</div>'; });
 </script>
 </body>
