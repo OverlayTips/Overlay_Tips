@@ -77,6 +77,7 @@
 .hs-track{color:var(--mint);font-weight:700}
 @media(max-width:420px){.hs-grid{grid-template-columns:1fr}}
 .hs-inj{margin-left:6px;font-size:11px;font-weight:700;color:#f5b041;white-space:nowrap}.hs-inj.ok{color:#4cd07d}
+.hs-last{margin-top:8px;font-size:13px;color:#c9d6d0;line-height:1.55}.hs-last b{color:#ecf5f1}.hs-dt{color:#7f8f88;font-size:12px}.hs-y{color:#62f0a8;font-weight:700}.hs-n{color:#ff8f8f;font-weight:700}
 .hs-wo{margin-top:8px;font-size:12.5px;color:#cfd8e3;background:rgba(245,176,65,.08);border:1px solid rgba(245,176,65,.25);border-radius:8px;padding:6px 9px}
 .hs-lg{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;color:#0b1220;background:#f5b041;border-radius:4px;padding:1px 5px;margin-right:4px}
 </style>
@@ -204,6 +205,17 @@ function fair(it){
   if(typeof it.prob!=='number'||it.prob<=0) return '';
   const f=1/it.prob; return `<span class="hs-pill fair ${it.price>f?'over':''}" title="Our rated chance (${Math.round(it.prob*100)}%) as odds. Price above this = value.">Fair ${f.toFixed(2)}</span>`;
 }
+function lastGame(it){
+  const g=it.games||[]; if(!g.length) return '';
+  const under=/^u/i.test(String(it.line||'')), pt=it.point;
+  const hit=v=>under?v<pt:v>pt;
+  const d=x=>new Date(x+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+  const one=(lab,x)=>`${lab} <b>${x[3]}</b> ${x[2]==='@'?'@':'v'} ${esc(x[1])} <span class="hs-dt">${d(x[0])}</span> <span class="${hit(x[3])?'hs-y':'hs-n'}">${hit(x[3])?'✓ cleared':'✗ missed'}</span>`;
+  const parts=[one('Last game:',g[0])];
+  const vo=g.find(x=>x[1]===it.opp);
+  if(vo&&vo!==g[0]) parts.push(one(`Last v ${esc(it.opp)}:`,vo));
+  return `<div class="hs-last">${parts.join('<br>')}</div>`;
+}
 function card(it,val){
   const ls=status(it);
   return `<article class="hs-card ${ls.cls}">
@@ -212,6 +224,7 @@ function card(it,val){
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
     <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
+    ${lastGame(it)}
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     ${it.wo?`<div class="hs-wo">🚑 <b>${esc(it.wo.n)}</b> is out: ${esc(it.stat).toLowerCase()} avg <b>${it.wo.avg}</b> without him vs ${it.wo.with} with (${it.wo.hit[0]}/${it.wo.hit[1]} games cleared this line)</div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
