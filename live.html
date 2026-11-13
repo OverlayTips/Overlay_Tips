@@ -274,7 +274,7 @@ async function loadBoard(){
   EVENTS=ALL.filter(e=>(e.lg||'NBA')===LG);
   if(!SEL||!EVENTS.some(e=>String(e.id)===SEL)) SEL=EVENTS[0]?String(EVENTS[0].id):null;
 }
-const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e.status||'Live'):e.state==='post'?'Final':`${day(e.start)} ${tip(e.start)}`;
+const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e.status||'Live'):e.state==='post'?(/postpon|cancel|abandon/i.test(e.status||'')?String(e.status).trim():'Final'):`${day(e.start)} ${tip(e.start)}`;
 function drawBoard(){
   drawLeague();
   const live=EVENTS.filter(e=>e.state==='in').length;
@@ -345,6 +345,7 @@ function drawGame(){
   }).join('')+'</div>';
 }
 function drawBox(e){
+  if(!BOX&&/postpon|cancel|abandon/i.test(e.status||'')){$('pBody').innerHTML=`<div class="lv-empty"><h3>${esc(String(e.status).trim())}</h3>No stats for this game.</div>`;return;}
   if(!BOX){$('pBody').innerHTML=`<div class="lv-empty"><h3>${e.state==='pre'?'Box score starts at tip-off':'Box score unavailable right now'}</h3>${e.state==='pre'?`Tips ${esc(tip(e.start))} Sydney time.`:'Retrying every 30 seconds.'}</div>`;return;}
   const C=[['MIN','min'],['PTS','pts'],['REB','reb'],['AST','ast'],['3PM','tpm'],['STL','stl'],['BLK','blk'],['TO','to'],['PF','pf']];
   $('pBody').innerHTML=BOX.map(t=>`<div class="lv-box"><h3>${esc(t.name||t.abbr)}</h3><table><thead><tr><th>Player</th>${C.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${
