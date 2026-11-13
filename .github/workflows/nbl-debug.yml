@@ -1,0 +1,16 @@
+name: NBL debug
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          K: ${{ secrets.APISPORTS_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request,time
+          for p in ("/games?id=501239","/games?live=all"):
+              r=urllib.request.Request("https://v1.basketball.api-sports.io"+p,headers={"x-apisports-key":os.environ["K"]})
+              j=json.load(urllib.request.urlopen(r))
+              print("RES",p,j.get("errors"),[(x["id"],x["league"]["name"],x["status"],x["scores"]["home"]["total"],x["scores"]["away"]["total"]) for x in j["response"]][:8])
+          PY
