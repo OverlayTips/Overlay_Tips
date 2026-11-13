@@ -98,7 +98,8 @@ def collect(now):
         out.append({"tag": tag(v), "key": f"hot|{v['player']}|{v['stat']}|{v.get('point')}|{side}",
                     "edge": v["value"], "price": v["price"], "start": v.get("start", ""),
                     "text": f"{v['player']}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
-                    "sub": f"{v.get('team','')} v {v.get('opp','')} · {tip(v.get('start',''))} · fair {100*v.get('prob',0):.0f}%",
+                    "sub": f"{v.get('team','')} v {v.get('opp','')} · {tip(v.get('start',''))} · fair {100*v.get('prob',0):.0f}%"
+                           + (f" · {v['wo']['n']} out: avg {v['wo']['avg']} w/o vs {v['wo']['with']} with" if v.get("wo") else ""),
                     "add": add})
     key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
     bundle = load(os.path.join(OUT, "picks.json"), None)

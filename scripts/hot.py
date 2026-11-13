@@ -12,6 +12,8 @@ matchups that a 10-game hit rate can't see:
                  with a ~10% ladder margin taken off;
   form chance:   last 5 / last 10 / season hit rates (recent games count more), shrunk toward the
                  market chance so a hot small sample can't run away with it;
+  with/without: if a 20+ minute teammate is Out/Doubtful tonight, the form chance leans toward the
+                 games he played without that teammate this season (3+ games each way needed);
   prob = 15-25% form + the rest market. Anything above 15% expected return is treated as a likely
   stale or wrong price and left out.
 """
@@ -52,9 +54,35 @@ def _book(b):
     return (b.get("title") or b["key"]).replace(" (AU)", "")
 
 
-def build(prop_events, stats, now, ts):
+WO_MIN_MINS, WO_MIN_GAMES = 20, 3   # teammate counts if he averages 20+ min over 3+ games this season
+WO_PRIOR = 6                        # pseudo-games pulling the "without him" hit rate toward normal form
+
+
+def _absentees(players, out):
+    """{team: (name, avg mins, set of dates he played)} for the biggest-minutes player missing tonight."""
+    try:
+        from player_stats import norm
+    except Exception:
+        return {}
+    best = {}
+    for n in out or ():
+        p = players.get(norm(n))
+        gs = [g for g in (p or {}).get("g", []) if g[3] > 0]
+        if not p or len(gs) < WO_MIN_GAMES:
+            continue
+        mins = sum(g[3] for g in gs) / len(gs)
+        if mins < WO_MIN_MINS:
+            continue
+        t = p.get("team")
+        if t and (t not in best or mins > best[t][1]):
+            best[t] = (p.get("n") or n, mins, {g[0] for g in gs}, min(g[0] for g in gs))
+    return best
+
+
+def build(prop_events, stats, now, ts, out=()):
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
     cands, vcands, legs = [], [], []
+    absent = _absentees(players, out)
     for ev in prop_events:
         if ev.get("sport_key") != "basketball_nba":
             continue
@@ -116,7 +144,18 @@ def build(prop_events, stats, now, ts):
             l10, l5 = gs[:10], gs[:5]
             hit = lambda xs: sum(1 for g in xs if f(g) > pt)
             h10, h5, hs = hit(l10), hit(l5), hit(gs)
-            if h10 / len(l10) < VALUE_MIN_HIT:
+            # with/without: his games since the injured teammate's first game this season, split by
+            # whether that teammate played (a usage bump the bookies may not have priced in yet)
+            wo, ab = None, absent.get(p.get("team"))
+            if ab and ab[0] != (p.get("n") or desc):
+                since = [g for g in gs if g[0] >= ab[3]]
+                gw = [g for g in since if g[0] not in ab[2]]
+                gm = [g for g in since if g[0] in ab[2]]
+                if len(gw) >= WO_MIN_GAMES and len(gm) >= WO_MIN_GAMES:
+                    wo = {"n": ab[0], "g": len(gw), "hit": [hit(gw), len(gw)],
+                          "avg": round(sum(f(g) for g in gw) / len(gw), 1),
+                          "with": round(sum(f(g) for g in gm) / len(gm), 1)}
+            if h10 / len(l10) < VALUE_MIN_HIT and not (wo and wo["hit"][0] / wo["hit"][1] >= VALUE_MIN_HIT):
                 continue
             opp = a if p.get("team") == h else h if p.get("team") == a else None
             vs = [g for g in gs if opp and g[1] == opp]
@@ -137,6 +176,8 @@ def build(prop_events, stats, now, ts):
             wn = 3 * len(l5) + 2 * len(l10) + len(gs)
             wn_eff = wn / 6   # weighted games -> roughly "games of evidence"
             p_form = (wh / wn * wn_eff + SHRINK * p_mkt) / (wn_eff + SHRINK)
+            if wo:   # tonight he plays without that teammate: lean the form chance toward those games
+                p_form = (wo["hit"][0] + WO_PRIOR * p_form) / (wo["hit"][1] + WO_PRIOR)
             p_hit = (h10 + hs + 1) / (len(l10) + len(gs) + 2)   # shown on the card as "Form"
             w = FORM_W[src]
             prob = w * p_form + (1 - w) * p_mkt
@@ -150,6 +191,8 @@ def build(prop_events, stats, now, ts):
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
                 "games": [[g[0], g[1], g[2], f(g)] for g in l10],
             }
+            if wo:
+                item["wo"] = wo
             legs.append({**item, "ev": ev["id"], "mk": mk})   # SGM builder (members only, see sgm.py)
             key = (desc, mk)
             if h10 / len(l10) >= MIN_HIT and (key not in top or price > top[key]["price"]):

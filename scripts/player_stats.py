@@ -104,8 +104,9 @@ def _match(desc, roster):
     return None
 
 
-def update(prev, prop_events, now, ts):
-    """prev: previous bundle["stats"]["nba"] (or None). prop_events: NBA prop events (Odds API format)."""
+def update(prev, prop_events, now, ts, extra=()):
+    """prev: previous bundle["stats"]["nba"] (or None). prop_events: NBA prop events (Odds API format).
+    extra: more player names to keep logs for (injured teammates, for the with/without numbers)."""
     prev = prev if (prev or {}).get("src") == "balldontlie" else None   # don't mix in old ESPN data
     out = {"updated": ts, "src": "balldontlie", "teams": dict((prev or {}).get("teams") or {}),
            "players": dict((prev or {}).get("players") or {})}
@@ -162,6 +163,21 @@ def update(prev, prop_events, now, ts):
                     old["s"] = ts
                 continue
             todo[a["id"]] = (key, a)
+
+    for d in extra:   # injured players: their game dates tell us which games their teammates played without them
+        key = norm(d)
+        if key in seen:
+            continue
+        seen.add(key)
+        old = out["players"].get(key)
+        if old and now - datetime.fromisoformat(old["f"].replace("Z", "+00:00")) < REFRESH * 2:
+            old["s"] = ts
+            continue
+        a = _match(d, roster)
+        if a:
+            todo[a["id"]] = (key, a)
+        elif old:
+            old["s"] = ts
 
     # game logs, BATCH players per request
     season, items = _season(now), list(todo.items())

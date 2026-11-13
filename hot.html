@@ -72,6 +72,7 @@
 .hs-track{color:var(--mint);font-weight:700}
 @media(max-width:420px){.hs-grid{grid-template-columns:1fr}}
 .hs-inj{margin-left:6px;font-size:11px;font-weight:700;color:#f5b041;white-space:nowrap}.hs-inj.ok{color:#4cd07d}
+.hs-wo{margin-top:8px;font-size:12.5px;color:#cfd8e3;background:rgba(245,176,65,.08);border:1px solid rgba(245,176,65,.25);border-radius:8px;padding:6px 9px}
 </style>
 <script src="nav.js?v=3"></script>
 <script src="gate.js?v=2" data-need="member" data-label="Hot stats"></script>
@@ -205,6 +206,7 @@ function card(it,val){
     ${chart(it)}
     <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
+    ${it.wo?`<div class="hs-wo">🚑 <b>${esc(it.wo.n)}</b> is out: ${esc(it.stat).toLowerCase()} avg <b>${it.wo.avg}</b> without him vs ${it.wo.with} with (${it.wo.hit[0]}/${it.wo.hit[1]} games cleared this line)</div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;
 }

@@ -36,6 +36,7 @@ class Availability:
         st, lu = _load(state_path), _load(lineups_path)
         self.updated = lu.get("updated") or st.get("updated") or ""
         self.inj = {key(x.get("n")): x.get("s") or "" for x in (st.get("injuries") or {}).values()}
+        names = {key(x.get("n")): x.get("n") for x in (st.get("injuries") or {}).values()}
         self.starters, self.confirmed = set(), set()   # player keys / team abbreviations with a confirmed lineup
         for g in lu.get("games") or []:
             if (g.get("status") or "") == "Final":
@@ -44,10 +45,12 @@ class Availability:
                 t = g.get(side) or {}
                 for x in t.get("injuries") or []:   # same feed, but newer than state.json if lineups ran later
                     self.inj[key(x.get("n"))] = x.get("s") or ""
+                    names[key(x.get("n"))] = x.get("n")
                 if t.get("status") == "confirmed":
                     self.confirmed.add(t.get("abbr"))
                     self.starters |= {key(s.get("n")) for s in t.get("starters") or []}
         self.ok = bool(self.inj or self.confirmed)
+        self.out_names = sorted(n for k, n in names.items() if n and self.inj.get(k) in DROP)   # missing tonight
 
     def check(self, name, team=None):
         k = key(name)

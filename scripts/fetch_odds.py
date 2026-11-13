@@ -343,17 +343,6 @@ def main():
     except Exception as e:
         print("racing failed:", type(e).__name__, e)
 
-    # ---- NBA player game logs (BALLDONTLIE, licensed: NBA_STATS_KEY secret) for the players with props ----
-    stats = prev.get("stats") or {}
-    try:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import player_stats
-        nba, note = player_stats.update(stats.get("nba"), list(props.values()), NOW, TS)
-        stats = {**stats, "nba": nba}
-        print("player stats:", note)
-    except Exception as e:
-        print("player stats failed:", type(e).__name__, e)
-
     # ---- NBA availability (injury report + confirmed starters from the NBA alerts feed) ----
     avail = None
     try:
@@ -366,11 +355,24 @@ def main():
     except Exception as e:
         print("availability failed:", type(e).__name__, e)
 
+    # ---- NBA player game logs (BALLDONTLIE, licensed: NBA_STATS_KEY secret) for the players with props ----
+    stats = prev.get("stats") or {}
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import player_stats
+        nba, note = player_stats.update(stats.get("nba"), list(props.values()), NOW, TS,
+                                        extra=avail.out_names if avail else ())
+        stats = {**stats, "nba": nba}
+        print("player stats:", note)
+    except Exception as e:
+        print("player stats failed:", type(e).__name__, e)
+
     sgms = []
     # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
     try:
         import hot
-        hj = hot.build(list(props.values()), stats.get("nba") or {}, NOW, TS)
+        hj = hot.build(list(props.values()), stats.get("nba") or {}, NOW, TS,
+                       out=set(avail.out_names) if avail else set())
         legs = hj.pop("_legs", [])
         if avail:   # drop Out/Doubtful players, flag Questionable / not starting
             for lst in ("items", "value"):
