@@ -45,6 +45,7 @@
 .hs-sort{color:#87978f;font-size:14px;display:flex;gap:8px;align-items:center}
 .hs-sort select{background:#0e1312;color:#ecf5f1;border:1px solid #1b2523;border-radius:8px;padding:6px 8px;font:inherit}
 .hs-ctl{display:flex;flex-wrap:wrap;gap:10px 16px}
+#game{max-width:min(80vw,340px);text-overflow:ellipsis}
 .hs-meta{color:#87978f;font-size:13px;margin-bottom:14px}
 .hs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
 .hs-card{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:18px;padding:16px 16px 14px}
@@ -137,7 +138,7 @@
     <div class="hs-lgs" id="lgs" role="tablist" aria-label="League"></div>
     <div class="hs-bar">
       <div class="hs-chips" id="chips"></div>
-      <div class="hs-ctl"><label class="hs-sort">Bookie <select id="book"><option value="all">All bookies (best price)</option></select></label>
+      <div class="hs-ctl"><label class="hs-sort">Game <select id="game"><option value="all">All games</option></select></label><label class="hs-sort">Bookie <select id="book"><option value="all">All bookies (best price)</option></select></label>
       <label class="hs-sort">Sort <select id="sort"><option value="value">Value</option><option value="hit">Hit rate</option><option value="price">Price</option><option value="time">Tip-off</option></select></label></div>
     </div>
     <div id="valWrap" hidden>
@@ -216,17 +217,23 @@ function card(it,val){
     <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;
 }
+let game='all';
 let LG=(()=>{try{return localStorage.getItem('hs-lg')||'NBA';}catch(_){return 'NBA';}})();
 const lgOf=i=>i.lg==='NBL'?'NBL':'NBA';
 function draw(){
   const ALLI=ITEMS, ALLV=VALUE, live=i=>new Date(i.start)>new Date();
   const cnt=l=>new Set(ALLI.concat(ALLV).filter(i=>lgOf(i)===l&&live(i)).map(i=>i.player+'|'+i.stat)).size;
   $('lgs').innerHTML=['NBA','NBL'].map(l=>`<button type="button" role="tab" aria-selected="${l===LG}" class="${l===LG?'on':''}" data-l="${l}">${l}<small>${cnt(l)}</small></button>`).join('');
-  $('lgs').querySelectorAll('button').forEach(b=>b.onclick=()=>{LG=b.dataset.l;stat='All';try{localStorage.setItem('hs-lg',LG);}catch(_){}draw();});
+  $('lgs').querySelectorAll('button').forEach(b=>b.onclick=()=>{LG=b.dataset.l;stat='All';game='all';try{localStorage.setItem('hs-lg',LG);}catch(_){}draw();});
   ITEMS=ALLI.filter(i=>lgOf(i)===LG); VALUE=ALLV.filter(i=>lgOf(i)===LG);
   try{ drawLg(); } finally { ITEMS=ALLI; VALUE=ALLV; }
 }
 function drawLg(){
+  const gl=[...new Map(ITEMS.concat(VALUE).filter(i=>new Date(i.start)>new Date()).map(i=>[i.game,i.start])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  if(game!=='all'&&!gl.some(g=>g[0]===game)) game='all';
+  $('game').innerHTML='<option value="all">All games</option>'+gl.map(([g,st])=>`<option value="${esc(g)}">${esc(g)} · ${when(st)}</option>`).join('');
+  $('game').value=game;
+  if(game!=='all'){ ITEMS=ITEMS.filter(i=>i.game===game); VALUE=VALUE.filter(i=>i.game===game); }
   const stats=['All',...new Set(ITEMS.concat(VALUE).map(i=>i.stat))];
   if(!stats.includes(stat)) stat='All';
   $('chips').innerHTML=stats.map(s=>`<button type="button" class="${s===stat?'on':''}" data-s="${esc(s)}">${esc(s)}</button>`).join('');
@@ -243,6 +250,7 @@ function drawLg(){
   $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are ${LG} games in the next 24 hours and a player has been clearing the line. Check back after the next update (every 5 minutes).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
+$('game').onchange=e=>{game=e.target.value;draw();};
 $('book').onchange=e=>{book=e.target.value;try{localStorage.setItem('hs-book',book);}catch(_){}draw();};
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
   ITEMS=d.items||[]; VALUE=d.value||[]; const vk=new Set(VALUE.map(i=>i.player+'|'+i.stat)); $('meta').textContent=`${VALUE.length+ITEMS.filter(i=>!vk.has(i.player+'|'+i.stat)).length} hot props · updated ${ago(d.updated)}`; draw();
