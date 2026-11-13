@@ -118,17 +118,21 @@
   .lock{font-size:14px;color:var(--muted);padding:6px 0}
   .lock:hover{color:var(--text)}
   .navr{display:flex;gap:18px;align-items:center}
-  .viewtabs{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;margin-top:20px}
-  .viewtabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:10px 6px;border-radius:14px;
-    border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:800;font-size:13px;line-height:1.1;text-align:center;transition:border-color .15s,background .15s,color .15s}
-  .viewtabs button i{font-style:normal;font-size:19px;line-height:1;height:22px;display:flex;align-items:center}
-  .viewtabs button i svg{width:22px;height:22px}
-  .viewtabs button.on i{color:var(--mint)}
-  .viewtabs button i.bdg{font-size:10px;font-weight:900;letter-spacing:.04em;padding:3px 6px;border-radius:6px;border:1px solid var(--mint-dim);color:var(--mint2);height:auto}
+  .viewtabs{display:flex;gap:6px;margin-top:20px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .viewtabs::-webkit-scrollbar{display:none}
+  .viewtabs button{flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:700;font-size:14.5px;white-space:nowrap}
+  .viewtabs button i{font-style:normal;display:flex;align-items:center}
+  .viewtabs button i svg{width:19px;height:19px}
   .viewtabs button:hover{color:var(--text);border-color:#26332f}
-  .viewtabs button.on{color:var(--text);border-color:var(--mint);background:linear-gradient(160deg,#0f2a1e,var(--panel2) 70%);box-shadow:0 0 0 1px rgba(98,240,168,.15) inset}
-  .viewtabs button.on span{color:var(--mint2)}
-  @media(max-width:900px){.viewtabs{grid-template-columns:repeat(3,minmax(0,1fr))}.viewtabs button{min-height:60px;font-size:13.5px;white-space:nowrap}.viewtabs button.wide{grid-column:span 3;flex-direction:row;min-height:48px;gap:8px}.viewtabs{grid-template-columns:repeat(6,minmax(0,1fr))}.viewtabs button:not(.wide){grid-column:span 2}.viewtabs button.full{grid-column:span 6;flex-direction:row;min-height:48px;gap:8px}}
+  .viewtabs button.on{color:var(--text);border-color:var(--mint);background:linear-gradient(160deg,#0f2a1e,var(--panel2) 70%)}
+  .viewtabs button.on i{color:var(--mint)}
+  .moretabs{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .moretabs span{font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+  .moretabs button{padding:5px 11px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:600;background:transparent}
+  .moretabs button:hover{color:var(--text)}
+  .moretabs button.on{color:#04130b;background:var(--mint);border-color:var(--mint)}
+  .bookpick{font-weight:700}
+  @media(max-width:700px){.viewtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.viewtabs button{padding:0 6px;font-size:13.5px;min-height:44px;gap:6px}.viewtabs button i svg{width:17px;height:17px}}
   @media(max-width:360px){.viewtabs{gap:6px}.viewtabs button{font-size:12px;padding:9px 4px}}
   .seg{overflow-x:auto;max-width:100%;scrollbar-width:none}
   .seg::-webkit-scrollbar{display:none}
@@ -266,21 +270,8 @@
     <div class="mono">Password protected</div>
     <h1>Odds <span class="g">tracker</span></h1>
     <div class="status" id="status"></div>
-    <div class="viewtabs" id="views">
-      <button data-v="chk" class="wide"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/><path d="M8.5 11l1.8 1.8 3.4-3.6"/></svg></i><span>Check a price</span></button>
-      <button data-v="race" class="wide"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c2-1 3-4 5-6 1.5-1.5 4-2 5.5-4.5L17 4l2 1-1 3 2 2-1.5 1.5L16 10c-1 2-1 4-3 6l-1 3"/><path d="M4 18h3"/></svg></i><span>Racing</span></button>
-      <button data-v="ev"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg></i><span>Top EV</span></button>
-      <button data-v="arb"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/></svg></i><span>Arbs</span></button>
-      <button data-v="pp"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".9" fill="currentColor"/></svg></i><span>Prop picks</span></button>
-      <button data-v="sgm"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="5" rx="1.5"/><rect x="4" y="10" width="16" height="5" rx="1.5"/><rect x="4" y="16" width="16" height="4" rx="1.5"/></svg></i><span>Value SGMs</span></button>
-      <button data-v="mv"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 4l-3 3M7 4l3 3"/><path d="M17 20V4M17 20l-3-3M17 20l3-3"/></svg></i><span>Movers</span></button>
-      <button data-v="bk:sportsbet"><i class="bdg">SB</i><span>Sportsbet</span></button>
-      <button data-v="bk:tab"><i class="bdg">TAB</i><span>TAB</span></button>
-      <button data-v="bk:betr_au"><i class="bdg">BETR</i><span>Betr</span></button>
-      <button data-v="games" class="on"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><circle cx="12" cy="12" r="2.5"/></svg></i><span>Games</span></button>
-      <button data-v="props"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></svg></i><span>All props</span></button>
-      <button data-v="bonus" class="full"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11" rx="1.5"/><path d="M2.5 9h19M12 9v11"/><path d="M12 9c-1.5-3.5-5.5-4-5.5-1.5S10 9 12 9zM12 9c1.5-3.5 5.5-4 5.5-1.5S14 9 12 9z"/></svg></i><span>Bonus bets</span></button>
-    </div>
+    <div class="viewtabs" id="views"><button data-v="ev"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg></i><span>Top EV</span></button><button data-v="pp"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".9" fill="currentColor"/></svg></i><span>Prop picks</span></button><button data-v="sgm"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="5" rx="1.5"/><rect x="4" y="10" width="16" height="5" rx="1.5"/><rect x="4" y="16" width="16" height="4" rx="1.5"/></svg></i><span>Value SGMs</span></button><button data-v="arb"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/></svg></i><span>Arbs</span></button><button data-v="h2h"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="12" r="3.5"/><circle cx="17" cy="12" r="3.5"/><path d="M10.5 12h3"/></svg></i><span>Head to head</span></button><button data-v="mv"><i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 4l-3 3M7 4l3 3"/><path d="M17 20V4M17 20l-3-3M17 20l3-3"/></svg></i><span>Movers</span></button></div>
+    <div class="moretabs" id="moreViews"><span>More</span><button data-v="chk">Check a price</button><button data-v="race">Racing</button><button data-v="games">Game lines</button><button data-v="props">All props</button><button data-v="bonus">Bonus bets</button></div>
   </header>
 
   <div class="controls">
@@ -321,7 +312,7 @@ const store = {get(k,d){try{const v=localStorage.getItem('odds.'+k);return v==nu
                set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v))}catch(e){}},
                del(k){try{localStorage.removeItem('odds.'+k)}catch(e){}}};
 
-let DATA=null, view=store.get('view','ev'), sport=store.get('sport','all'), movers=store.get('movers',false);
+let DATA=null, view=(v=>v.startsWith('bk:')?(store.set('bookFilter',v.slice(3)),'ev'):v)(store.get('view','ev')), sport=store.get('sport','all'), movers=store.get('movers',false);
 let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
 const SHORT={sportsbet:'Sportsbet',tab:'TAB',tabtouch:'TABtouch',neds:'Neds',ladbrokes_au:'Ladbrokes',pointsbetau:'PointsBet',unibet:'Unibet',betfair_ex_au:'Betfair',betr_au:'Betr',betright:'BetRight',playup:'PlayUp',bet365_au:'bet365',dabble_au:'Dabble',boombet:'BoomBet',picklebet:'Picklebet'};
@@ -614,11 +605,12 @@ function render(){
   $('status').innerHTML=`<span>Updated <b>${ago(O.updated)}</b></span><span><b>${O.events.length}</b> games</span><span><b>${P.events.length}</b> with props</span>`+
     (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
-  $('views').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
+  document.querySelectorAll('#views button,#moreViews button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   SHARE=[]; $('shareBar').hidden=!(['ev','arb','pp'].includes(view)||view.startsWith('bk:'));
   $('mvBox').hidden=view!=='mv'; $('evtBox').hidden=view!=='ev';
-  myBook=view.startsWith('bk:')?view.slice(3):(['ev','arb','pp'].includes(view)?bookFilter:'all');
-  $('bookBox').hidden=!['ev','arb','pp'].includes(view); if(!$('bookBox').hidden) fillBooks();
+  const BOOKV=['ev','arb','pp','h2h','games','props'];   // views the bookie filter applies to
+  myBook=view.startsWith('bk:')?view.slice(3):(BOOKV.includes(view)?bookFilter:'all');
+  $('bookBox').hidden=!BOOKV.includes(view); if(!$('bookBox').hidden) fillBooks();
   const isB=view==='bonus', isA=view==='arb';
   $('markets').hidden=isB||isA; $('moversBox').hidden=isB||isA; $('stakeBox').hidden=!(isB||isA); $('bpropsBox').hidden=!isB; $('gapBox').hidden=true; $('maxBox').hidden=true;
   $('stakeLbl').textContent=isA?'Total stake $':'Bonus bet $';
@@ -635,7 +627,8 @@ function render(){
   if(isE){ renderEV(); return; }
   if(isP){ renderPropPicks(); return; }
 
-  const evs = view==='games'?O.events:P.events;
+  const H2H=view==='h2h', gv=H2H?'games':view;   // Head to head = game lines locked to the H2H market
+  const evs = gv==='games'?O.events.filter(e=>!H2H||e.bookmakers.some(b=>b.markets.some(m=>m.key==='h2h'))):P.events;
   const counts={}; evs.forEach(e=>counts[e.sport_title]=(counts[e.sport_title]||0)+1);
   if(sport!=='all'&&!counts[sport]) sport='all';
   $('sports').innerHTML=[['all',evs.length],...Object.entries(counts)].map(([s,n])=>
@@ -644,16 +637,19 @@ function render(){
 
   const inSport=evs.filter(e=>sport==='all'||e.sport_title===sport);
   let markets;
-  if(view==='games') markets=GAME_MKTS;
+  if(H2H) markets=[['h2h','Head to head']];
+  else if(view==='games') markets=GAME_MKTS;
   else{ const ks=[]; inSport.forEach(e=>e.bookmakers.forEach(b=>b.markets.forEach(m=>{if(!ks.includes(m.key))ks.push(m.key);})));
         markets=ks.map(k=>[k,PROP_LABEL[k]||k.replace(/^player_/,'').replace(/_/g,' ')]); }
-  let market=mkt[view];
+  let market=H2H?'h2h':mkt[view];
   if(!markets.some(m=>m[0]===market)) market=mkt[view]=markets[0]?.[0]||null;
+  $('markets').hidden=H2H;
   $('markets').innerHTML=markets.map(([k,l])=>`<button data-m="${k}" class="${k===market?'on':''}">${esc(l)}</button>`).join('');
   $('markets').querySelectorAll('button').forEach(b=>b.onclick=()=>{mkt[view]=b.dataset.m;store.set(view==='games'?'market':'pmarket',b.dataset.m);render();});
   $('movers').checked=movers;
-  $('q').placeholder=view==='games'?'Search team':'Search team or player';
-  $('legend').textContent=view==='games'
+  $('q').placeholder=gv==='games'?'Search team':'Search team or player';
+  $('legend').textContent=H2H?'Head to head: who wins, at every bookie. Fair = the true price with the margin taken out (Pinnacle where it has one, otherwise the Aussie bookies). Mint = best price. Any price above Fair is +EV. Pick a bookie at the top to see just their prices next to the best and fair.'
+    :view==='games'
     ?'Fair = the true price with the bookie margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the median of the Aussie bookies. Any bookie paying more than Fair is +EV, e.g. check bet365 against it. Mint cell = best price at the main line. Open → now tracks the best price since the tracker first saw the game. Market % under 100 = arb across bookies.'
     :'Fair = the true price with the margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the Aussie bookies. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best value: the best price at the most common line, unless a bookie on an easier line (e.g. Over 31.5 instead of 32.5) is worth more, then that one lights up with its line shown. Props refresh 3× a day. NBA: L10 7/10 = the player cleared this line in 7 of his last 10 games (green 70%+, red 30% or less). Tap View graph for his game log.';
 
@@ -680,10 +676,11 @@ function render(){
     const head=`<div class="ev-head"><div><div class="ev-title">${esc(e.home_team)} v ${esc(e.away_team)}</div>
       <div class="ev-meta">${esc(e.sport_title)} · ${when(e.commence_time)}${e.fetched?' · props '+ago(e.fetched):''}</div></div>
       <div class="badges">${started?'<span class="badge live">STARTED</span>':''}
-      ${view==='games'?`<span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>`:''}
+      ${gv==='games'?`<span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>`:''}
       <span class="badge">${t.books.length} books</span></div></div>`;
     const first=view==='props'?(t.ladder?'Player · line':'Player'):market==='h2h'?'Team':market==='spreads'?'Line':'Total';
-    const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed (ladders: worked out from the player's main over/under)">Fair</th><th>Open → now</th>${t.books.map(b=>`<th>${esc(bkName(b))}</th>`).join('')}</tr>`;
+    const cols=t.books.map((b,i)=>i).filter(i=>myBook==='all'||t.books[i].key===myBook);
+    const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed (ladders: worked out from the player's main over/under)">Fair</th><th>Open → now</th>${cols.map(i=>`<th class="${myBook!=='all'?'bookpick':''}">${esc(bkName(t.books[i]))}</th>`).join('')}</tr>`;
     let prev=null;
     const trs=t.rows.map(r=>{
       const gb=(!r.ladder&&r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}">View graph</button>`:'';
@@ -695,7 +692,7 @@ function render(){
       if(r.mv){const cls=r.mv.pct<-0.5?'down':r.mv.pct>0.5?'up':'flat',ar=r.mv.pct<-0.5?'▼':r.mv.pct>0.5?'▲':'•';
         const pm=(r.mv.fp!=null&&r.mv.fp!==r.mv.tp)?`${fmtPt(market,r.mv.fp)}→${fmtPt(market,r.mv.tp)} `:'';
         mv=`<span class="${cls}">${pm}${r.mv.from.toFixed(2)} → ${r.mv.to.toFixed(2)} ${ar}${Math.abs(r.mv.pct).toFixed(0)}%</span>`;}
-      const cells=r.cells.map((c,i)=>{if(!c)return'<td class="off">–</td>';
+      const cells=cols.map(i=>[r.cells[i],i]).map(([c,i])=>{if(!c)return'<td class="off">–</td>';
         const pt=(c.point!=null&&!c.ok)?`<span class="pt">${fmtPt(market,c.point)}</span>`:'';
         const isAlt=r.alt&&r.alt.i===i, cls=isAlt?'best':r.alt?(c.ok?'':'off'):(c.ok&&c.price===r.best?'best':c.ok?'':'off');
         const tip=c.eq?` title="Worth about ${c.eq.toFixed(2)} at the main line (${r.point})"`:'';
@@ -704,7 +701,7 @@ function render(){
         :isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–';
       return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${bestTxt}</td><td class="fair">${r.ladder&&!r.fair?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
     }).join('');
-    return `<div class="ev">${head}<div class="swipe">Swipe for every bookie →</div><div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
+    return `<div class="ev">${head}${cols.length>2?'<div class="swipe">Swipe for every bookie →</div>':''}<div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
   if(top) $('list').insertAdjacentHTML('afterbegin',top);
 }
@@ -1328,7 +1325,7 @@ function arbsHTML(evs,q){
     <div class="ev-meta">Profit locked in only if every leg is still available at these prices. Bookies can void or limit bets. ${arbs.length} found · stakes for $${T.toFixed(0)} total</div></div></div>
     <div class="tbl-wrap"><table class="bb arbt"><tr><th>Profit</th><th>Bets (split your stake)</th><th>Game</th></tr>${rows}</table></div></div>`;
 }
-$('views').querySelectorAll('button').forEach(b=>b.onclick=()=>{view=b.dataset.v;store.set('view',view);sport='all';$('q').value='';render();});
+document.querySelectorAll('#views button,#moreViews button').forEach(b=>b.onclick=()=>{view=b.dataset.v;store.set('view',view);sport='all';$('q').value='';render();});
 $('movers').onchange=e=>{movers=e.target.checked;store.set('movers',movers);render();};
 $('q').oninput=render;
 </script>
