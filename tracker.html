@@ -149,6 +149,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
 @media(max-width:600px){.tr-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:520px){.tr-form .three{grid-template-columns:1fr 1fr}.tr-form .three label:first-child{grid-column:1/-1}}
 .tr-shotnote{margin:12px 0 0;padding:9px 12px;border-radius:10px;background:rgba(76,208,125,.1);border:1px solid rgba(76,208,125,.3);font-size:13.5px;line-height:1.4}
+[hidden]{display:none!important}
 </style>
 <script src="nav.js?v=4"></script>
 <script src="keys.js?v=2"></script>
@@ -272,7 +273,8 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <button type="button" class="tr-btn" id="addLeg" style="margin-top:10px">+ Add leg</button>
     </div>
     <div id="otherF" hidden>
-      <label>Bet<input id="fDesc" placeholder="e.g. Celtics H2H, Multi, Melbourne Cup"></label>
+      <label>Sport<select id="fSport"><option>Racing</option><option>NBA</option><option>NBL</option><option>AFL</option><option>NRL</option><option>Soccer</option><option>Tennis</option><option>Cricket</option><option>NFL</option><option>Other</option></select></label>
+      <label style="margin-top:12px">Bet<input id="fDesc" placeholder="e.g. Juja Kibo win, Celtics H2H, Multi"></label>
       <label style="margin-top:12px">Event (optional)<input id="fEvent" placeholder="e.g. Celtics v 76ers"></label>
     </div>
     <div class="three">
@@ -308,7 +310,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
   </div>
 </footer>
 
-<script src="slip.js?v=2" defer></script>
+<script src="slip.js?v=3" defer></script>
 <script>
 document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
@@ -379,7 +381,7 @@ const profit=b=>!(b.stake>0)?0:b.result==='won'?b.stake*(b.odds-1):b.result==='l
 let BOOK=''; try{BOOK=localStorage.getItem('ot-book-filter')||'';}catch(e){}
 const bookKey=b=>String(b||'').trim().toLowerCase();
 let PTYPE=''; try{PTYPE=localStorage.getItem('ot-type-filter')||'';}catch(e){}
-const typeOf=b=>b.kind==='prop'?b.stat:b.kind==='sgm'?'SGM':'Other bets';
+const typeOf=b=>b.kind==='prop'?b.stat:b.kind==='sgm'?'SGM':b.sport&&b.sport!=='Other'?b.sport:'Other bets';
 const inBook=b=>(!BOOK||bookKey(b.book)===BOOK)&&(!PTYPE||typeOf(b)===PTYPE);
 function typeOptions(){
   const order=Object.keys(STATS).concat(['SGM','Other bets']), have=new Set(BETS.map(typeOf));
@@ -618,6 +620,7 @@ function openForm(b,pre){
   setKind(v.kind||'prop');
   $('fPlayer').value=v.player||''; $('fStat').value=statsFor(LGF).includes(v.stat)?v.stat:'Points'; $('fSide').value=v.side==='Under'?'Under':'Over';
   $('fLine').value=v.line??''; $('fDesc').value=v.desc||''; $('fEvent').value=v.event||'';
+  $('fSport').value=v.sport||(()=>{try{return localStorage.getItem('ot-last-sport')||'Racing';}catch(e){return 'Racing';}})();
   $('fBook').value=v.book||(()=>{try{return localStorage.getItem('ot-last-book')||'';}catch(e){return '';}})();
   $('fOdds').value=v.odds||''; $('fStake').value=v.stake>0?v.stake:''; $('fDate').value=v.date||sydDate(); $('fBonus').value=v.bonus?'bonus':'';
   $('fErr').textContent=''; ret(); $('dlg').showModal();
@@ -634,7 +637,7 @@ function nextShot(){
   const found=bet.kind==='sgm'?`${bet.legs.length}-leg SGM`:bet.kind==='prop'?`${bet.player} ${bet.side} ${bet.line} ${bet.stat}`:bet.desc||'a bet';
   const miss=[bet.kind==='prop'&&!bet.player&&'player',!(bet.odds>1)&&'odds',!(bet.stake>0)&&'stake'].filter(Boolean);
   const {n,of,more,...b}=bet;
-  openForm(null,{...b,date:sydDate()});
+  openForm(null,{...b,date:b.date||sydDate()});
   $('fShot').innerHTML=`📷 ${of>1?`Bet <b>${n} of ${of}</b> from your screenshot`:'Read from your screenshot'}: <b>${esc(found)}</b>. Check everything before saving${miss.length?` (couldn't read the ${miss.join(', ')})`:''}.`;
   $('fShot').hidden=false;
   $('fCancel').textContent=SHOTQ.length?'Skip':'Cancel';
@@ -642,10 +645,11 @@ function nextShot(){
 $('shotFile').onchange=async()=>{
   const f=$('shotFile').files[0]; $('shotFile').value=''; if(!f) return;
   const btn=$('shotBtn'), was=btn.textContent; btn.disabled=true;
-  const names=[...$('players').options].map(o=>o.value);
+  const nba=[...$('players').options].map(o=>o.value), nblN=[...$('playersNBL').options].map(o=>o.value), names=nba.concat(nblN);
   try{
     const {bets}=await OTSlip.read(f,names,msg=>{btn.textContent=msg;});
-    SHOTQ=bets.map((b,i)=>({...b,n:i+1,of:bets.length})); nextShot();
+    const isNBL=n=>!!n&&nblN.includes(n)&&!nba.includes(n);
+    SHOTQ=bets.map((b,i)=>({...b,lg:isNBL(b.player||(b.legs&&b.legs[0]&&b.legs[0].player))?'NBL':'NBA',n:i+1,of:bets.length})); nextShot();
   }catch(e){
     alert("Couldn't read that screenshot ("+(e&&e.message||e)+"). Try a clearer screenshot of just the bet slip, or add it by hand.");
   }finally{btn.textContent=was;btn.disabled=false;}
@@ -669,13 +673,13 @@ $('form').onsubmit=e=>{
   const changed=EDIT&&((EDIT.lg||'NBA')!==LGF||EDIT.player!==$('fPlayer').value.trim()||EDIT.stat!==$('fStat').value||EDIT.side!==$('fSide').value||+EDIT.line!==line||EDIT.date!==$('fDate').value);
   if(KIND!=='other') b.lg=LGF; else delete b.lg;
   Object.assign(b,{kind:KIND,player:KIND==='prop'?$('fPlayer').value.trim():'',stat:$('fStat').value,side:$('fSide').value,line:KIND==='prop'?line:null,
-    desc:KIND==='other'?$('fDesc').value.trim():'',event:KIND==='other'?$('fEvent').value.trim():'',book:$('fBook').value.trim(),
+    desc:KIND==='other'?$('fDesc').value.trim():'',event:KIND==='other'?$('fEvent').value.trim():'',sport:KIND==='other'?$('fSport').value:undefined,book:$('fBook').value.trim(),
     odds:Math.round(odds*100)/100,stake:stake>0?Math.round(stake*100)/100:0,date:$('fDate').value||sydDate(),bonus:!!$('fBonus').value});
   if(KIND==='sgm'){const old=JSON.stringify((b.legs||[]).map(legLabel)); b.legs=legs.map(l=>({player:l.player,stat:l.stat,side:l.side,line:l.line})); if(EDIT&&old!==JSON.stringify(b.legs.map(legLabel))){b.live=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}}
   else delete b.legs;
   if(changed){b.live=null;b.pre=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}
   if(!EDIT) BETS.push(b);
-  try{if(b.book)localStorage.setItem('ot-last-book',b.book);}catch(e){}
+  try{if(b.book)localStorage.setItem('ot-last-book',b.book);if(b.sport)localStorage.setItem('ot-last-sport',b.sport);}catch(e){}
   if(save()){$('dlg').close();draw();tick();if(SHOTQ.length)setTimeout(nextShot,150);else $('fCancel').textContent='Cancel';}
 };
 
