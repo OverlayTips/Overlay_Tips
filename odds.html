@@ -287,7 +287,7 @@
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
       <label class="stakebox" id="gapBox" hidden>Min gap<select id="gapSel"><option value="3">3%</option><option value="5" selected>5%</option><option value="8">8%</option><option value="12">12%</option></select></label>
       <label class="stakebox" id="maxBox" hidden>Max odds<select id="maxSel"><option value="2" selected>$2.00</option><option value="2.5">$2.50</option><option value="3">$3.00</option></select></label>
-      <label class="stakebox" id="bpropsBox" hidden>Betfair comm %<input id="bcomm" type="number" inputmode="decimal" min="0" max="50" step="any" value="8"></label>
+      <label class="stakebox" id="bpropsBox" hidden>Betfair comm %<input id="bcomm" type="number" inputmode="decimal" min="0" max="50" step="any" value="6"></label>
     </div>
   </div>
   <div class="legend" id="legend"></div>
@@ -928,7 +928,7 @@ function evChart(top,ptOf){
 }
 
 /* ---------- bonus bet conversions (stake not returned): bonus at a bookie, lay on Betfair ---------- */
-let bbook=store.get('bbook','all'), bcomm=store.get('bcomm',8);
+let bbook=store.get('bbook','all'), bcomm=store.get('bcomm',6);
 function conversions(evs,c){
   const now=new Date(), out=[];
   evs.forEach(ev=>{

@@ -140,7 +140,7 @@ def sharp_fair(ev, mk, desc, sides, main):
     return {s: v / tot for s, v in pr.items()}
 
 
-BF_COMM = float(os.environ.get("BF_COMMISSION", "8")) / 100   # Betfair commission on winnings (set yours)
+BF_COMM = float(os.environ.get("BF_COMMISSION", "6")) / 100   # Betfair commission on winnings (set yours)
 
 
 def lay_arbs(pool, c=None):
