@@ -34,6 +34,32 @@
     for (var i = 0; i < STATS.length; i++) if (STATS[i][0].test(s)) return STATS[i][1];
     return null;
   }
+  var MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function eventDate(t) {
+    // skip "Bet Placed On: ..." lines: that's when the bet was made, not the event
+    var body = t.split('\n').filter(function (l) { return !/placed|bet id/i.test(l); }).join('\n'), now = new Date(), m;
+    if ((m = body.match(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i))) {
+      var d = new Date(now.getFullYear(), MON[m[2].toLowerCase().slice(0, 3)], +m[1]);
+      if (d - now > 200 * 864e5) d.setFullYear(d.getFullYear() - 1);
+      if (now - d > 200 * 864e5) d.setFullYear(d.getFullYear() + 1);
+      return ymd(d);
+    }
+    if (/\btomorrow\b/i.test(body)) return ymd(new Date(now.getTime() + 864e5));
+    if (/\btoday\b/i.test(body)) return ymd(now);
+    return '';
+  }
+  function sportOf(t) {
+    var l = t.toLowerCase();
+    if (/\brace \d|\br\d{1,2}\b|\bwin\b.*\bplace\b|jockey|trainer|barrier|greyhound|harness|trots/.test(l)) return 'Racing';
+    if (/\bnbl\b|wildcats|kings|united|phoenix|jackjumpers|taipans|bullets|breakers|hawks|36ers/.test(l)) return 'NBL';
+    if (/\bnba\b|lakers|celtics|warriors|nuggets|knicks|bucks|76ers|suns|heat|mavericks|thunder/.test(l)) return 'NBA';
+    if (/\bafl\b|magpies|swans|bombers|hawthorn|demons|cats|crows|dockers|lions|blues|saints|tigers|bulldogs|suns|giants|kangaroos|power|eagles/.test(l)) return 'AFL';
+    if (/\bnrl\b|broncos|storm|roosters|rabbitohs|panthers|eels|sharks|raiders|knights|cowboys|titans|warriors|dragons|sea eagles|dolphins/.test(l)) return 'NRL';
+    if (/\bepl\b|premier league|a-league|\bfc\b|united v|city v|draw\b/.test(l)) return 'Soccer';
+    if (/\btennis\b|\bset \d|atp|wta/.test(l)) return 'Tennis';
+    return '';
+  }
   function money(s) { var m = String(s).match(/\$?\s*(\d{1,6}(?:[.,]\d{2})?)/); return m ? parseFloat(m[1].replace(',', '.')) : NaN; }
 
   // ---------- player names: snap OCR'd names onto the known list (NBA + NBL) ----------
@@ -106,7 +132,8 @@
     }
     var low = t.toLowerCase();
     var bet = { kind: 'prop' };
-    if (/bonus bet|bonus cash|free bet/i.test(t)) bet.bonus = true;
+    // staked with a bonus bet (not a promo like "Jet Boost: bonus bet paid on top of your returns")
+    if (lines.some(function (l) { return /bonus bet|bonus cash|free bet/i.test(l) && !/boost|on top|returns?|if your|promo|reward/i.test(l); })) bet.bonus = true;
     if (more) bet.more = more;
     for (var i = 0; i < BOOKS.length; i++) {
       if (new RegExp('\\b' + BOOKS[i][0] + '\\b').test(low.replace(/sportsbet\.com\.au/, 'sportsbet'))) { bet.book = BOOKS[i][1]; break; }
@@ -138,17 +165,39 @@
     if (odds > 1) bet.odds = odds;
     if (!(bet.stake > 0) && odds > 1 && ret > 0) bet.stake = Math.round(ret / odds * 100) / 100;
 
+    // event date ("Tomorrow 14 Nov 17:05", "Today 7:30pm", "Sat 15 Nov") -> the tracker's bet date
+    var d = eventDate(t);
+    if (d) bet.date = d;
+    // horse/greyhound racing: "5. Juja Kibo (1) @ 4.80" + "Win · Stake $20" + "Sandown · Race 9"
+    var race = null;
+    for (var r = 0; r < lines.length && !race; r++) {
+      var rm = lines[r].match(/(?:^|[^\w])(\d{1,2})\s*[.)]\s*([A-Z][A-Za-z'’ .\-]{1,30}?)\s*\((\d{1,2})\)/);
+      if (rm) race = { n: rm[1], horse: rm[2].trim(), at: r };
+    }
+    if (race && !sels.length) {
+      var near = lines.slice(race.at, race.at + 4).join(' ');
+      var type = (near.match(/\b(each way|win|place|top \d|quinella|exacta|trifecta|first four)\b/i) || [])[1] || 'Win';
+      var venue = lines.slice(race.at, race.at + 5).map(function (l) { return l.match(/([A-Z][A-Za-z ]{2,25}?)\s*[«•·\-–]?\s*(?:race|r)\s*(\d{1,2})\b/i); }).filter(Boolean)[0];
+      if ((m = near.match(/@\s*\$?(\d{1,4}\.\d{1,2})/))) bet.odds = parseFloat(m[1]);
+      bet.kind = 'other'; bet.sport = /greyhound|dog/i.test(t) ? 'Racing' : 'Racing';
+      bet.desc = race.horse + ' (' + type.replace(/\b\w/g, function (c) { return c.toUpperCase(); }) + ')';
+      if (venue) bet.event = venue[1].trim() + ' Race ' + venue[2];
+      return bet;
+    }
+
     if (sels.length >= 2) { bet.kind = 'sgm'; bet.legs = sels; }
     else if (sels.length === 1) Object.assign(bet, sels[0]);
     else {
       bet.kind = 'other';
       var JUNK = /stake|return|payout|odds|my bets|pending|placed|bet ?slip|cash ?out|^single$|^multi$|^singles?\b|basketball|^nba$|^nbl$|^win @|^\$?\d/i;
       var useful = lines.filter(function (l) { return /[A-Za-z]{3}/.test(l) && !JUNK.test(l); });
-      var ev = useful.find(function (l) { return /\s(v|vs|@)\s/.test(l); }) || '';
-      var picks = useful.filter(function (l) { return l !== ev && !/\s(v|vs|@)\s/.test(l); });
+      var isEv = function (l) { return /\s(v|vs)\s|\s@\s+[A-Za-z]/.test(l); };
+      var ev = useful.find(isEv) || '';
+      var picks = useful.filter(function (l) { return l !== ev && !isEv(l); });
       var mk = picks.find(function (l) { return /head to head|h2h|line|handicap|total|to win|margin|winner|moneyline/i.test(l); });
       bet.desc = ((picks[0] || '') + (mk && mk !== picks[0] ? ' ' + mk : '')).trim().slice(0, 80);
       if (ev) bet.event = ev.slice(0, 80);
+      bet.sport = sportOf(t);
     }
     return bet;
   }
@@ -202,19 +251,33 @@
 
   // every bet on the screenshot: blocks end at each stake line (plus the return/payout lines after it)
   function parseAll(text, names) {
-    var lines = clean(text).split('\n').map(function (x) { return x.trim(); }).filter(Boolean), blocks = [], cur = [];
-    for (var i = 0; i < lines.length; i++) {
-      cur.push(lines[i]);
-      if (/stake|wager|bet amount/i.test(lines[i])) {
-        while (i + 1 < lines.length && /return|payout|to win|winnings/i.test(lines[i + 1])) cur.push(lines[++i]);
-        blocks.push(cur); cur = [];
+    var lines = clean(text).split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+    var stakes = lines.filter(function (l) { return /stake|wager|bet amount/i.test(l); }).length;
+    if (stakes <= 1) return [parse(text, names)];
+    // several bets: each starts at a selection / runner / multi header line ...
+    var starts = [];
+    lines.forEach(function (l, i) {
+      var start = /same game multi|^\s*\d+\s*leg|\bmulti\b/i.test(l) || RUNNER.test(l) || (selectionLike(l) && !(i && selectionLike(lines[i - 1])));
+      if (start && (!starts.length || lines.slice(starts[starts.length - 1], i).some(function (x) { return /stake|wager|bet amount/i.test(x); }))) starts.push(i);
+    });
+    var blocks = [];
+    if (starts.length === stakes) {
+      starts.forEach(function (st, k) { blocks.push(lines.slice(k ? st : 0, k + 1 < starts.length ? starts[k + 1] : lines.length)); });
+    } else {   // ... or, failing that, ends at its stake line (plus the return/payout lines after it)
+      var cur = [];
+      for (var i = 0; i < lines.length; i++) {
+        cur.push(lines[i]);
+        if (/stake|wager|bet amount/i.test(lines[i])) {
+          while (i + 1 < lines.length && /return|payout|to win|winnings/i.test(lines[i + 1])) cur.push(lines[++i]);
+          blocks.push(cur); cur = [];
+        }
       }
     }
-    if (cur.length && (!blocks.length || cur.some(function (l) { return selectionLike(l); }))) blocks.push(cur);
     var bets = blocks.map(function (b) { return parse(b.join('\n'), names); })
       .filter(function (b) { return b.kind !== 'other' || b.odds > 1 || b.stake > 0; });
     return bets.length ? bets : [parse(text, names)];
   }
+  var RUNNER = /(?:^|[^\w])\d{1,2}\s*[.)]\s*[A-Z][A-Za-z'’ .\-]{1,30}?\s*\(\d{1,2}\)/;
   function selectionLike(l) { return /\b(over|under)\s*\d|\d\s*\+/i.test(l); }
 
   var api = { parse: parse, parseAll: parseAll, read: read, snapName: snapName };
