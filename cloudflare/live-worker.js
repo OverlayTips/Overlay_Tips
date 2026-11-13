@@ -7,6 +7,7 @@
 // Cloudflare settings (Worker -> Settings -> Variables and Secrets), both as "Secret":
 //   BDL_KEY        your BALLDONTLIE API key
 //   LIVE_PASSWORD  the members password (same one as the Odds board)
+//   APISPORTS_KEY  your API-Sports key (NBL live scores; optional)
 //
 // GET /nba?dates=YYYY-MM-DD,YYYY-MM-DD   (US dates, up to 3)  header X-Members-Password
 // -> {"updated", "games": [{"id", "start", "state": "pre"|"in"|"post", "status", "period", "clock",
@@ -14,6 +15,9 @@
 //    TEAM = {"abbr", "name", "score", "players": [{"name", "min", "pts", "reb", "ast", "fg3m",
 //                                                  "stl", "blk", "tov", "pf", "fgm", "fga", "fg3a",
 //                                                  "ftm", "fta", "oreb", "dreb", "pm"}]}
+// GET /nbl?dates=YYYY-MM-DD,...   (Australian dates, up to 3)  header X-Members-Password
+// -> same shape as /nba, with "lg": "NBL" and ids like "nbl501238". Needs the APISPORTS_KEY secret
+//    (API-Sports Pro). No steals/blocks/turnovers/play-by-play for the NBL.
 // GET /plays?game_id=N   header X-Members-Password   (play-by-play, BALLDONTLIE GOAT tier)
 // -> {"updated", "game_id", "plays": [{"n", "period", "clock", "text", "team", "home", "away",
 //                                      "scoring", "value"}]}   oldest first
@@ -41,6 +45,7 @@ export default {
 
     const url = new URL(req.url);
     if (url.pathname === "/plays") return plays(url, env, ctx, cors);
+    if (url.pathname === "/nbl") return nbl(url, env, ctx, cors);
     if (url.pathname !== "/nba") return json({ error: "not found" }, 404, cors);
     const dates = (url.searchParams.get("dates") || "").split(",")
       .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 3);
@@ -166,4 +171,70 @@ async function build(env, dates) {
   });
   out.sort((a, b) => String(a.start).localeCompare(String(b.start)));
   return { updated: new Date().toISOString(), games: out };
+}
+
+// ---------------- NBL (API-Sports / API-Basketball) ----------------
+const AS = "https://v1.basketball.api-sports.io";
+const NBL_ABBR = { "Adelaide": "ADL", "Brisbane": "BRI", "Cairns": "CNS", "Illawarra": "ILL", "Melbourne": "MEL",
+  "New Zealand": "NZB", "Perth": "PER", "South East Melbourne": "SEM", "Sydney": "SYD", "Tasmania": "TAS" };
+const nblAbbr = (n) => {
+  const k = Object.keys(NBL_ABBR).filter((k) => String(n || "").startsWith(k)).sort((a, b) => b.length - a.length)[0];
+  return k ? NBL_ABBR[k] : String(n || "").slice(0, 3).toUpperCase();
+};
+
+async function as(env, path) {
+  const r = await fetch(AS + path, { headers: { "x-apisports-key": env.APISPORTS_KEY } });
+  if (!r.ok) throw new Error(`${path} ${r.status}`);
+  const j = await r.json();
+  if (j.errors && Object.keys(j.errors).length) throw new Error(JSON.stringify(j.errors).slice(0, 150));
+  return j.response || [];
+}
+
+async function nbl(url, env, ctx, cors) {
+  if (!env.APISPORTS_KEY) return json({ updated: new Date().toISOString(), games: [], note: "APISPORTS_KEY not set" }, 200, cors);
+  const dates = (url.searchParams.get("dates") || "").split(",").filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 3);
+  if (!dates.length) return json({ error: "dates" }, 400, cors);
+  const cache = caches.default;
+  const key = new Request("https://overlay-live.cache/nbl?d=" + dates.join(","));
+  const hit = await cache.match(key);
+  if (hit) return new Response(hit.body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  let body;
+  try {
+    const now = new Date(), y = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+    const season = `${y}-${y + 1}`;
+    const games = (await Promise.all(dates.map((d) =>
+      as(env, `/games?league=1&season=${season}&date=${d}&timezone=Australia/Sydney`)))).flat();
+    const started = games.filter((g) => !["NS", "CANC", "POST"].includes(g.status && g.status.short)).map((g) => g.id);
+    const rows = started.length ? await as(env, `/games/statistics/players?ids=${started.join("-")}`) : [];
+    const byTeam = {};
+    for (const r of rows) (byTeam[`${r.game && r.game.id}|${r.team && r.team.id}`] ||= []).push(r);
+    const side = (g, t, score) => ({
+      abbr: nblAbbr(t.name), name: t.name, score: score ?? null,
+      players: (byTeam[`${g.id}|${t.id}`] || []).map((p) => ({
+        name: (p.player && p.player.name) || "", min: p.minutes || "", pts: p.points ?? 0,
+        reb: (p.rebounds && p.rebounds.total) ?? 0, ast: p.assists ?? 0,
+        fg3m: (p.threepoint_goals && p.threepoint_goals.total) ?? 0, fg3a: (p.threepoint_goals && p.threepoint_goals.attempts) ?? 0,
+        ftm: (p.freethrows_goals && p.freethrows_goals.total) ?? 0, fta: (p.freethrows_goals && p.freethrows_goals.attempts) ?? 0,
+        stl: 0, blk: 0, tov: 0, pf: 0, fgm: 0, fga: 0, oreb: 0, dreb: 0, pm: null, starter: p.type === "starters",
+      })),
+    });
+    const per = { Q1: 1, Q2: 2, HT: 2, Q3: 3, Q4: 4, BT: 0, OT: 5 };
+    const out = games.map((g) => {
+      const st = (g.status && g.status.short) || "";
+      const state = st === "NS" ? "pre" : ["FT", "AOT", "POST", "CANC"].includes(st) ? "post" : "in";
+      return {
+        id: "nbl" + g.id, lg: "NBL", start: g.date, state, status: (g.status && g.status.long) || st,
+        period: per[st] ?? 0, clock: st === "HT" ? "Half" : g.status && g.status.timer ? `${g.status.timer}'` : "",
+        home: side(g, g.teams.home, g.scores && g.scores.home && g.scores.home.total),
+        away: side(g, g.teams.away, g.scores && g.scores.away && g.scores.away.total),
+      };
+    });
+    body = JSON.stringify({ updated: new Date().toISOString(), games: out });
+  } catch (e) {
+    return json({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) }, 502, cors);
+  }
+  ctx.waitUntil(cache.put(key, new Response(body, {
+    headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_SECONDS}` },
+  })));
+  return new Response(body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 }

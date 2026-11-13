@@ -246,7 +246,7 @@ const etDate=(d=new Date())=>d.toLocaleDateString('en-CA',{timeZone:'America/New
 const PER=p=>p>4?`OT${p-4>1?p-4:''}`:`Q${p}`;
 
 let PLAYS={id:null,list:[],err:'',seen:0}, PBPF='all', PBPQ='all', pbpTimer=null;
-let ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\d+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
+let ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\w+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
 
 async function loadBoard(){
   const now=new Date(), ds=[etDate(new Date(now-864e5)),etDate(now),etDate(new Date(+now+864e5))];
@@ -258,6 +258,11 @@ async function loadBoard(){
     if(!r.ok){let d='';try{const j=await r.json();d=j.error+(j.detail?': '+j.detail:'');}catch(_){}throw new Error(`${r.status}${d?' '+d:''}`);}
     const j=await r.json().catch(()=>{throw new Error('not JSON (is the Worker code deployed?)');});
     all=j.games||[]; ERR='';
+    try{   // NBL (Australian dates), best effort
+      const au=d=>d.toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});
+      const r2=await fetch(`${API}/nbl?dates=${[au(new Date(now-864e5)),au(now),au(new Date(+now+864e5))].join(',')}`,{cache:'no-store',headers:{'X-Members-Password':PW}});
+      if(r2.ok){const j2=await r2.json(); all=all.concat(j2.games||[]);}
+    }catch(_){}
   }catch(e){failed=true;ERR=String(e&&e.message||e).slice(0,160)||'no connection (is the Worker code deployed?)';if(ERR==='Failed to fetch')ERR='no connection (is the Worker code deployed?)';return;}
   // live games, anything tipping in the next 30h, and finals from the last 8h
   EVENTS=all.filter(e=>{const t=new Date(e.start);return e.state==='in'||(e.state==='pre'&&t-now<30*3600e3)||(e.state==='post'&&now-t<8*3600e3);})
@@ -268,7 +273,7 @@ const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e
 function drawBoard(){
   const live=EVENTS.filter(e=>e.state==='in').length;
   $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'';
-  if(!EVENTS.length){$('games').innerHTML=failed?'':'<div class="lv-empty" style="grid-column:1/-1"><h3>No NBA games right now</h3>Games show up here on game days.</div>';$('panel').hidden=true;return;}
+  if(!EVENTS.length){$('games').innerHTML=failed?'':'<div class="lv-empty" style="grid-column:1/-1"><h3>No NBA or NBL games right now</h3>Games show up here on game days.</div>';$('panel').hidden=true;return;}
   $('games').innerHTML=EVENTS.map(e=>{
     const pre=e.state==='pre', hs=num(e.home.score), as=num(e.away.score);
     const stat=`<div class="st ${e.state==='in'?'on-air':e.state==='post'?'fin':''}">${e.state==='in'?'● ':''}${esc(clock(e))}</div>`;
@@ -339,6 +344,7 @@ async function loadPlays(force){
   clearTimeout(pbpTimer);
   const e=EVENTS.find(x=>String(x.id)===SEL);
   if(!PW||!e||VIEW!=='pbp') return;
+  if(e.lg==='NBL'){PLAYS={id:String(e.id),list:[],err:'Play-by-play is NBA only',seen:0};return;}
   if(PLAYS.id!==String(e.id)) PLAYS={id:String(e.id),list:[],err:'',seen:0};
   if(e.state!=='pre'){
     try{

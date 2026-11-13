@@ -302,6 +302,13 @@ const HSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data
 // name key: accents, dots, apostrophes, Jr/Sr/II and spaces off
 const key=n=>String(n||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[.'’`]/g,'').replace(/-/g,' ').split(/\s+/).filter(t=>t&&!['jr','sr','ii','iii','iv','v'].includes(t)).join('');
 
+// NBL feed names come as "Cotton Bryce", "B. Cotton" or "Bryce Cotton": match on the full name in any order,
+// or first initial + surname either way round
+const altKeys=n=>{const t=key(n).length?String(n).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[.'’`]/g,' ').replace(/-/g,' ').split(/\s+/).filter(x=>x&&!['jr','sr','ii','iii','iv'].includes(x)):[];
+  const out=[[...t].sort().join('')];
+  if(t.length>=2) for(let i=0;i<t.length;i++) for(let j=0;j<t.length;j++) if(i!==j&&t[j].length>1) out.push(t[i][0]+'|'+t[j]);
+  return out;};
+
 // stat -> value from a box score row {pts,reb,ast,tpm,stl,blk,to}
 const STATS={'Points':r=>r.pts,'Rebounds':r=>r.reb,'Assists':r=>r.ast,'Threes':r=>r.tpm,'Pts + Reb + Ast':r=>r.pts+r.reb+r.ast,
   'Pts + Reb':r=>r.pts+r.reb,'Pts + Ast':r=>r.pts+r.ast,'Reb + Ast':r=>r.reb+r.ast,'Steals':r=>r.stl,'Blocks':r=>r.blk,
@@ -608,14 +615,21 @@ async function tick(){
     if(r.status===401){pwSet(null);if(!KEYTRY&&window.OTKeys&&OTKeys.loggedIn()){KEYTRY=true;OTKeys.reset();const k=await OTKeys.get('live');if(k&&k!==pw){pwSet(k);return tick();}}LIVE_ERR='Wrong password, try again.';liveBar();return;}
     if(!r.ok) throw 0; d=await r.json(); LIVE_ERR='';
   }catch(e){LIVE_ERR="couldn't reach live scores, retrying";liveBar();liveTimer=setTimeout(tick,60000);return;}
+  try{   // NBL (Australian dates), best effort
+    const nd=[...new Set(bets.map(b=>b.date))].sort().slice(-3);
+    const r=await fetch(`${API}/nbl?dates=${nd.join(',')}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
+    if(r.ok){const j=await r.json(); d.games=(d.games||[]).concat(j.games||[]);}
+  }catch(e){}
   LIVE_AT=new Date();
-  const rows={};
+  const rows={}, ALT={};
   for(const g of d.games||[]) for(const side of ['away','home']) for(const pl of (g[side]&&g[side].players)||[]){
-    rows[key(pl.name)]={g,pl,r:{pts:+pl.pts||0,reb:+pl.reb||0,ast:+pl.ast||0,tpm:+pl.fg3m||0,stl:+pl.stl||0,blk:+pl.blk||0,to:+pl.tov||0},min:pl.min};
+    const row={g,pl,r:{pts:+pl.pts||0,reb:+pl.reb||0,ast:+pl.ast||0,tpm:+pl.fg3m||0,stl:+pl.stl||0,blk:+pl.blk||0,to:+pl.tov||0},min:pl.min};
+    if(g.lg==='NBL') for(const k of altKeys(pl.name)) ALT[k]=ALT[k]?'dup':row; else rows[key(pl.name)]=row;
   }
+  const rowOf=n=>rows[key(n)]||altKeys(n).map(k=>ALT[k]).find(x=>x&&x!=='dup');
   // on court or bench: replay the play-by-play ("X enters the game for Y"; anyone named in a play is on the floor)
   const COURT={}, need=new Set(), gameOf={};
-  for(const b of bets) for(const l of legsOf(b)){const m=rows[key(l.player)]; if(m&&m.g.state==='in'){need.add(m.g.id); gameOf[key(l.player)]=m.g.id;}}
+  for(const b of bets) for(const l of legsOf(b)){const m=rowOf(l.player); if(m&&m.g.state==='in'&&m.g.lg!=='NBL'){need.add(m.g.id); gameOf[key(l.player)]=m.g.id;}}
   await Promise.all([...need].map(async id=>{
     try{
       const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(id)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
@@ -633,7 +647,7 @@ async function tick(){
   }));
   let changed=false, anyLive=false;
   const legLive=b=>{
-    const m=rows[key(b.player)]; if(!m||!STATS[b.stat]) return false;
+    const m=rowOf(b.player); if(!m||!STATS[b.stat]) return false;
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
