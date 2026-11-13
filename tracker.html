@@ -308,7 +308,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
   </div>
 </footer>
 
-<script src="slip.js?v=1" defer></script>
+<script src="slip.js?v=2" defer></script>
 <script>
 document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
@@ -625,25 +625,32 @@ function openForm(b,pre){
 }
 function ret(){const o=+$('fOdds').value,s=+$('fStake').value;$('fRet').textContent=o>1&&s>0?`Pays ${money(o*s-($('fBonus').value?s:0))}${$('fBonus').value?' (bonus)':''}`:'';}
 ['fOdds','fStake','fBonus'].forEach(i=>$(i).addEventListener('input',ret));
-$('addBtn').onclick=()=>{$('fShot').hidden=true;openForm();};
+$('addBtn').onclick=()=>{SHOTQ=[];$('fCancel').textContent='Cancel';openForm();};
 /* ---------- add from a bet slip screenshot (read on this device, nothing is uploaded) ---------- */
 $('shotBtn').onclick=()=>$('shotFile').click();
+let SHOTQ=[];   // bets read from one screenshot, opened one after another
+function nextShot(){
+  const bet=SHOTQ.shift(); if(!bet){$('fCancel').textContent='Cancel';return;}
+  const found=bet.kind==='sgm'?`${bet.legs.length}-leg SGM`:bet.kind==='prop'?`${bet.player} ${bet.side} ${bet.line} ${bet.stat}`:bet.desc||'a bet';
+  const miss=[bet.kind==='prop'&&!bet.player&&'player',!(bet.odds>1)&&'odds',!(bet.stake>0)&&'stake'].filter(Boolean);
+  const {n,of,more,...b}=bet;
+  openForm(null,{...b,date:sydDate()});
+  $('fShot').innerHTML=`📷 ${of>1?`Bet <b>${n} of ${of}</b> from your screenshot`:'Read from your screenshot'}: <b>${esc(found)}</b>. Check everything before saving${miss.length?` (couldn't read the ${miss.join(', ')})`:''}.`;
+  $('fShot').hidden=false;
+  $('fCancel').textContent=SHOTQ.length?'Skip':'Cancel';
+}
 $('shotFile').onchange=async()=>{
   const f=$('shotFile').files[0]; $('shotFile').value=''; if(!f) return;
   const btn=$('shotBtn'), was=btn.textContent; btn.disabled=true;
   const names=[...$('players').options].map(o=>o.value);
   try{
-    const {bet}=await OTSlip.read(f,names,msg=>{btn.textContent=msg;});
-    const found=bet.kind==='sgm'?`${bet.legs.length}-leg SGM`:bet.kind==='prop'?`${bet.player} ${bet.side} ${bet.line} ${bet.stat}`:bet.desc||'a bet';
-    const miss=[bet.kind==='prop'&&!bet.player&&'player',!(bet.odds>1)&&'odds',!(bet.stake>0)&&'stake'].filter(Boolean);
-    openForm(null,{...bet,date:sydDate()});
-    $('fShot').innerHTML=`📷 Read from your screenshot: <b>${esc(found)}</b>. Check everything before saving${miss.length?` (couldn't read the ${miss.join(', ')})`:''}.${bet.more?` That screenshot had ${bet.more+1} bets: this is the first one.`:''}`;
-    $('fShot').hidden=false;
+    const {bets}=await OTSlip.read(f,names,msg=>{btn.textContent=msg;});
+    SHOTQ=bets.map((b,i)=>({...b,n:i+1,of:bets.length})); nextShot();
   }catch(e){
     alert("Couldn't read that screenshot ("+(e&&e.message||e)+"). Try a clearer screenshot of just the bet slip, or add it by hand.");
   }finally{btn.textContent=was;btn.disabled=false;}
 };
-$('fCancel').onclick=()=>$('dlg').close();
+$('fCancel').onclick=()=>{$('dlg').close();if(SHOTQ.length)setTimeout(nextShot,150);};
 $('form').onsubmit=e=>{
   e.preventDefault();
   const odds=+$('fOdds').value, stake=+$('fStake').value, line=$('fLine').value===''?NaN:+$('fLine').value;
@@ -669,7 +676,7 @@ $('form').onsubmit=e=>{
   if(changed){b.live=null;b.pre=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}
   if(!EDIT) BETS.push(b);
   try{if(b.book)localStorage.setItem('ot-last-book',b.book);}catch(e){}
-  if(save()){$('dlg').close();draw();tick();}
+  if(save()){$('dlg').close();draw();tick();if(SHOTQ.length)setTimeout(nextShot,150);else $('fCancel').textContent='Cancel';}
 };
 
 /* ---------- backup ---------- */
