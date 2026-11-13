@@ -95,6 +95,7 @@ jobs:
           if [ -f hot.json ]; then cp hot.json .git-tmp/; fi   # free public Hot stats page
           if [ -f lines.json ]; then cp lines.json .git-tmp/; fi   # members Live page (encrypted)
           if [ -f alerted.json ]; then cp alerted.json .git-tmp/; fi   # value alerts already sent
+          if [ -f nbl_players.json ]; then cp nbl_players.json .git-tmp/; fi   # bet tracker NBL name search
           cd .git-tmp
           git config user.name "odds-bot"
           git config user.email "odds-bot@users.noreply.github.com"

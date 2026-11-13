@@ -164,3 +164,22 @@ def update(prev, prop_events, now, ts):
     if unmatched:
         note += f", unmatched: {', '.join(unmatched[:10])}"
     return out, note
+
+
+def _given_first(n):
+    """The feed mostly writes 'Cotton Bryce' (surname first): flip plain two-word names to 'Bryce Cotton'."""
+    t = n.split()
+    return f"{t[1]} {t[0]}" if len(t) == 2 and "." not in n else n
+
+
+def player_list(st, ts):
+    """Public list for the bet tracker's name search: bookie spelling where we have it, else the feed's."""
+    named = {v["id"]: v["n"] for v in (st.get("players") or {}).values()}
+    out = {}
+    for pid, p in (st.get("raw") or {}).items():
+        rows = sorted(p.get("g", {}).values(), key=lambda r: r[0], reverse=True)
+        team = rows[0][11] if rows and len(rows[0]) > 11 else p.get("team", "")
+        n = named.get(pid) or _given_first(p.get("n") or "")
+        if n:
+            out[n] = team
+    return {"updated": ts, "players": [{"n": n, "t": t} for n, t in sorted(out.items())]}

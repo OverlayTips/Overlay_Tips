@@ -373,6 +373,9 @@ def main():
         nblst, note = nbl_stats.update(stats.get("nbl"), list(props.values()), NOW, TS)
         stats = {**stats, "nbl": nblst}
         print("NBL stats:", note)
+        if nblst.get("raw"):
+            with open(os.path.join(OUT, "nbl_players.json"), "w") as f:   # public: names + team only
+                json.dump(nbl_stats.player_list(nblst, TS), f, separators=(",", ":"))
     except Exception as e:
         print("NBL stats failed:", type(e).__name__, e)
 

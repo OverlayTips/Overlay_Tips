@@ -684,14 +684,16 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden) tick();})
 
 /* ---------- start ---------- */
 load(); draw(); tick();
-// player search: every active NBA player (published with the lineups) plus anyone on Hot stats
+// player search: every active NBA player (published with the lineups), every NBL player, plus anyone on Hot stats
 const PSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-data/players.json';
 Promise.all([
   fetch(HSRC+'?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{}).catch(()=>({})),
-  fetch(PSRC+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({}))
-]).then(([h,pl])=>{
+  fetch(PSRC+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({})),
+  fetch(HSRC.replace('hot.json','nbl_players.json')+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({}))
+]).then(([h,pl,nb])=>{
   const names=new Map();
   for(const p of pl.players||[]) names.set(p.n,p.t);
+  for(const p of nb.players||[]) if(!names.has(p.n)) names.set(p.n,(p.t?p.t+' · ':'')+'NBL');
   for(const i of (h.items||[]).concat(h.value||[])) if(i.player&&!names.has(i.player)) names.set(i.player,'');
   $('players').innerHTML=[...names].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
 });
