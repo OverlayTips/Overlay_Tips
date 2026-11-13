@@ -178,7 +178,7 @@ def compute(events, props, hist, now):
                 price, book = best[s]
                 edge = price * fp - 1
                 if EDGE_MIN <= edge <= EDGE_MAX:
-                    overlays.append({"sport": ev.get("sport_title"), "game": _game(ev), "start": ev["commence_time"],
+                    overlays.append({"sport": ev.get("sport_title"), "sport_key": ev.get("sport_key"), "game": _game(ev), "start": ev["commence_time"],
                                      "market": _mlabel(mk), "pick": sel(s), "price": price,
                                      "book": SHORT.get(book, book), "fair": round(1 / fp, 2),
                                      "edge_pct": round(edge * 100, 1), "books": len(books), "fair_src": src})

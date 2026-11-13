@@ -21,6 +21,7 @@ SITE = "https://overlay.tips"
 FOOT = "Overlay Tips | 18+ Gamble responsibly"
 MIN_VALUE = 4.0      # % edge needed to alert
 MAX_PER_PUSH = 6
+MAX_SINGLE = 8     # bets sent as their own notification each run; any more go in one summary
 BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U to 3U
 
 
@@ -93,6 +94,35 @@ def tag(x):
     return " ✅starting" if x.get("starting") else ""
 
 
+def emoji(key, title=""):
+    k, t = str(key or ""), str(title or "").lower()
+    if k.startswith("basketball") or t in ("nba", "nbl"):
+        return "🏀"
+    if k.startswith("soccer") or any(w in t for w in ("league", "liga", "bundesliga", "serie", "ligue", "cup", "epl", "mls", "nations")):
+        return "⚽"
+    if k.startswith("americanfootball") or t in ("nfl", "ncaaf"):
+        return "🏈"
+    if k.startswith(("aussierules", "rugby")) or t in ("afl", "nrl"):
+        return "🏉"
+    if k.startswith("tennis"):
+        return "🎾"
+    if k.startswith("cricket"):
+        return "🏏"
+    if k.startswith("icehockey"):
+        return "🏒"
+    if k.startswith("baseball"):
+        return "⚾"
+    return "🎯"
+
+
+def away_at_home(g):
+    """picks.py writes 'Home v Away'; Hot stats writes 'Away @ Home'. Use one style so a game groups once."""
+    if " v " in g:
+        h, a = g.split(" v ", 1)
+        return f"{a} @ {h}"
+    return g
+
+
 def collect(now):
     out = []
     hot = load(os.path.join(OUT, "hot.json"), {})
@@ -106,7 +136,8 @@ def collect(now):
         out.append({"tag": tag(v), "key": f"hot|{v['player']}|{v['stat']}|{v.get('point')}|{side}",
                     "edge": v["value"], "price": v["price"], "start": v.get("start", ""),
                     "text": f"{v['player']}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
-                    "game": v.get("game", ""), "lg": v.get("lg", ""),
+                    "sel": f"{v['player']}{tag(v)} {v['line']} {v['stat']}", "book": v["book"],
+                    "game": v.get("game", ""), "lg": v.get("lg", ""), "emoji": "🏀",
                     "sub": f"fair {100*v.get('prob',0):.0f}%"
                            + (f" · {v['wo']['n']} out: avg {v['wo']['avg']} w/o vs {v['wo']['with']} with" if v.get("wo") else ""),
                     "add": add})
@@ -126,7 +157,9 @@ def collect(now):
             out.append({"tag": tag(o), "key": f"ov|{o['game']}|{o['market']}|{o['pick']}",
                         "edge": o["edge_pct"], "price": o["price"], "start": o.get("start", ""),
                         "text": f"{o['pick']}{tag(o)} ({o['market']}) @ {o['price']:.2f} {o['book']}",
-                        "game": o["game"], "lg": o.get("sport", ""),
+                        "sel": f"{o['pick']}{tag(o)} ({o['market']})", "book": o["book"],
+                        "game": away_at_home(o["game"]), "lg": o.get("sport", ""),
+                        "emoji": emoji(o.get("sport_key"), o.get("sport")),
                         "sub": f"fair {o['fair']:.2f}",
                         "add": None})
     return out
@@ -153,29 +186,28 @@ def main():
     if not new:
         print("value alerts: nothing new")
     else:
-        top = new[:MAX_PER_PUSH]
-        lines = []
-        # grouped by game, soonest first: "🏀 Utah Jazz @ Houston Rockets (NBA) · Sat 12:40pm" then its bets
-        games = {}
+        # one notification per bet, so each has its own Share to WhatsApp and Log bet buttons
+        top = new[:MAX_SINGLE]
+        sent = []
         for p in top:
-            games.setdefault((p["start"], p["game"]), []).append(p)
-        for (start, game), ps in sorted(games.items()):
-            if lines:
-                lines.append("")
-            lg = f" ({ps[0]['lg']})" if ps[0].get("lg") else ""
-            lines.append(f"🏀 {game}{lg} · {tip(start)}")
-            for p in ps:
-                lines.append(f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U · {p['sub']}")
-        if len(new) > len(top):
-            lines.append(f"+{len(new) - len(top)} more on the odds tracker")
-        title = (f"💰 {len(new)} new value bets" if len(new) > 1
-                 else f"💰 +{top[0]['edge']:.1f}% value · {top[0]['game']}")
-        acts = [{"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False}]
-        if top[0]["add"]:
-            acts.append({"action": "view", "label": "Log top bet", "url": top[0]["add"], "clear": False})
-        if push(title, lines, click=SITE + "/odds.html", actions=acts):
-            for p in new:
-                state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
+            lg = f" ({p['lg']})" if p.get("lg") else ""
+            title = f"💰 +{p['edge']:.1f}% · {p['sel']}"
+            lines = [f"{p['emoji']} {p['game']}{lg} · {tip(p['start'])}",
+                     f"${p['price']:.2f} at {p['book']} · {stake(p['edge'], p['price']):g}U · {p['sub']}"]
+            acts = [{"action": "view", "label": "Log bet", "url": p["add"], "clear": False}] if p["add"] else []
+            acts.append({"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False})
+            if push(title, lines, click=SITE + "/odds.html", actions=acts):
+                sent.append(p)
+        if len(new) > len(top):   # the rest in one summary
+            rest = new[len(top):]
+            lines = [f"+{p['edge']:.1f}% {p['text']}" for p in rest[:10]]
+            if len(rest) > 10:
+                lines.append(f"+{len(rest) - 10} more on the odds tracker")
+            if push(f"💰 {len(rest)} more value bets", lines, click=SITE + "/odds.html",
+                    actions=[{"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False}]):
+                sent += rest
+        for p in sent:
+            state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
     with open(state_path, "w") as f:
         json.dump(state, f, separators=(",", ":"))
 
