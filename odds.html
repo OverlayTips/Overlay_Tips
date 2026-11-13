@@ -312,7 +312,8 @@ const store = {get(k,d){try{const v=localStorage.getItem('odds.'+k);return v==nu
                set(k,v){try{localStorage.setItem('odds.'+k,JSON.stringify(v))}catch(e){}},
                del(k){try{localStorage.removeItem('odds.'+k)}catch(e){}}};
 
-const sportTab=e=>String(e&&e.sport_key||'').startsWith('soccer_')?'Soccer':e.sport_title;   // all soccer leagues = one tab
+const sportTab=e=>{const k=String(e&&e.sport_key||'');   // all soccer leagues = one tab, every tennis tournament = one tab
+  return k.startsWith('soccer_')?'Soccer':k.startsWith('tennis_')?'Tennis':k==='mma_mixed_martial_arts'?'UFC / MMA':e.sport_title;};
 let DATA=null, view=(v=>v.startsWith('bk:')?(store.set('bookFilter',v.slice(3)),'ev'):v)(store.get('view','ev')), sport=store.get('sport','all'), movers=store.get('movers',false);
 let mkt={games:store.get('market','h2h'), props:store.get('pmarket',null)};
 
@@ -679,7 +680,7 @@ function render(){
       <div class="badges">${started?'<span class="badge live">STARTED</span>':''}
       ${gv==='games'?`<span class="badge ${t.pct<100?'arb':''}">MKT ${t.pct.toFixed(1)}%${t.pct<100?' · ARB':''}</span>`:''}
       <span class="badge">${t.books.length} books</span></div></div>`;
-    const first=view==='props'?(t.ladder?'Player · line':'Player'):market==='h2h'?'Team':market==='spreads'?'Line':'Total';
+    const first=view==='props'?(t.ladder?'Player · line':'Player'):market==='h2h'?(/^(tennis_|mma_)/.test(e.sport_key||'')?(/^mma_/.test(e.sport_key)?'Fighter':'Player'):'Team'):market==='spreads'?'Line':'Total';
     const cols=t.books.map((b,i)=>i).filter(i=>myBook==='all'||t.books[i].key===myBook);
     const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed (ladders: worked out from the player's main over/under)">Fair</th><th>Open → now</th>${cols.map(i=>`<th class="${myBook!=='all'?'bookpick':''}">${esc(bkName(t.books[i]))}</th>`).join('')}</tr>`;
     let prev=null;
