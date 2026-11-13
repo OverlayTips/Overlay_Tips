@@ -182,11 +182,22 @@ const nblAbbr = (n) => {
   return k ? NBL_ABBR[k] : String(n || "").slice(0, 3).toUpperCase();
 };
 
+// The Cache API does nothing on *.workers.dev, so NBL answers are also kept in memory (per Worker
+// instance): the season list for 5 min, a full answer for 30s, and after an API-Sports error we
+// wait 90s before asking again.
+const MEM = { season: null, seasonAt: 0, answers: {}, backoffUntil: 0, lastErr: "" };
+
 async function as(env, path) {
+  if (Date.now() < MEM.backoffUntil) throw new Error("waiting after API-Sports limit: " + MEM.lastErr);
   const r = await fetch(AS + path, { headers: { "x-apisports-key": env.APISPORTS_KEY } });
+  const left = r.headers.get("x-ratelimit-remaining"), perMin = r.headers.get("x-ratelimit-limit");
   if (!r.ok) throw new Error(`${path} ${r.status}`);
   const j = await r.json();
-  if (j.errors && Object.keys(j.errors).length) throw new Error(JSON.stringify(j.errors).slice(0, 150));
+  if (j.errors && Object.keys(j.errors).length) {
+    MEM.backoffUntil = Date.now() + 90e3;
+    MEM.lastErr = JSON.stringify(j.errors).slice(0, 120) + (perMin ? ` (limit ${perMin}/min, ${left} left)` : "");
+    throw new Error(MEM.lastErr);
+  }
   return j.response || [];
 }
 
@@ -196,6 +207,9 @@ async function nbl(url, env, ctx, cors) {
   if (!dates.length) return json({ error: "dates" }, 400, cors);
   const cache = caches.default;
   const key = new Request("https://overlay-live.cache/nbl?d=" + dates.join(","));
+  const mem = MEM.answers[dates.join(",")];
+  if (mem && Date.now() - mem.at < 30e3)
+    return new Response(mem.body, { status: mem.status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
   const hit = await cache.match(key);
   if (hit) return new Response(hit.body, { status: hit.status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
   let body;
@@ -204,11 +218,13 @@ async function nbl(url, env, ctx, cors) {
     const season = `${y}-${y + 1}`;
     // one call for the whole season (cached 2 min), filtered to the asked-for Australian dates
     const skey = new Request("https://overlay-live.cache/nbl-season?s=" + season);
-    let all = null;
-    const sh = await cache.match(skey);
-    if (sh) all = await sh.json();
+    let all = MEM.season && Date.now() - MEM.seasonAt < 300e3 ? MEM.season : null;
+    const sh = all ? null : await cache.match(skey);
+    if (all) {}
+    else if (sh) all = await sh.json();
     else {
       all = await as(env, `/games?league=1&season=${season}&timezone=Australia/Sydney`);
+      MEM.season = all; MEM.seasonAt = Date.now();
       ctx.waitUntil(cache.put(skey, new Response(JSON.stringify(all), {
         headers: { "Content-Type": "application/json", "Cache-Control": "max-age=120" } })));
     }
@@ -253,10 +269,12 @@ async function nbl(url, env, ctx, cors) {
     body = JSON.stringify({ updated: new Date().toISOString(), games: out });
   } catch (e) {
     const err = JSON.stringify({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) });
+    MEM.answers[dates.join(",")] = { at: Date.now(), status: 502, body: err };
     ctx.waitUntil(cache.put(key, new Response(err, {   // don't retry API-Sports for a minute after an error
       status: 502, headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" } })));
     return new Response(err, { status: 502, headers: { ...cors, "Content-Type": "application/json" } });
   }
+  MEM.answers[dates.join(",")] = { at: Date.now(), status: 200, body };
   ctx.waitUntil(cache.put(key, new Response(body, {
     headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_SECONDS}` },
   })));
