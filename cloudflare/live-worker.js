@@ -181,7 +181,13 @@ const MEM = { at: 0, data: null };
 
 async function nblFeed(env) {
   if (MEM.data && Date.now() - MEM.at < 15e3) return MEM.data;
-  const r = await fetch(`${NBL_SRC}?t=${Math.floor(Date.now() / 15e3)}`, { cf: { cacheTtl: 0 } });
+  // raw.githubusercontent caches each path for 5 min, so the feed also writes s/<unix time // 30>.json every
+  // 30s. Read the newest finished slot; fall back to the fixed file if none of the recent ones exist.
+  const now = Date.now() / 1e3, slot = Math.floor(now / 30), first = now % 30 > 12 ? 1 : 2;
+  let r = null;
+  for (let k = first; k < first + 4 && !(r && r.ok); k++)
+    r = await fetch(NBL_SRC.replace("nbl.json", `s/${slot - k}.json`), { cf: { cacheTtl: 0 } });
+  if (!r || !r.ok) r = await fetch(`${NBL_SRC}?t=${Math.floor(Date.now() / 15e3)}`, { cf: { cacheTtl: 0 } });
   if (!r.ok) throw new Error(`NBL feed ${r.status}`);
   const b = await r.json();
   const b64 = (x) => Uint8Array.from(atob(x), (c) => c.charCodeAt(0));

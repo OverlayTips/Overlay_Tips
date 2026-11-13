@@ -101,8 +101,18 @@ def encrypt(obj):
 
 def write(snap):
     os.makedirs(OUT, exist_ok=True)
+    enc = encrypt(snap)
     with open(os.path.join(OUT, "nbl.json"), "w") as f:
-        json.dump(encrypt(snap), f)
+        json.dump(enc, f)
+    # GitHub's raw file server caches a path for 5 min, so each 30s slot gets its own file name
+    # (s/<unix time // 30>.json); the Worker reads the newest recent slot. Keep the last ~5 min.
+    sd = os.path.join(OUT, "s"); os.makedirs(sd, exist_ok=True)
+    slot = int(time.time() // 30)
+    with open(os.path.join(sd, f"{slot}.json"), "w") as f:
+        json.dump(enc, f)
+    for fn in os.listdir(sd):
+        if fn.endswith(".json") and fn[:-5].isdigit() and int(fn[:-5]) < slot - 10:
+            os.remove(os.path.join(sd, fn))
     # plain scoreboard (scores only, no player stats) so it's easy to check the feed is moving
     with open(os.path.join(OUT, "status.json"), "w") as f:
         json.dump({"updated": snap["updated"], "games": [f"{g['away']['abbr']} {g['away']['score']}-{g['home']['score']} {g['home']['abbr']} {g['status']} {g['clock']}"
