@@ -371,7 +371,8 @@ function drawStats(){
 
 /* ---------- list ---------- */
 let FILTER='open', PICKED=false;
-const isLive=b=>b.result==='open'&&b.live&&b.live.state==='in';
+const fresh=L=>!!L&&Date.now()-(L.at||0)<20*60*1000;   // live data older than 20 mins (tracking locked, offline) isn't live any more
+const isLive=b=>b.result==='open'&&b.live&&b.live.state==='in'&&fresh(b.live);
 const OPEN_PBP=new Set(), PLAYS_BY={}, PLAYS_ERR={};
 function playsBox(b,gid){
   const ps=PLAYS_BY[gid];
@@ -427,8 +428,8 @@ function sgmLegs(b){
   const legs=b.legs||[];
   return `<div class="tr-legs">${legs.map(l=>{
     const st=legState(l), L=l.live;
-    const court=L&&L.state==='in'&&L.court?`<span class="tr-court ${L.court}">${L.court==='on'?'On court':'Bench'}</span>`:'';
-    const tag=`<span class="st ${st}">${st==='won'?'Hit':st==='lost'?'Missed':st==='void'?'Void':L&&L.state==='in'?'Live':'Pending'}</span>`;
+    const court=L&&L.state==='in'&&fresh(L)&&L.court?`<span class="tr-court ${L.court}">${L.court==='on'?'On court':'Bench'}</span>`:'';
+    const tag=`<span class="st ${st}">${st==='won'?'Hit':st==='lost'?'Missed':st==='void'?'Void':L&&L.state==='in'&&fresh(L)?'Live':'Pending'}</span>`;
     return `<div class="tr-lg"><div class="ln"><span>${esc(legLabel(l))}${court}</span>${tag}</div>${prog({...l,kind:'prop'}).replace(/<div class="tr-box">[\s\S]*?<\/div>/,'')}</div>`;
   }).join('')}</div>`;
 }
@@ -449,7 +450,7 @@ function drawList(){
   xs.sort((a,b)=>(FILTER==='open'||FILTER==='live')?a.date.localeCompare(b.date)||a.created-b.created:b.date.localeCompare(a.date)||b.created-a.created);
   if(!xs.length){$('list').innerHTML=`<div class="tr-empty"><h3>${FILTER==='live'&&BETS.length?'No live bets right now':BETS.length?'Nothing here':'No bets yet'}</h3>${FILTER==='live'&&BETS.length?'Open NBA props show here once the game tips off (members, live tracking on).':BETS.length?'Try another filter.':'Tap <b>+ Add bet</b> to log one.'}</div>`;return;}
   $('list').innerHTML=xs.map(b=>{
-    const p=profit(b), live=b.result==='open'&&b.live&&b.live.state==='in';
+    const p=profit(b), live=isLive(b);
     const court=live&&b.kind!=='sgm'&&b.live.court?`<span class="tr-court ${b.live.court}">${b.live.court==='on'?'On court':'Bench'}</span>`:'';
     const tag=b.result==='open'?(live?'<span class="tr-tag live">● Live</span>'+court:'<span class="tr-tag open">Open</span>'):`<span class="tr-tag ${b.result}">${b.result==='void'?'Void':b.result==='won'?'Won':'Lost'}${b.auto?' · auto':''}</span>`;
     const st=b.stake>0;
@@ -573,7 +574,8 @@ $('impFile').onchange=async e=>{
 const API=Q.get('api')||'https://overlay-live.borgjayden005.workers.dev';
 const pwGet=()=>{try{return JSON.parse(localStorage.getItem('odds.live'))||JSON.parse(localStorage.getItem('odds.pw'));}catch(e){return null;}};
 const pwSet=v=>{try{if(v)localStorage.setItem('odds.live',JSON.stringify(v));else{localStorage.removeItem('odds.live');localStorage.removeItem('odds.pw');}}catch(e){}};
-let KEYTRY=false;   // members: fetch the live key from their portal login once per page load
+let KEYTRY=false, TIER=null;   // TIER: the logged-in member's tier, to explain why tracking is locked
+if(window.OTKeys&&OTKeys.loggedIn()) OTKeys.info().then(i=>{TIER=i&&typeof i.tier==='string'&&!/^error/.test(i.tier)?i.tier:null;liveBar();}).catch(()=>{});   // members: fetch the live key from their portal login once per page load
 let LIVE_ERR='', LIVE_AT=null, liveTimer=null;
 const trackable=()=>{const lo=addDays(sydDate(),-2);return BETS.filter(b=>b.result==='open'&&(b.kind==='prop'||b.kind==='sgm')&&b.date>=lo&&b.date<=sydDate());};
 const legsOf=b=>b.kind==='sgm'?(b.legs||[]):[b];
@@ -582,7 +584,11 @@ function liveBar(){
   if(!n){el.hidden=true;return;}
   el.hidden=false;
   if(!pwGet()){
-    el.innerHTML=`<span>🔒 <b>Live tracking</b> is for Daily card and VIP members. <a href="portal.html" style="color:var(--mint)">Log in</a>, or enter the members password.</span><input type="password" id="lbPw" placeholder="Members password" autocomplete="current-password"><button type="button" class="tr-btn main" id="lbGo">Unlock</button>${LIVE_ERR?`<span class="e">${esc(LIVE_ERR)}</span>`:''}`;
+    const T=TIER, msg=T==='core'||T==='vip'
+      ? `🔒 Live tracking couldn't switch on for your account. Refresh the page, or DM <a href="https://www.instagram.com/overlay_tips/" style="color:var(--mint)">@overlay_tips</a> if it keeps happening.`
+      : T ? `🔒 <b>Live tracking</b> is for Daily card and VIP members. <a href="portal.html?plans=1" style="color:var(--mint)">Upgrade</a>, or enter the members password.`
+      : `🔒 <b>Live tracking</b> is for Daily card and VIP members. <a href="portal.html" style="color:var(--mint)">Log in</a>, or enter the members password.`;
+    el.innerHTML=`<span>${msg}</span><input type="password" id="lbPw" placeholder="Members password" autocomplete="current-password"><button type="button" class="tr-btn main" id="lbGo">Unlock</button>${LIVE_ERR?`<span class="e">${esc(LIVE_ERR)}</span>`:''}`;
     $('lbGo').onclick=()=>{const v=$('lbPw').value.trim();if(!v)return;pwSet(v);LIVE_ERR='';tick();};
     $('lbPw').onkeydown=e=>{if(e.key==='Enter')$('lbGo').click();};
   } else {
@@ -631,7 +637,7 @@ async function tick(){
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
-    b.live={court,gid:g.id,box:m.pl,a:{t:g.away.abbr,s:g.away.score},h:{t:g.home.abbr,s:g.home.score},game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
+    b.live={court,gid:g.id,box:m.pl,a:{t:g.away.abbr,s:g.away.score},h:{t:g.home.abbr,s:g.home.score},game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,at:Date.now(),clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
     if(g.state==='in') anyLive=true;
     return true;
   };
