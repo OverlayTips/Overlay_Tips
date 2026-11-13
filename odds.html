@@ -553,7 +553,7 @@ function eventRows(ev, mk){
     const med=a=>{a=[...a].sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
     g.forEach((r,k)=>{const p=med(probs[k]); r.fair=1/p; r.edge=isFinite(r.best)?(r.best*p-1)*100:null; r.nfair=probs[k].length;});
   });
-  altLines(rows,books);
+  altLines(rows,books,mk);
   const pct=rows.reduce((t,r)=>t+(isFinite(r.best)?100/r.best:0),0);
   return {books,rows,pct};
 }
@@ -573,7 +573,13 @@ const iPhi=p=>{ // Acklam's inverse normal
   if(p<pl){const q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
   if(p>1-pl){const q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
   const q=p-0.5,r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);};
-function altLines(rows,books){
+/* spread of a stat around its line, as a share of the line. Yardage swings a lot more than a square-root
+   (count) model allows: using sqrt for receiving yards made off-line prices look like +40% value when they weren't. */
+const CV=k=>/(reception|rush|rush_reception|receiving)_yds/.test(k)?0.6:/pass_yds/.test(k)?0.3:/_yds/.test(k)?0.5
+  :/points_rebounds_assists|points_rebounds|points_assists/.test(k)?0.28:/player_points/.test(k)?0.32
+  :/rebounds|assists|receptions|threes|attempts|completions/.test(k)?0.42:0.4;
+const EDGE_CAP=15;   // edges above this are nearly always a stale/wrong price or a model miss: shown as "check price", never ranked as value
+function altLines(rows,books,mk=''){
   const by={};
   rows.forEach(r=>{ if(r.s.desc&&r.point!=null&&(r.s.name==='Over'||r.s.name==='Under')) (by[r.s.desc]=by[r.s.desc]||{})[r.s.name]=r; });
   const medOk=r=>{ if(!r) return null; const ps=r.cells.filter(c=>c&&c.ok).map(c=>c.price).sort((a,b)=>a-b); return ps.length?ps[ps.length>>1]:null; };
@@ -585,10 +591,10 @@ function altLines(rows,books){
     if(pO==null){ const a=medOk(o), b=medOk(u); est=true;
       if(a&&b) pO=(1/a)/(1/a+1/b); else if(a) pO=1/a/1.05; else if(b) pO=1-1/b/1.05; else return; }
     pO=Math.min(0.97,Math.max(0.03,pO));
-    const sd=Math.max(0.8,1.15*Math.sqrt(Math.max(L,0.5))), mu=L+sd*iPhi(pO);
+    const sd=Math.max(0.8,1.15*Math.sqrt(Math.max(L,0.5)),CV(mk)*Math.max(L,0.5)), mu=L+sd*iPhi(pO);
     [o,u].forEach(r=>{ if(!r) return;
       const isO=r===o, pMain=isO?pO:1-pO, beat=isFinite(r.best)?r.best:0;
-      r.cells.forEach((c,i)=>{ if(!c||c.ok||c.point==null) return;
+      r.cells.forEach((c,i)=>{ if(!c||c.ok||c.point==null||Math.abs(c.point-L)>sd) return;   // only lines close to the main one: further out the model is guesswork
         const z=(c.point-mu)/sd; c.p=isO?1-Phi(z):Phi(z);
         c.eq=c.price*c.p/pMain;   // the main-line price that's worth the same
         if(c.eq>beat*1.005&&(!r.alt||c.eq>r.alt.eq))
@@ -873,11 +879,11 @@ function topEV(evs,q,o={}){
         if(o.type==='props'&&!(r.s.desc&&(r.point!=null||r.ladder))) return; if(o.type==='games'&&r.s.desc) return; const pk=o.noBook?(r.bestBook?{price:r.best,book:r.bestBook}:null):pickPrice(t,r);
         const hit=!q||((r.s.desc||'')+' '+e.home_team+' '+e.away_team).toLowerCase().includes(q);
         // an off-line price (e.g. Over 31.5 when the main line is 32.5) that beats the main line
-        const a=r.alt; if(a&&a.edge>0.5&&hit&&!(o.maxOdds&&a.price>o.maxOdds)&&(myBook==='all'||o.noBook||a.book.key===myBook)){
+        const a=r.alt; if(a&&a.edge>0.5&&a.edge<=EDGE_CAP&&hit&&!(o.maxOdds&&a.price>o.maxOdds)&&(myBook==='all'||o.noBook||a.book.key===myBook)){
           out.push({e,mk,r,pk:{price:a.price,book:a.book},edge:a.edge,pt:a.point,fair:a.price/(1+a.edge/100)}); return; }
         if(!pk||(o.maxOdds&&pk.price>o.maxOdds)) return;
         const edge=(pk.price/r.fair-1)*100;
-        if(edge>0.5&&hit) out.push({e,mk,r,pk,edge}); });});
+        if(edge>0.5&&edge<=EDGE_CAP&&hit) out.push({e,mk,r,pk,edge}); });});
   });
   out.sort((a,b)=>b.edge-a.edge);
   const ptOf=x=>x.pt!=null?x.pt:x.r.point;

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from statistics import median
 
 EDGE_MIN = 0.03        # 3% above consensus fair price
+EDGE_MAX = 0.15        # above this it's nearly always a stale or wrong price, not real value: left out
 MIN_BOOKS = 4          # need at least this many bookies pricing a market to trust the consensus
 WINDOW = timedelta(hours=26)
 NO_BEST = {"betfair_ex_au"}   # exchange price is pre-commission: use it for consensus, not as the pick
@@ -176,7 +177,7 @@ def compute(events, props, hist, now):
                     continue
                 price, book = best[s]
                 edge = price * fp - 1
-                if edge >= EDGE_MIN:
+                if EDGE_MIN <= edge <= EDGE_MAX:
                     overlays.append({"sport": ev.get("sport_title"), "game": _game(ev), "start": ev["commence_time"],
                                      "market": _mlabel(mk), "pick": sel(s), "price": price,
                                      "book": SHORT.get(book, book), "fair": round(1 / fp, 2),
