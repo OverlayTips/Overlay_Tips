@@ -1,14 +1,18 @@
 """One-off check: does API-Basketball (API-Sports) have NBL player box scores? Prints a summary only."""
-import json, os, urllib.request
+import json, os, urllib.error, urllib.request
 
 KEY = os.environ.get("APISPORTS_KEY", "").strip()
 BASE = "https://v1.basketball.api-sports.io"
 
 
 def get(path):
-    req = urllib.request.Request(BASE + path, headers={"x-apisports-key": KEY})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)
+    req = urllib.request.Request(BASE + path, headers={"x-apisports-key": KEY, "User-Agent": "overlay-tips/1.0",
+                                                       "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f"{path}: HTTP {e.code} {e.read()[:300]!r} (key length {len(KEY)})")
 
 
 if not KEY:
