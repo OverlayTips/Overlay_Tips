@@ -1,4 +1,4 @@
-"""One-off check: does API-Basketball (API-Sports) have NBL player box scores? Prints a summary only."""
+"""One-off check: API-Basketball (API-Sports) NBL player box scores. Prints a summary only."""
 import json, os, urllib.error, urllib.request
 
 KEY = os.environ.get("APISPORTS_KEY", "").strip()
@@ -6,33 +6,45 @@ BASE = "https://v1.basketball.api-sports.io"
 
 
 def get(path):
-    req = urllib.request.Request(BASE + path, headers={"x-apisports-key": KEY, "User-Agent": "overlay-tips/1.0",
-                                                       "Accept": "application/json"})
+    req = urllib.request.Request(BASE + path, headers={"x-apisports-key": KEY, "User-Agent": "overlay-tips/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
-        raise SystemExit(f"{path}: HTTP {e.code} {e.read()[:300]!r} (key length {len(KEY)})")
+        raise SystemExit(f"{path}: HTTP {e.code} {e.read()[:300]!r}")
 
 
-if not KEY:
-    raise SystemExit("APISPORTS_KEY secret is empty")
 st = get("/status")
-print("status:", json.dumps(st.get("response", {}).get("subscription", {})), "errors:", st.get("errors"))
-lg = get("/leagues?country=Australia")
-print("errors:", lg.get("errors"))
-nbl = None
-for l in lg.get("response", []):
-    print("league", l["id"], l["name"], l["type"], [s["season"] for s in l.get("seasons", [])][-4:])
-    if l["name"].strip().upper() == "NBL" and not nbl:
-        nbl = l
-if not nbl:
-    raise SystemExit("no NBL league found")
-seasons = sorted(nbl["seasons"], key=lambda s: str(s["season"]))
-for s in seasons:
-    c = s.get("coverage") or {}
-    print("season", s["season"], "player stats:", c.get("games", {}).get("statistics", {}).get("players"),
-          "players:", c.get("players"), "odds:", c.get("odds"))
-cur = seasons[-1]["season"]
-g = get(f"/games?league={nbl['id']}&season={cur}")
-print(f"games {cur}: {len(g.get('response', []))} errors: {g.get('errors')}")
+print("plan:", json.dumps(st.get("response", {}).get("subscription", {})), json.dumps(st.get("response", {}).get("requests", {})))
+g = get("/games?league=1&season=2026-2027")
+games = g.get("response", [])
+print(f"games: {len(games)} errors: {g.get('errors')}")
+fin = [x for x in games if x["status"]["short"] in ("FT", "AOT")]
+ns = [x for x in games if x["status"]["short"] == "NS"]
+live = [x for x in games if x["status"]["short"] not in ("FT", "AOT", "NS", "CANC", "POST")]
+print(f"finished {len(fin)}, upcoming {len(ns)}, live now {len(live)}")
+for x in live:
+    print("LIVE:", x["status"], x["teams"]["home"]["name"], x["scores"]["home"]["total"], "v", x["teams"]["away"]["name"], x["scores"]["away"]["total"])
+for x in ns[:4]:
+    print("next:", x["date"], x["teams"]["home"]["name"], "v", x["teams"]["away"]["name"], x["id"])
+for last in fin[-2:]:
+    print("\nGAME", last["id"], last["date"], last["teams"]["home"]["name"], last["scores"]["home"]["total"],
+          "v", last["teams"]["away"]["name"], last["scores"]["away"]["total"])
+    ps = get(f"/games/statistics/players?ids={last['id']}")
+    rows = ps.get("response", [])
+    print("player rows:", len(rows), "errors:", ps.get("errors"))
+    if rows:
+        print("keys:", json.dumps(rows[0])[:700])
+    for r in sorted(rows, key=lambda r: -(r.get("points") or 0))[:8]:
+        rb = r.get("rebounds") or {}
+        print(f"  {r['player']['name']:<24} {r.get('team',{}).get('id')} min {r.get('minutes')} pts {r.get('points')} reb {rb.get('total') if isinstance(rb, dict) else rb} ast {r.get('assists')} 3pm {(r.get('threepoint_goals') or {}).get('total')}")
+# a player's season log
+if fin:
+    ps = get(f"/games/statistics/players?ids={fin[-1]['id']}")
+    pid = (ps.get("response") or [{}])[0].get("player", {}).get("id")
+    if pid:
+        lg = get(f"/games/statistics/players?player={pid}&season=2026-2027")
+        print("\nseason log for player", pid, ":", len(lg.get("response", [])), "games", lg.get("errors"))
+for x in live[:1]:
+    ps = get(f"/games/statistics/players?ids={x['id']}")
+    print("\nLIVE box rows:", len(ps.get("response", [])), json.dumps(ps.get("response", [])[:1])[:400])
