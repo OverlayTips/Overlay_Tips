@@ -101,6 +101,14 @@
     }
     if (who) root.classList.add('sbx-member');   // members don't need the "Join free" button
     if (who) { var sj = side.querySelector('.sbx-join'); if (sj) { sj.textContent = 'Members portal'; sj.href = portal; } }   // logged in: menu button goes to the portal, not Sign up
+    if (who) {   // logged in: every "Sign up" button on the page goes to the portal instead
+      var sus = d.querySelectorAll('a[href*="portal.html?signup"]');
+      for (var si = 0; si < sus.length; si++) {
+        var sa = sus[si]; sa.href = portal;
+        if (/^\s*Sign up/i.test(sa.textContent)) sa.textContent = /→/.test(sa.textContent) ? 'Members portal →' : 'Members portal';
+      }
+      var st = d.getElementById('sticky'); if (st) st.style.display = 'none';
+    }
     var accts = [acct(''), acct('sbx-acct-fix')];
     links.appendChild(accts[0]);
     d.body.appendChild(accts[1]);
