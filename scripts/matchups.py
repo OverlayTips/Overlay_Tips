@@ -213,10 +213,10 @@ def minutes(p, teammates, out_keys, starters, lineup_known, spread):
             continue
         tm = _avg([g[3] for g in tg])
         if k in out_keys:
-            # only if he's been playing lately (last game within ~10 days), so long-term absences are already in the logs
-            last = datetime.fromisoformat(tg[0][0])
-            recent = gs and (datetime.fromisoformat(gs[0][0]) - last).days <= 10
-            if tm >= 15 and recent:
+            # only a fresh absence counts: if he already missed some of this player's last 5 games,
+            # those minutes are already in the recent logs
+            played = {g[0] for g in tg}
+            if tm >= 15 and sum(1 for g in gs[:5] if g[0] in played) >= 4:
                 freed += tm
     if freed:
         # his share of the team's other 240 - freed minutes, 80% of it (some go to deep-bench guys)
