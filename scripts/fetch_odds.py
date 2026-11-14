@@ -27,8 +27,13 @@ SPORTS = [s.strip() for s in os.environ.get("SPORTS",
           "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,soccer_epl,americanfootball_nfl,mma_mixed_martial_arts,"
           "tennis_*,soccer_*").split(",") if s.strip()]
 MARKETS = os.environ.get("MARKETS", "h2h,spreads,totals")
+# Soccer leagues The Odds API carries player props for (others just come back empty, so they're harmless to ask for)
+_SOCCER_PROP_LEAGUES = ("soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a", "soccer_germany_bundesliga",
+                        "soccer_france_ligue_one", "soccer_uefa_champs_league", "soccer_uefa_europa_league",
+                        "soccer_usa_mls", "soccer_australia_aleague")
 PROP_SPORTS = [s.strip() for s in os.environ.get("PROP_SPORTS",
-               "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,americanfootball_nfl,soccer_epl").split(",") if s.strip()]
+               "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,americanfootball_nfl,"
+               + ",".join(_SOCCER_PROP_LEAGUES)).split(",") if s.strip()]
 _BBALL = ("player_points,player_rebounds,player_assists,player_threes,player_points_rebounds_assists,"
           "player_points_rebounds,player_points_assists,player_rebounds_assists,player_blocks,player_steals,"
           "player_turnovers,player_double_double,player_first_basket,"
@@ -45,9 +50,10 @@ PROP_MARKETS = {
     "americanfootball_nfl": ("player_pass_yds,player_pass_tds,player_pass_completions,player_pass_attempts,"
                              "player_pass_interceptions,player_rush_yds,player_rush_attempts,player_receptions,"
                              "player_reception_yds,player_anytime_td,player_1st_td"),
-    "soccer_epl": ("player_goal_scorer_anytime,player_first_goal_scorer,player_shots_on_target,player_shots,"
-                   "player_assists,player_to_receive_card"),
 }
+_SOCCER = ("player_goal_scorer_anytime,player_first_goal_scorer,player_shots_on_target,player_shots,"
+           "player_assists,player_to_receive_card")
+PROP_MARKETS.update({lg: _SOCCER for lg in _SOCCER_PROP_LEAGUES})
 PROPS_EVERY = timedelta(hours=float(os.environ.get("PROPS_EVERY_HOURS", "6")))
 PROPS_WINDOW = timedelta(hours=float(os.environ.get("PROPS_WINDOW_HOURS", "24")))
 SHARP_BOOK = os.environ.get("SHARP_BOOK", "pinnacle")
