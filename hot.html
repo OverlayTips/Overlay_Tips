@@ -80,6 +80,7 @@
 .hs-last{margin-top:8px;font-size:13px;color:#c9d6d0;line-height:1.55}.hs-last b{color:#ecf5f1}.hs-dt{color:#7f8f88;font-size:12px}.hs-y{color:#62f0a8;font-weight:700}.hs-n{color:#ff8f8f;font-weight:700}
 .hs-wo{margin-top:8px;font-size:12.5px;color:#cfd8e3;background:rgba(245,176,65,.08);border:1px solid rgba(245,176,65,.25);border-radius:8px;padding:6px 9px}
 .hs-lg{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;color:#0b1220;background:#f5b041;border-radius:4px;padding:1px 5px;margin-right:4px}
+.hs-ctx{margin-top:8px;font-size:12.5px;color:#cfd8e3;line-height:1.6}.hs-ctx b{color:#ecf5f1}.hs-ctx .hs-good{color:var(--mint)}.hs-ctx .hs-bad{color:#ffb3b3}.hs-dim{color:#87978f}.hs-sep{color:#3a4743;margin:0 7px}
 </style>
 <script src="nav.js?v=6"></script>
 <script src="gate.js?v=2" data-need="member" data-label="Hot stats"></script>
@@ -215,6 +216,16 @@ function lastGame(it){
   const one=x=>`<b>${x[3]}</b> <span class="hs-dt">${d(x[0])}</span> <span class="${hit(x[3])?'hs-y':'hs-n'}">${hit(x[3])?'✓':'✗'}</span>`;
   return `<div class="hs-last">Last time v ${esc(it.opp)}: ${one(m[0])}${m.length>1?`<br><span class="hs-dt">Before that:</span> ${m.slice(1).map(one).join(' · ')}`:''}</div>`;
 }
+function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function ctxRow(it){   // projected minutes, usage, how tonight's opponent defends his position, game pace
+  const b=[];
+  if(it.proj){const d=it.proj.min-it.proj.l10; b.push(`⏱ Proj <b>${it.proj.min}</b> min <span class="hs-dim">(L10 ${it.proj.l10}${Math.abs(d)>=1.5?(d>0?' ▲':' ▼'):''})</span>`);}
+  if(it.usg) b.push(`Usage <b>${it.usg}%</b>`);
+  if(it.mu){const P={G:'guards',F:'forwards',C:'centres'}[it.mu.pos],top=it.mu.rank<=it.mu.of/2,r=top?it.mu.rank:it.mu.of+1-it.mu.rank;
+    b.push(`🛡 ${esc(it.opp||'Opp')}: <b class="${top?'hs-good':'hs-bad'}">${ord(r)}-${top?'most':'fewest'}</b> ${esc(it.stat).toLowerCase()} to ${P} <span class="hs-dim">(${it.mu.pct>0?'+':''}${it.mu.pct}%)</span>`);}
+  if(typeof it.pace==='number'&&Math.abs(it.pace)>=1.5) b.push(`${it.pace>0?'🏃 Fast':'🐢 Slow'} game <span class="hs-dim">(${it.pace>0?'+':''}${it.pace.toFixed(0)}% pace)</span>`);
+  return b.length?`<div class="hs-ctx">${b.join('<span class="hs-sep">·</span>')}</div>`:'';
+}
 function card(it,val){
   const ls=status(it);
   return `<article class="hs-card ${ls.cls}">
@@ -225,6 +236,7 @@ function card(it,val){
     <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
     ${lastGame(it)}
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
+    ${ctxRow(it)}
     ${it.wo?`<div class="hs-wo">🚑 <b>${esc(it.wo.n)}</b> is out: ${esc(it.stat).toLowerCase()} avg <b>${it.wo.avg}</b> without him vs ${it.wo.with} with (${it.wo.hit[0]}/${it.wo.hit[1]} games cleared this line)</div>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;

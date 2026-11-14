@@ -17,7 +17,7 @@ matchups that a 10-game hit rate can't see:
   prob = 15-25% form + the rest market. Anything above 15% expected return is treated as a likely
   stale or wrong price and left out.
 """
-import os
+import math, os
 from datetime import datetime, timedelta
 
 # Best price only from bookies we hold (same setting as picks.py); other bookies still shape the market chance
@@ -87,10 +87,44 @@ NO_DATA = {"basketball_nbl": {"player_blocks", "player_steals"}}   # API-Basketb
 LEAGUE = {"basketball_nba": "NBA", "basketball_nbl": "NBL"}
 
 
-def build(prop_events, stats, now, ts, out=(), sport="basketball_nba"):
+def _spreads(games, teams):
+    """{event id: {team abbr: spread}} from the game lines (Pinnacle if it has one, else the median bookie line)."""
+    out = {}
+    for ev in games or ():
+        src = [ev["sharp"]] if ev.get("sharp") else ev.get("bookmakers", [])
+        pts = {}
+        for b in src:
+            for m in b.get("markets", []):
+                if m["key"] != "spreads":
+                    continue
+                for o in m.get("outcomes", []):
+                    if o.get("point") is not None:
+                        pts.setdefault(o["name"], []).append(o["point"])
+        out[ev["id"]] = {teams.get(n): _median(sorted(v)) for n, v in pts.items() if teams.get(n)}
+    return out
+
+
+def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None, games=(), avail=None):
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
     cands, vcands, legs = [], [], []
     absent = _absentees(players, out)
+    # role + matchup context (NBA only; see matchups.py)
+    mx = None
+    if sport == "basketball_nba" and ctx:
+        try:
+            import matchups as mx
+            from player_stats import norm as _norm
+            from injuries import key as _ikey
+        except Exception:
+            mx = None
+    if mx:
+        out_keys = {_norm(n) for n in out or ()}
+        by_team = {}
+        for k, pl in players.items():
+            by_team.setdefault(pl.get("team"), {})[k] = pl
+        spreads = _spreads(games, teams)
+        posmap = {k: v[3] for k, v in ((stats.get("ids") or {}).get("map") or {}).items() if len(v) > 3}
+        proj_cache = {}
     for ev in prop_events:
         if ev.get("sport_key") != sport:
             continue
@@ -186,6 +220,34 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba"):
             wn = 3 * len(l5) + 2 * len(l10) + len(gs)
             wn_eff = wn / 6   # weighted games -> roughly "games of evidence"
             p_form = (wh / wn * wn_eff + SHRINK * p_mkt) / (wn_eff + SHRINK)
+            proj = mu = pc = usg = None
+            if mx:
+                pk = by.get(desc, "")
+                if pk not in proj_cache:
+                    tm = p.get("team")
+                    mates = {k: v for k, v in by_team.get(tm, {}).items() if k != pk}
+                    st = None
+                    if avail and tm in avail.lineup_teams:
+                        st = _ikey(p.get("n") or desc) in avail.proj_starters
+                    proj_cache[pk] = mx.minutes(p, mates, out_keys, st, bool(avail and tm in avail.lineup_teams),
+                                                spreads.get(ev["id"], {}).get(tm))
+                proj = proj_cache[pk]
+                mu = mx.matchup(ctx, opp, posmap.get(pk), mk)
+                pc = mx.pace(ctx, p.get("team"), opp)
+                usg = (ctx.get("usg") or {}).get(str(p.get("id")))
+                # minutes x per-minute rate x matchup x pace -> chance of clearing the line, blended into form
+                mins10 = sum(g[3] for g in l10)
+                if proj and mins10 > 0:
+                    mean = sum(f(g) for g in l10) / mins10 * proj["min"]
+                    if mu:
+                        mean *= max(0.85, min(1.15, 1 + 0.5 * (mu["ratio"] - 1)))
+                    if pc is not None:
+                        mean *= 1 + 0.5 * pc / 100
+                    vals = [f(g) for g in l10]
+                    avgv = sum(vals) / len(vals)
+                    sd = max((sum((v - avgv) ** 2 for v in vals) / max(1, len(vals) - 1)) ** 0.5, 0.9 * math.sqrt(max(mean, 0.5)), 0.8)
+                    p_model = 1 - 0.5 * (1 + math.erf((pt - mean) / sd / math.sqrt(2)))
+                    p_form = 0.5 * p_form + 0.5 * min(0.97, max(0.03, p_model))
             if wo:   # tonight he plays without that teammate: lean the form chance toward those games
                 p_form = (wo["hit"][0] + WO_PRIOR * p_form) / (wo["hit"][1] + WO_PRIOR)
             p_hit = (h10 + hs + 1) / (len(l10) + len(gs) + 2)   # shown on the card as "Form"
@@ -207,6 +269,17 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba"):
                 item["h2h"] = [[g[0], g[1], g[2], f(g)] for g in meet[:3]]
             if wo:
                 item["wo"] = wo
+            if proj:
+                item["proj"] = proj
+                item["mean"] = round(mean, 1) if mins10 > 0 else None
+            if mu:
+                item["mu"] = {k: mu[k] for k in ("pos", "rank", "of", "pct")}
+            if pc is not None:
+                item["pace"] = pc
+            if usg:
+                item["usg"] = usg
+            if mx and (proj or mu or usg):
+                item["ctx"] = mx.describe(proj, mu, usg, pc)
             legs.append({**item, "ev": ev["id"], "mk": mk})   # SGM builder (members only, see sgm.py)
             key = (desc, mk)
             if h10 / len(l10) >= MIN_HIT and (key not in top or price > top[key]["price"]):

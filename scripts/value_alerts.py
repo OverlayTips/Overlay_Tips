@@ -143,6 +143,8 @@ def analysis(v, side):
         if v.get("vs") and v["vs"][1]:
             bit += f", {v['vs'][0]} of {v['vs'][1]} v {v.get('opp')}"
         out.append(bit)
+    if v.get("ctx"):
+        out.append(v["ctx"][:1].upper() + v["ctx"][1:])
     if v.get("wo"):
         w = v["wo"]
         last = w["n"].split()[-1]

@@ -385,6 +385,15 @@ def main():
     except Exception as e:
         print("player stats failed:", type(e).__name__, e)
 
+    # ---- NBA role + matchup context: pace, what each defence gives up by position, usage (BALLDONTLIE) ----
+    try:
+        import matchups
+        ctx, note = matchups.update(stats.get("ctx"), stats.get("nba") or {}, NOW, TS)
+        stats = {**stats, "ctx": ctx}
+        print("matchups:", note)
+    except Exception as e:
+        print("matchups failed:", type(e).__name__, e)
+
     # ---- NBL player game logs (API-Sports Pro: APISPORTS_KEY secret) ----
     try:
         import nbl_stats
@@ -402,7 +411,8 @@ def main():
     try:
         import hot
         hj = hot.build(list(props.values()), stats.get("nba") or {}, NOW, TS,
-                       out=set(avail.out_names) if avail else set())
+                       out=set(avail.out_names) if avail else set(),
+                       ctx=stats.get("ctx"), games=events, avail=avail)
         legs = hj.pop("_legs", [])
         if (stats.get("nbl") or {}).get("players"):
             hn = hot.build(list(props.values()), stats["nbl"], NOW, TS, sport="basketball_nbl")

@@ -38,6 +38,7 @@ class Availability:
         self.inj = {key(x.get("n")): x.get("s") or "" for x in (st.get("injuries") or {}).values()}
         names = {key(x.get("n")): x.get("n") for x in (st.get("injuries") or {}).values()}
         self.starters, self.confirmed = set(), set()   # player keys / team abbreviations with a confirmed lineup
+        self.proj_starters, self.lineup_teams = set(), set()   # same, but projected OR confirmed (for projected minutes)
         for g in lu.get("games") or []:
             if (g.get("status") or "") == "Final":
                 continue
@@ -46,6 +47,9 @@ class Availability:
                 for x in t.get("injuries") or []:   # same feed, but newer than state.json if lineups ran later
                     self.inj[key(x.get("n"))] = x.get("s") or ""
                     names[key(x.get("n"))] = x.get("n")
+                if t.get("starters"):
+                    self.lineup_teams.add(t.get("abbr"))
+                    self.proj_starters |= {key(s.get("n")) for s in t.get("starters") or []}
                 if t.get("status") == "confirmed":
                     self.confirmed.add(t.get("abbr"))
                     self.starters |= {key(s.get("n")) for s in t.get("starters") or []}

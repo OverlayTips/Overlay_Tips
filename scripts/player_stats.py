@@ -8,6 +8,7 @@ Output (goes into the encrypted bundle as bundle["stats"]["nba"], same shape hot
   {"updated": TS, "src": "balldontlie",
    "teams": {"Los Angeles Lakers": "LAL", ...},               # Odds API team name -> abbreviation
    "by": {bookie name as written: player key},
+   "ids": {"f": TS, "map": {norm(name): [BDL id, team abbr, name, position "G"/"F"/"C"/"G-F"...]}},
    "players": {norm(name): {"n": name, "id": BDL id, "team": "LAL", "f": TS fetched, "s": TS last seen,
                             "g": [[date, opp, "@"|"vs", min, pts, reb, ast, 3pm, blk, stl, tov], ...]}}}
 Games are newest first, this season only (regular season + playoffs), games he actually played.
@@ -129,12 +130,13 @@ def update(prev, prop_events, now, ts, extra=()):
 
     # every active player, so traded players still match; cached for a day
     ids = (prev or {}).get("ids") or {}
-    if not ids.get("map") or now - datetime.fromisoformat(ids["f"].replace("Z", "+00:00")) > timedelta(hours=20):
+    old_fmt = any(len(v) < 4 for v in list((ids.get("map") or {}).values())[:5])   # cache from before positions were kept
+    if not ids.get("map") or old_fmt or now - datetime.fromisoformat(ids["f"].replace("Z", "+00:00")) > timedelta(hours=20):
         try:
             m = {}
             for p in api.pages("/players/active", limit=12):
                 nm = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
-                m[norm(nm)] = [p["id"], (p.get("team") or {}).get("abbreviation", ""), nm]
+                m[norm(nm)] = [p["id"], (p.get("team") or {}).get("abbreviation", ""), nm, p.get("position") or ""]
             if len(m) > 300:
                 ids = {"f": ts, "map": m}
         except Exception as e:
