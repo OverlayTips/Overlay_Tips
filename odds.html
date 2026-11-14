@@ -928,6 +928,7 @@ function evChart(top,ptOf){
 }
 
 /* ---------- bonus bet conversions (stake not returned): bonus at a bookie, lay on Betfair ---------- */
+const BONUS_MIN=0.65;   // hide conversions keeping under 65% of the bonus
 let bbook=store.get('bbook','all'), bcomm=store.get('bcomm',6);
 function conversions(evs,c){
   const now=new Date(), out=[];
@@ -943,6 +944,7 @@ function conversions(evs,c){
           const l=lo.find(x=>x.name===o.name&&(x.description||'')===(o.description||'')&&(o.point==null||x.point===o.point));
           if(!l||!(l.price>1)) return;
           const conv=(o.price-1)*(1-c)/(l.price-c);
+          if(conv<BONUS_MIN) return;   // only show worthwhile conversions
           out.push({ev,mk:m.key,c:{book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price},lay:{name:l.name,desc:l.description||'',point:l.point,price:l.price},conv});
         });
       });
@@ -961,11 +963,11 @@ function renderBonus(){
     .map(([k,l])=>`<button class="chip ${k===bbook?'on':''}" data-s="${esc(k)}">${esc(l)}</button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{bbook=b.dataset.s;store.set('bbook',bbook);render();});
   $('q').placeholder='Search team';
-  $('legend').textContent=`Pick the bookie your bonus bet is with. Bet the bonus at the bookie, then lay the same selection on Betfair. % = how much of the bonus you keep as cash, whatever happens, after ${bcomm}% Betfair commission. Lay prices are from the last update, so check the price and the money available on Betfair before you bet.`;
+  $('legend').textContent=`Pick the bookie your bonus bet is with. Only conversions keeping 65% or more are shown. Bet the bonus at the bookie, then lay the same selection on Betfair. % = how much of the bonus you keep as cash, whatever happens, after ${bcomm}% Betfair commission. Lay prices are from the last update, so check the price and the money available on Betfair before you bet.`;
   const q=$('q').value.trim().toLowerCase();
   let rows=all.filter(x=>(bbook==='all'||x.c.book.key===bbook)&&
     (!q||(x.ev.home_team+' '+x.ev.away_team+' '+x.c.desc).toLowerCase().includes(q)));
-  if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No Betfair lay conversions found for this bookie right now.</div>';return;}
+  if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No conversions of 65% or better for this bookie right now.</div>';return;}
   const pt=(mk,p)=>p==null?'':' '+fmtPt(mk,p);
   const lbl=(mk)=>mk==='h2h'?'H2H':mk==='spreads'?'Line':mk==='totals'?'Total':(PROP_LABEL[mk]||mk);
   const sel=(x,o)=>`${o.desc?esc(o.desc)+' ':''}${esc(o.name)}${pt(x.mk,o.point)}`;
