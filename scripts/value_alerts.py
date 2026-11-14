@@ -154,9 +154,37 @@ def analysis(v, side):
     return out
 
 
+def _nm(x):
+    return " ".join(re.sub(r"[^a-z0-9 ]", "", str(x or "").lower().replace("-", " ")).split())
+
+
+def team_map(hot):
+    """{player name: team} from Hot stats (NBA + NBL) and the public NBL player list, so alerts can say who he plays for."""
+    m = {}
+    for p in (load(os.path.join(OUT, "nbl_players.json"), {}) or {}).get("players") or []:
+        if p.get("n") and p.get("t"):
+            m[_nm(p["n"])] = p["t"]
+    for lst in ("items", "value"):
+        for v in hot.get(lst) or []:
+            if v.get("player") and v.get("team"):
+                m[_nm(v["player"])] = v["team"]
+    return m
+
+
+def with_team(sel, teams):
+    """'Dash Daniels Over 4.5' -> 'Dash Daniels (Melbourne United) Over 4.5' when we know his team."""
+    w = str(sel).split()
+    for k in range(min(len(w), 4), 0, -1):
+        t = teams.get(_nm(" ".join(w[:k])))
+        if t:
+            return " ".join(w[:k]) + f" ({t})" + ("" if k == len(w) else " " + " ".join(w[k:]))
+    return sel
+
+
 def collect(now):
     out = []
     hot = load(os.path.join(OUT, "hot.json"), {})
+    teams = team_map(hot)
     for v in hot.get("value") or []:
         if (v.get("value") or 0) < MIN_VALUE or started(v.get("start", ""), now):
             continue
@@ -166,8 +194,8 @@ def collect(now):
             "line": v.get("point", ""), "odds": v["price"], "book": v["book"]})
         out.append({"tag": tag(v), "key": f"hot|{v['player']}|{v['stat']}|{v.get('point')}|{side}",
                     "edge": v["value"], "price": v["price"], "start": v.get("start", ""),
-                    "text": f"{v['player']}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
-                    "sel": f"{v['player']}{tag(v)} {v['line']} {v['stat']}", "book": v["book"],
+                    "text": f"{with_team(v['player'], teams)}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
+                    "sel": f"{with_team(v['player'], teams)}{tag(v)} {v['line']} {v['stat']}", "book": v["book"],
                     "game": v.get("game", ""), "lg": v.get("lg", ""), "emoji": "🏀",
                     "sub": f"fair {100*v.get('prob',0):.0f}%",
                     "why": analysis(v, side),
@@ -187,8 +215,8 @@ def collect(now):
                 continue
             out.append({"tag": tag(o), "key": f"ov|{o['game']}|{o['market']}|{o['pick']}",
                         "edge": o["edge_pct"], "price": o["price"], "start": o.get("start", ""),
-                        "text": f"{o['pick']}{tag(o)} ({o['market']}) @ {o['price']:.2f} {o['book']}",
-                        "sel": f"{o['pick']}{tag(o)} ({o['market']})", "book": o["book"],
+                        "text": f"{with_team(o['pick'], teams)}{tag(o)} ({o['market']}) @ {o['price']:.2f} {o['book']}",
+                        "sel": f"{with_team(o['pick'], teams)}{tag(o)} ({o['market']})", "book": o["book"],
                         "game": away_at_home(o["game"], o.get("sport_key")), "lg": o.get("sport", ""),
                         "emoji": emoji(o.get("sport_key"), o.get("sport")),
                         "sub": f"fair {o['fair']:.2f}",
