@@ -46,7 +46,7 @@
 .rc-card{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:18px;padding:16px;margin-bottom:22px;position:relative}
 .rc-card h2{font-size:19px;font-weight:900;color:#ecf5f1;margin:0 0 4px}
 .rc-card p.sub{color:#87978f;font-size:13px;margin:0 0 12px}
-#chart svg{width:100%;height:auto;display:block}
+#chart svg,#chart2 svg{width:100%;height:auto;display:block}
 .rc-tip{position:absolute;pointer-events:none;background:#060807;border:1px solid #2a3633;border-radius:10px;padding:7px 10px;font-size:13px;color:#ecf5f1;white-space:nowrap;transform:translate(-50%,-115%)}
 .rc-tip small{color:#87978f;display:block}
 .rc-tbl{width:100%;border-collapse:collapse;font-size:14px}
@@ -134,6 +134,12 @@
     </div>
 
     <div class="rc-card">
+      <h2>Closing line value over time</h2>
+      <p class="sub">Running average CLV across every alert with a closing price. Staying above 0% means the alerts are beating the close.</p>
+      <div id="chart2"></div>
+    </div>
+
+    <div class="rc-card">
       <h2>Where it's working</h2>
       <p class="sub">CLV = how much better the alert price was than the fair price at tip-off. Beating the close over 100+ bets is the clearest sign of a real edge.</p>
       <div class="rc-scroll"><table class="rc-tbl" id="groups"></table></div>
@@ -183,33 +189,33 @@ function tiles(s){
   $('tiles').innerHTML=t.map(([a,b,c])=>`<div class="rc-tile"><span>${a}</span><b>${esc(b)}</b><small>${esc(c)}</small></div>`).join('');
 }
 
-function chart(pts){
-  const el=$('chart');
+function chart(pts,id='chart',u='U',tipx=null){
+  const el=$(id);
   if(!pts||pts.length<2){el.innerHTML='<div class="rc-empty">The chart fills in once a few days of alerts have been graded.</div>';return;}
   const W=Math.max(300,el.clientWidth||700),H=W<500?200:240,L=44,R=12,T=16,B=26;
   const ys=pts.map(p=>p[1]); let lo=Math.min(0,...ys), hi=Math.max(0,...ys); if(hi-lo<2){hi+=1;lo-=1;}
   const pad=(hi-lo)*.08; lo-=pad; hi+=pad;
   const x=i=>L+(W-L-R)*i/(pts.length-1), y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
-  const raw=(hi-lo)/4, mag=Math.pow(10,Math.floor(Math.log10(raw))), step=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw), ticks=[]; for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step) ticks.push(v);
-  const grid=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${v===0?'#3a4743':'#18211f'}" stroke-width="1"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" fill="#87978f" font-size="11">${v>0?'+':''}${v}U</text>`).join('');
+  const raw=(hi-lo)/4, mag=Math.pow(10,Math.floor(Math.log10(raw))), step=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw), ticks=[]; for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step) ticks.push(+v.toFixed(6));
+  const grid=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${v===0?'#3a4743':'#18211f'}" stroke-width="1"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" fill="#87978f" font-size="11">${v>0?'+':''}${v}${u}</text>`).join('');
   const lab=[0,Math.floor((pts.length-1)/2),pts.length-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>`<text x="${x(i)}" y="${H-6}" text-anchor="${i===0?'start':i===pts.length-1?'end':'middle'}" fill="#87978f" font-size="11">${day(pts[i][0])}</text>`).join('');
   const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ');
   const last=pts[pts.length-1];
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running profit in units: ${sg(last[1])}U as of ${day(last[0])}">${grid}${lab}
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${id==='chart'?'Running profit in units':'Running average CLV'}: ${sg(last[1])}${u} as of ${day(last[0])}">${grid}${lab}
     <path d="${d}" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${x(pts.length-1)}" cy="${y(last[1])}" r="4" fill="var(--mint)" stroke="#0b100f" stroke-width="2"/>
-    <text x="${x(pts.length-1)-8}" y="${y(last[1])-10}" text-anchor="end" fill="#ecf5f1" font-size="12" font-weight="800">${sg(last[1])}U</text>
+    <text x="${x(pts.length-1)-8}" y="${y(last[1])-10}" text-anchor="end" fill="#ecf5f1" font-size="12" font-weight="800">${sg(last[1])}${u}</text>
     <line id="xh" y1="${T}" y2="${H-B}" stroke="#5b6b65" stroke-width="1" visibility="hidden"/>
     <circle id="xd" r="5" fill="var(--mint)" stroke="#0b100f" stroke-width="2" visibility="hidden"/>
-    <rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" id="hit"/></svg><div class="rc-tip" id="tip" hidden></div>`;
-  const svg=el.querySelector('svg'), tip=$('tip');
+    <rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" id="hit"/></svg><div class="rc-tip" hidden></div>`;
+  const svg=el.querySelector('svg'), tip=el.querySelector('.rc-tip');
   const move=e=>{const r=svg.getBoundingClientRect(), sx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
     const vx=sx*W/r.width, i=Math.max(0,Math.min(pts.length-1,Math.round((vx-L)/(W-L-R)*(pts.length-1))));
     const px=x(i), py=y(pts[i][1]);
     for(const id of ['xh','xd']) svg.getElementById(id).setAttribute('visibility','visible');
     svg.getElementById('xh').setAttribute('x1',px); svg.getElementById('xh').setAttribute('x2',px);
     svg.getElementById('xd').setAttribute('cx',px); svg.getElementById('xd').setAttribute('cy',py);
-    tip.hidden=false; tip.innerHTML=`<b>${sg(pts[i][1])}U</b><small>${day(pts[i][0])}</small>`;
+    tip.hidden=false; tip.innerHTML=`<b>${sg(pts[i][1])}${u}</b><small>${day(pts[i][0])}${tipx?' · '+tipx(pts[i]):''}</small>`;
     const card=el.parentElement.getBoundingClientRect();
     tip.style.left=(r.left-card.left+px*r.width/W)+'px'; tip.style.top=(r.top-card.top+py*r.height/H)+'px';};
   const out=()=>{tip.hidden=true; for(const id of ['xh','xd']) svg.getElementById(id).setAttribute('visibility','hidden');};
@@ -237,13 +243,14 @@ function recent(){
 }
 
 function draw(){ tiles(D.periods[per]); }
+function charts(){ chart(D.units,'chart','U'); chart(D.clv_days,'chart2','%',p=>`day ${sg(p[2])}% · ${p[3]} bets`); }
 $('per').querySelectorAll('button').forEach(b=>b.onclick=()=>{per=b.dataset.p;$('per').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));draw();});
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0;return r.json();}).then(d=>{
   D=d; $('meta').textContent=(d.since?`Tracking since ${day(d.since)} · `:'')+`updated ${ago(d.updated)}`;
-  draw(); chart(d.units); groups(); recent();
-  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>chart(d.units),150);});
+  draw(); charts(); groups(); recent();
+  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(charts,150);});
 }).catch(()=>{ $('meta').textContent='The record starts filling in after the first alerts go out and their games start.';
-  D={periods:{'7d':{n:0,w:0,l:0},'30d':{n:0,w:0,l:0},all:{n:0,w:0,l:0}},groups:[],recent:[]}; draw(); chart([]); groups(); recent(); });
+  D={periods:{'7d':{n:0,w:0,l:0},'30d':{n:0,w:0,l:0},all:{n:0,w:0,l:0}},groups:[],recent:[]}; draw(); charts(); groups(); recent(); });
 </script>
 
 </body>

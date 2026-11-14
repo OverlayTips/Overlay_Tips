@@ -256,7 +256,15 @@ def write_public(log, now):
             days[-1][1] = round(units, 2)
         else:
             days.append([d, round(units, 2)])
-    keep = ("sel", "game", "lg", "book", "price", "close", "clv", "result", "start", "stake", "edge")
+    by_day = {}   # CLV over time: [day, running avg CLV %, that day's avg CLV %, bets with a close so far]
+    for b in done:
+        if b.get("clv") is not None:
+            by_day.setdefault(_parse(b["start"]).astimezone(MEL).date().isoformat(), []).append(b["clv"])
+    clv_days, tot, cnt = [], 0.0, 0
+    for d, v in by_day.items():   # insertion order follows `done`, which is sorted by start
+        tot, cnt = tot + sum(v), cnt + len(v)
+        clv_days.append([d, round(tot / cnt, 2), round(sum(v) / len(v), 2), cnt])
+    keep =("sel", "game", "lg", "book", "price", "close", "clv", "result", "start", "stake", "edge")
     out = {"updated": now.isoformat().replace("+00:00", "Z"),
            "since": done[0]["start"] if done else None,
            "periods": {"7d": summarise([b for b in done if _parse(b["start"]) > now - timedelta(days=7)]),
@@ -265,6 +273,7 @@ def write_public(log, now):
            "groups": [{"name": k.replace("|", " "), **summarise(v)} for k, v in sorted(groups.items(), key=lambda x: -len(x[1]))],
            "sources": [{"name": k, **summarise(v)} for k, v in srcs.items()],
            "units": days,
+           "clv_days": clv_days,
            "recent": [{k: b.get(k) for k in keep} for b in reversed(done[-60:])]}
     with open(os.path.join(OUT, "record.json"), "w") as f:
         json.dump(out, f, separators=(",", ":"))
