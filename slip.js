@@ -186,8 +186,8 @@
       return bet;
     }
 
-    // team legs in a multi ("San Antonio Spurs" + "Match Betting"): the tracker's SGM legs are player props only,
-    // so a multi with any team leg becomes an "other" bet that names every leg
+    // team legs in a multi ("San Antonio Spurs" + "Match Betting"): straight "to win" legs in a basketball multi become
+    // team legs of an SGM; anything else (line, totals, margin, other sports) becomes an "other" bet that names every leg
     var teams = [];
     for (var q = 1; q < lines.length; q++) {
       var mkt = lines[q].match(/^(match betting|head to head|h2h|money ?line|line|handicap|pick your own line|winning margin|total (?:match )?points)\b/i);
@@ -196,6 +196,15 @@
       teams.push(/match betting|head to head|h2h|money ?line/i.test(mkt[1]) ? who2 + ' to win' : who2 + ' (' + mkt[1] + ')');
     }
     var isMulti = /same game multi|\bmulti\b|\b\d+\s*legs?\b/i.test(t);
+    // basketball multi where every team leg is a straight "to win": a real SGM with team legs, so live tracking follows it
+    var bball = sels.length || /^(NBA|NBL)$/.test(sportOf(t));
+    if (teams.length && bball && teams.every(function (x) { return / to win$/.test(x); }) && sels.length + teams.length >= 2) {
+      bet.kind = 'sgm';
+      bet.legs = teams.map(function (x) {
+        return { team: x.replace(/ to win$/, '').replace(/^[A-Z]{1,3}\s+(?=[A-Z][a-z]+\s+[A-Z0-9])/, '') };
+      }).concat(sels);
+      return bet;
+    }
     if (teams.length && (isMulti || sels.length + teams.length >= 2)) {
       bet.kind = 'other';
       var parts = teams.concat(sels.map(function (x) { return x.player + ' ' + x.side + ' ' + x.line + ' ' + x.stat; }));
