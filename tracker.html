@@ -286,9 +286,10 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       <label>Odds<input id="fOdds" type="number" step="0.01" min="1.01" inputmode="decimal" placeholder="1.90"></label>
       <label>Stake $ (optional)<input id="fStake" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="10"></label>
     </div>
-    <div class="two">
+    <div class="three">
       <label>Date<input id="fDate" type="date"></label>
       <label>Type<select id="fBonus"><option value="">Cash bet</option><option value="bonus">Bonus bet (stake not returned)</option></select></label>
+      <label>Bonus back $ (optional)<input id="fBack" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 50" title="Bonus bet the bookie gave you back, e.g. 'bonus back if 1 leg fails'"></label>
     </div>
     <div class="tr-shotnote" id="fShot" hidden></div>
     <div class="err" id="fErr"></div>
@@ -437,7 +438,7 @@ function drawStats(){
     ['Record',`<b>${won}-${wl.length-won}${set.length-wl.length?'-'+(set.length-wl.length):''}</b>`],
     ['Open',`<b>${open.length}</b>`],
     ['Riding on open',`<b>${money(open.reduce((s,b)=>s+(b.bonus?0:(b.stake||0)),0))}</b>`]
-  ].map(([k,v])=>`<div class="tr-stat"><span>${k}</span>${v}</div>`).join('');
+  ].concat(set.some(b=>b.bonusBack>0)?[['Bonus bets back',`<b>${money(set.reduce((s,b)=>s+(+b.bonusBack||0),0))}</b>`]]:[]).map(([k,v])=>`<div class="tr-stat"><span>${k}</span>${v}</div>`).join('');
   CHPTS=set.slice().sort((a,b)=>(a.date+(a.settled||'')).localeCompare(b.date+(b.settled||'')));
   drawChart();
 }
@@ -595,7 +596,7 @@ function drawList(){
     const tag=b.result==='open'?(live?'<span class="tr-tag live">● Live</span>'+court:'<span class="tr-tag open">Open</span>'):`<span class="tr-tag ${b.result}">${b.result==='void'?'Void':b.result==='won'?'Won':'Lost'}${b.auto?' · auto':''}</span>`;
     const st=b.stake>0;
     const right=!st?`<b>$${b.odds.toFixed(2)}</b><span>odds · no stake</span>`:b.result==='open'?`<b>${money(b.stake*b.odds-(b.bonus?b.stake:0))}</b><span>returns · $${b.odds.toFixed(2)}</span>`:`<b class="${p>0?'pos':p<0?'neg':''}">${pm(p)}</b><span>$${b.odds.toFixed(2)} · ${money(b.stake)}${b.bonus?' bonus':''}</span>`;
-    const sub=[fmtDay(b.date),b.book,b.event,b.result==='open'&&st?money(b.stake)+(b.bonus?' bonus bet':''):''].filter(Boolean).map(esc).join(' · ');
+    const sub=[fmtDay(b.date),b.book,b.event,b.result==='open'&&st?money(b.stake)+(b.bonus?' bonus bet':''):'',b.bonusBack>0?money(b.bonusBack)+' bonus back':''].filter(Boolean).map(esc).join(' · ');
     return `<article class="tr-bet ${b.result}">${scoreTop(b)}<div class="tr-top"><div><div class="tr-pick">${esc(label(b))}${tag}</div><div class="tr-sub">${sub}</div></div><div class="tr-money">${right}</div></div>${b.kind==='sgm'?sgmLegs(b):prog(b)}
       <div class="tr-acts">${b.result==='open'?`<button type="button" class="w" data-r="won" data-id="${b.id}">Won</button><button type="button" class="l" data-r="lost" data-id="${b.id}">Lost</button><button type="button" data-r="void" data-id="${b.id}">Void</button>`:`<button type="button" data-r="open" data-id="${b.id}">Reopen</button>`}<button type="button" data-edit="${b.id}">Edit</button><button type="button" data-copy="${b.id}" title="New bet with the same player, bookie and stake">Copy</button><button type="button" class="del" data-del="${b.id}">Delete</button></div></article>`;
   }).join('');
@@ -665,7 +666,7 @@ function openForm(b,pre){
   $('fLine').value=v.line??''; $('fDesc').value=v.desc||''; $('fEvent').value=v.event||'';
   $('fSport').value=v.sport||(()=>{try{return localStorage.getItem('ot-last-sport')||'Racing';}catch(e){return 'Racing';}})();
   $('fBook').value=v.book||(()=>{try{return localStorage.getItem('ot-last-book')||'';}catch(e){return '';}})();
-  $('fOdds').value=v.odds||''; $('fStake').value=v.stake>0?v.stake:''; $('fDate').value=v.date||sydDate(); $('fBonus').value=v.bonus?'bonus':'';
+  $('fOdds').value=v.odds||''; $('fStake').value=v.stake>0?v.stake:''; $('fDate').value=v.date||sydDate(); $('fBonus').value=v.bonus?'bonus':''; $('fBack').value=v.bonusBack>0?v.bonusBack:'';
   $('fErr').textContent=''; ret(); $('dlg').showModal();
   setTimeout(()=>(KIND==='prop'&&!$('fPlayer').value?$('fPlayer'):$('fOdds')).focus(),50);
 }
@@ -721,12 +722,13 @@ $('form').onsubmit=e=>{
   }
   if(!(odds>1)) return err('Odds need to be more than 1.00.');
   if($('fStake').value!==''&&!(stake>0)) return err('Stake needs to be more than $0, or leave it blank.');
+  const back=+$('fBack').value; if($('fBack').value!==''&&!(back>=0)) return err('Bonus back needs to be $0 or more, or leave it blank.');
   const b=EDIT||{id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),created:Date.now(),result:'open'};
   const changed=EDIT&&((EDIT.lg||'NBA')!==LGF||EDIT.player!==$('fPlayer').value.trim()||EDIT.stat!==$('fStat').value||EDIT.side!==$('fSide').value||+EDIT.line!==line||EDIT.date!==$('fDate').value);
   if(KIND!=='other') b.lg=LGF; else delete b.lg;
   Object.assign(b,{kind:KIND,player:KIND==='prop'?$('fPlayer').value.trim():'',stat:$('fStat').value,side:$('fSide').value,line:KIND==='prop'?line:null,
     desc:KIND==='other'?$('fDesc').value.trim():'',event:KIND==='other'?$('fEvent').value.trim():'',sport:KIND==='other'?$('fSport').value:undefined,book:$('fBook').value.trim(),
-    odds:Math.round(odds*100)/100,stake:stake>0?Math.round(stake*100)/100:0,date:$('fDate').value||sydDate(),bonus:!!$('fBonus').value});
+    odds:Math.round(odds*100)/100,stake:stake>0?Math.round(stake*100)/100:0,date:$('fDate').value||sydDate(),bonus:!!$('fBonus').value,bonusBack:back>0?Math.round(back*100)/100:0});
   if(KIND==='sgm'){const old=JSON.stringify((b.legs||[]).map(legLabel)); b.legs=legs.map(l=>isTeamLeg(l)?{team:l.team}:{player:l.player,stat:l.stat,side:l.side,line:l.line}); if(EDIT&&old!==JSON.stringify(b.legs.map(legLabel))){b.live=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}}
   else delete b.legs;
   if(changed){b.live=null;b.pre=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}
@@ -745,7 +747,7 @@ $('resetExp').onclick=()=>$('expBtn').click();
 $('resetGo').onclick=doReset;
 $('csvBtn').onclick=()=>{
   const q=s=>`"${String(s??'').replace(/"/g,'""')}"`;
-  const rows=[['Date','Bet','Event','Bookie','Odds','Stake','Bonus','Result','Profit']].concat(BETS.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(b=>[b.date,label(b),b.live&&b.live.game||b.event||'',b.book,b.odds,b.stake>0?b.stake:'',b.bonus?'yes':'',b.result,b.stake>0?profit(b).toFixed(2):'']));
+  const rows=[['Date','Bet','Event','Bookie','Odds','Stake','Bonus','Bonus back','Result','Profit']].concat(BETS.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(b=>[b.date,label(b),b.live&&b.live.game||b.event||'',b.book,b.odds,b.stake>0?b.stake:'',b.bonus?'yes':'',b.bonusBack>0?b.bonusBack:'',b.result,b.stake>0?profit(b).toFixed(2):'']));
   dl(`overlay-bets-${sydDate()}.csv`,rows.map(r=>r.map(q).join(',')).join('\n'),'text/csv');
 };
 /* ---------- monthly summary as an Excel file (built on this device) ---------- */

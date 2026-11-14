@@ -431,14 +431,14 @@ function renderStats(){
   if (r!=='all') { const from = melDate(new Date(Date.now()-(+r-1)*864e5)); set = set.filter(b => (b.date||'')>=from); }
   set.sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.created||0)-(a.created||0));
   const agg = arr => { const st=arr.reduce((a,b)=>a+(b.bonus?0:(+b.stake||0)),0), pl=arr.reduce((a,b)=>a+betProfit(b),0), w=arr.filter(b=>b.result==='won').length;
-    return {n:arr.length, w, st, pl, sr: arr.length ? w/arr.length*100 : 0, roi: st ? pl/st*100 : 0}; };
+    return {n:arr.length, w, st, pl, bb: arr.reduce((a,b)=>a+(+b.bonusBack||0),0), sr: arr.length ? w/arr.length*100 : 0, roi: st ? pl/st*100 : 0}; };
   const A = agg(set), cls = n => n>0?'pos':n<0?'neg':'';
   const open = MYBETS.filter(b => b.result==='open').length;
   $('statBoxes').innerHTML = [
     [`<span class="${cls(A.pl)}">${pmoney(A.pl)}</span>`,'profit'],
     [`<span class="${cls(A.roi)}">${A.roi>0?'+':''}${A.roi.toFixed(1)}%</span>`,'ROI'],
     [`${A.sr.toFixed(0)}%`,`strike rate (${A.w} from ${A.n})`],
-    [`$${A.st.toFixed(2)}`,`staked${open?` · ${open} open`:''}`]].map(([b,s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+    [`$${A.st.toFixed(2)}`,`staked${open?` · ${open} open`:''}`]].concat(A.bb>0?[[`$${A.bb.toFixed(2)}`,'bonus bets back']]:[]).map(([b,s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
   const sp = {}; set.forEach(b => (sp[betType(b)]=sp[betType(b)]||[]).push(b));
   const sr = Object.entries(sp).map(([k,v]) => [k, agg(v)]).sort((a,b) => b[1].pl-a[1].pl);
   const none = MYBETS.length ? 'No settled bets in this range yet.' : 'No bets yet. Log them in the <a href="tracker.html">bet tracker</a> and your results show up here.';
@@ -446,7 +446,7 @@ function renderStats(){
     sr.map(([k,a]) => `<tr><td>${esc(k)}</td><td class="n">${a.n}</td><td class="n">${a.sr.toFixed(0)}%</td><td class="n ${cls(a.pl)}">${pmoney(a.pl)}</td><td class="n ${cls(a.roi)}">${a.roi.toFixed(1)}%</td></tr>`).join('')
     : `<tr><td class="pt-empty">${none}</td></tr>`;
   $('histTbl').innerHTML = set.length ? `<tr><th>Date</th><th>Bet</th><th class="n">Odds</th><th class="n">Stake</th><th class="n">P/L</th></tr>` +
-    set.slice(0,200).map(b => `<tr><td>${b.date?fmtDay(b.date):''}</td><td>${esc(betLabel(b))}<div class="tip-meta">${esc(betType(b))}${b.book?' · '+esc(b.book):''}${b.bonus?' · bonus':''}</div></td><td class="n">${(+b.odds).toFixed(2)}</td><td class="n">${b.stake>0?'$'+(+b.stake).toFixed(2):'–'}</td><td class="n ${cls(betProfit(b))}">${b.stake>0?pmoney(betProfit(b)):'–'}</td></tr>`).join('')
+    set.slice(0,200).map(b => `<tr><td>${b.date?fmtDay(b.date):''}</td><td>${esc(betLabel(b))}<div class="tip-meta">${esc(betType(b))}${b.book?' · '+esc(b.book):''}${b.bonus?' · bonus':''}${b.bonusBack>0?` · $${(+b.bonusBack).toFixed(2)} bonus back`:''}</div></td><td class="n">${(+b.odds).toFixed(2)}</td><td class="n">${b.stake>0?'$'+(+b.stake).toFixed(2):'–'}</td><td class="n ${cls(betProfit(b))}">${b.stake>0?pmoney(betProfit(b)):'–'}</td></tr>`).join('')
     : `<tr><td class="pt-empty">${none}</td></tr>`;
 }
 $('stRange').onchange = renderStats;
