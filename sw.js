@@ -3,7 +3,7 @@
    the saved copy is only used when there's no signal. Odds data, the live API and Supabase
    (other domains) are never touched or cached. */
 const CACHE = 'overlay-v1';
-const CORE = ['/', '/index.html', '/site.css', '/nav.js?v=3', '/logo-nav.png', '/icon-192.png'];
+const CORE = ['/', '/index.html', '/site.css', '/nav.js?v=6', '/logo-nav.png', '/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).catch(() => {}));

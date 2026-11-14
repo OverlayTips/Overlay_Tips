@@ -73,20 +73,23 @@
     // account button (top right): your name when you're logged in to the members portal, otherwise "Log in"
     var home = (nav.querySelector('.brand') || {}).getAttribute ? nav.querySelector('.brand').getAttribute('href') || 'index.html' : 'index.html';
     var portal = home.replace(/index\.html.*$/, '') + 'portal.html';
-    var who = null, tok = null, uid = null;
-    try {
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (/^sb-.*-auth-token$/.test(k)) {
-          var t = JSON.parse(localStorage.getItem(k)); t = t && (t.currentSession || t);
-          var u = t && t.user;
-          if (u && (!t.expires_at || t.expires_at * 1000 > Date.now() - 7 * 864e5)) {
-            who = ((u.user_metadata && u.user_metadata.name) || (u.email || '').split('@')[0] || 'Member').trim();
-            uid = u.id; if (t.access_token && (!t.expires_at || t.expires_at * 1000 > Date.now() + 30000)) tok = t.access_token;
+    var who, tok, uid, accts = [];
+    function read() {
+      who = null; tok = null; uid = null;
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (/^sb-.*-auth-token$/.test(k)) {
+            var t = JSON.parse(localStorage.getItem(k)); t = t && (t.currentSession || t);
+            var u = t && t.user;
+            if (u && (!t.expires_at || t.expires_at * 1000 > Date.now() - 7 * 864e5)) {
+              who = ((u.user_metadata && u.user_metadata.name) || (u.email || '').split('@')[0] || 'Member').trim();
+              uid = u.id; if (t.access_token && (!t.expires_at || t.expires_at * 1000 > Date.now() + 30000)) tok = t.access_token;
+            }
           }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
     function acct(cls) {
       var a = d.createElement('a'); a.href = portal; a.className = 'sbx-acct ' + cls + (who ? '' : ' out');
       if (who) {
@@ -99,33 +102,52 @@
       if (/portal\.html$/.test(location.pathname)) a.setAttribute('aria-current', 'page');
       return a;
     }
-    if (who) root.classList.add('sbx-member');   // members don't need the "Join free" button
-    if (who) { var sj = side.querySelector('.sbx-join'); if (sj) { sj.textContent = 'Members portal'; sj.href = portal; } }   // logged in: menu button goes to the portal, not Sign up
-    if (who) {   // logged in: every "Sign up" button on the page goes to the portal instead
-      var sus = d.querySelectorAll('a[href*="portal.html?signup"]');
-      for (var si = 0; si < sus.length; si++) {
-        var sa = sus[si]; sa.href = portal;
-        if (/^\s*Sign up/i.test(sa.textContent)) sa.textContent = /→/.test(sa.textContent) ? 'Members portal →' : 'Members portal';
-      }
-      var st = d.getElementById('sticky'); if (st) st.style.display = 'none';
-    }
-    var accts = [acct(''), acct('sbx-acct-fix')];
-    links.appendChild(accts[0]);
-    d.body.appendChild(accts[1]);
     // founder tag: gold "★ Founder" pill on the account button for founding members.
     // Shows the last known tier straight away, then checks it with Supabase.
     function tag(tier) { accts.forEach(function (a) { a.classList.toggle('founder', tier === 'founder'); }); }
-    if (who && uid) {
-      var TK = 'ot-tier-' + uid;
-      try { tag(localStorage.getItem(TK)); } catch (e) {}
-      if (tok) {
-        fetch('https://enldqvdxygppxwrauqlw.supabase.co/rest/v1/rpc/my_tier', { method: 'POST', body: '{}',
-          headers: { apikey: 'sb_publishable_Zznc-4Nv6Ibb_SyE55jn6A_IqSxnYW8', Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' } })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (t) { if (typeof t === 'string') { tag(t); try { localStorage.setItem(TK, t); } catch (e) {} } })
-          .catch(function () {});
+    // draws the account button + login-dependent bits. Runs on load and again whenever the login changes
+    // (logging in on the portal without a reload, Supabase refreshing an old session, another tab).
+    var lastWho;
+    function account() {
+      read();
+      if (who === lastWho && accts.length) return;
+      lastWho = who;
+      accts.forEach(function (a) { if (a.parentNode) a.parentNode.removeChild(a); });
+      root.classList.toggle('sbx-member', !!who);   // members don't need the "Join free" button
+      var sj = side.querySelector('.sbx-join');
+      if (sj) {   // logged in: menu button goes to the portal, not Sign up
+        if (!sj.dataset.t) { sj.dataset.t = sj.textContent; sj.dataset.h = sj.getAttribute('href') || ''; }
+        sj.textContent = who ? 'Members portal' : sj.dataset.t; sj.href = who ? portal : sj.dataset.h;
+      }
+      // logged in: every "Sign up" button on the page goes to the portal instead
+      var sus = d.querySelectorAll('a[href*="portal.html?signup"], a[data-su]');
+      for (var si = 0; si < sus.length; si++) {
+        var sa = sus[si];
+        if (!sa.dataset.su) { sa.dataset.su = sa.getAttribute('href'); sa.dataset.st = sa.textContent; }
+        if (who) {
+          sa.href = portal;
+          if (/^\s*Sign up/i.test(sa.dataset.st)) sa.textContent = /→/.test(sa.dataset.st) ? 'Members portal →' : 'Members portal';
+        } else { sa.href = sa.dataset.su; sa.textContent = sa.dataset.st; }
+      }
+      var st = d.getElementById('sticky'); if (st) st.style.display = who ? 'none' : '';
+      accts = [acct(''), acct('sbx-acct-fix')];
+      links.insertBefore(accts[0], btn.parentNode === links ? btn : null);
+      d.body.appendChild(accts[1]);
+      if (who && uid) {
+        var TK = 'ot-tier-' + uid;
+        try { tag(localStorage.getItem(TK)); } catch (e) {}
+        if (tok) {
+          fetch('https://enldqvdxygppxwrauqlw.supabase.co/rest/v1/rpc/my_tier', { method: 'POST', body: '{}',
+            headers: { apikey: 'sb_publishable_Zznc-4Nv6Ibb_SyE55jn6A_IqSxnYW8', Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (t) { if (typeof t === 'string') { tag(t); try { localStorage.setItem(TK, t); } catch (e) {} } })
+            .catch(function () {});
+        }
       }
     }
+    account();
+    window.otNavAccount = account;   // the portal calls this after logging in / out
+    window.addEventListener('storage', function (e) { if (!e.key || /^sb-.*-auth-token$/.test(e.key)) account(); });
     links.appendChild(btn);
     d.body.appendChild(dim); d.body.appendChild(side);
     function set(open) {
