@@ -57,7 +57,15 @@ PROP_MARKETS.update({lg: _SOCCER for lg in _SOCCER_PROP_LEAGUES})
 PROPS_EVERY = timedelta(hours=float(os.environ.get("PROPS_EVERY_HOURS", "6")))
 PROPS_WINDOW = timedelta(hours=float(os.environ.get("PROPS_WINDOW_HOURS", "48")))
 SHARP_BOOK = os.environ.get("SHARP_BOOK", "pinnacle")
-SHARP_SPORTS = [x.strip() for x in os.environ.get("SHARP_SPORTS", "basketball_nba").split(",") if x.strip()]
+# Pinnacle = the benchmark "true" price. Game markets: every sport ("*"). Props: where Pinnacle actually posts them
+# (only markets that come back are charged, so asking where it has none is free).
+SHARP_SPORTS = [x.strip() for x in os.environ.get("SHARP_SPORTS", "*").split(",") if x.strip()]
+SHARP_PROP_SPORTS = [x.strip() for x in os.environ.get(
+    "SHARP_PROP_SPORTS", "basketball_nba,basketball_nbl,americanfootball_nfl,soccer_epl").split(",") if x.strip()]
+
+
+def sharp_for(sk, lst):
+    return any(sk == x or (x.endswith("*") and sk.startswith(x[:-1])) for x in lst)
 MIN_CREDITS = int(os.environ.get("MIN_CREDITS", "50"))
 OUT = os.environ.get("OUT_DIR", "odds-data")
 ITER = 250_000
@@ -268,7 +276,7 @@ def main():
             ev["sport_title"] = active.get(sk, ev.get("sport_title"))
             events.append(ev)
         # sharp reference price (Pinnacle): used only for the fair price, never shown as a bookie to bet
-        if data and sk in SHARP_SPORTS:
+        if data and sharp_for(sk, SHARP_SPORTS):
             sharp = api.try_get(f"{sk} {SHARP_BOOK}", f"/sports/{sk}/odds", bookmakers=SHARP_BOOK, markets=MARKETS,
                                 oddsFormat="decimal", dateFormat="iso") or []
             by_id = {e["id"]: e for e in sharp}
@@ -297,7 +305,7 @@ def main():
             continue
         data, n = fetch_props(api, sk, ev)
         prop_calls += n
-        if data is not None and sk in SHARP_SPORTS and not api.low():
+        if data is not None and sharp_for(sk, SHARP_PROP_SPORTS) and not api.low():
             sd = api.try_get(f"props {SHARP_BOOK} {ev['home_team']}", f"/sports/{sk}/events/{ev['id']}/odds",
                              bookmakers=SHARP_BOOK, markets=PROP_MARKETS[sk], oddsFormat="decimal", dateFormat="iso")
             prop_calls += 1

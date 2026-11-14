@@ -17,7 +17,11 @@ matchups that a 10-game hit rate can't see:
   prob = 15-25% form + the rest market. Anything above 15% expected return is treated as a likely
   stale or wrong price and left out.
 """
+import os
 from datetime import datetime, timedelta
+
+# Best price only from bookies we hold (same setting as picks.py); other bookies still shape the market chance
+MY_BOOKS = {b.strip() for b in os.environ.get("MY_BOOKS", "sportsbet,tab,tabtouch,betr_au").split(",") if b.strip()}
 
 STAT = {  # game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, tov]
     "player_points": ("Points", lambda g: g[4]),
@@ -114,6 +118,8 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba"):
                         continue
                     bp = allp.setdefault(k, {})
                     bp[_book(b)] = max(bp.get(_book(b), 0), o["price"])
+                    if MY_BOOKS and b["key"] not in MY_BOOKS:
+                        continue   # still counts toward the market price, but we can't bet it there
                     if k not in best or o["price"] > best[k][0]:
                         best[k] = (o["price"], _book(b), m["key"].endswith("_alternate"))
         # Pinnacle (sharp) no-vig chance of the Over, per (market, player, point)
@@ -205,7 +211,9 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba"):
             key = (desc, mk)
             if h10 / len(l10) >= MIN_HIT and (key not in top or price > top[key]["price"]):
                 top[key] = item
-            if (VALUE_MIN <= item["value"] <= VALUE_CAP and len(ps) >= VALUE_BOOKS and price <= VALUE_MAX_PRICE
+            item.update({"ev": ev["id"], "mk": mk, "desc": desc, "sk": sport})   # lets the bet log re-find this line for its closing price
+            # value needs a real two-sided fair price: an Over-only ladder with a guessed margin isn't one
+            if (src != "one" and VALUE_MIN <= item["value"] <= VALUE_CAP and len(ps) >= VALUE_BOOKS and price <= VALUE_MAX_PRICE
                     and price <= med * 1.25) and (key not in vtop or item["value"] > vtop[key]["value"]):
                 vtop[key] = item
         cands += top.values()
