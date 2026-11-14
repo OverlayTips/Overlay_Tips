@@ -1,6 +1,6 @@
 name: Update odds
 
-# Every 5 minutes, 6am-10pm Melbourne (Odds API 5M plan), started by the "Odds ticker" workflow: game odds every run,
+# Every 5 minutes 6am-10pm Melbourne, every 15 minutes overnight (Odds API 5M plan), started by the "Odds ticker" workflow: game odds every run,
 # player props re-pulled every 30 min. Claude scheduled tasks still start runs for the picks alerts, and the
 # NBA/NBL pre-tip checks start quick sport-only refreshes. "Run workflow" in the Actions tab refreshes any time.
 on:
