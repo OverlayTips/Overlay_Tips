@@ -899,8 +899,19 @@ Promise.all([
   const names=new Map();
   for(const p of pl.players||[]) names.set(p.n,p.t);
   const nbl=new Map(); for(const p of nb.players||[]) nbl.set(p.n,p.t||'NBL');
+  for(const i of (h.items||[]).concat(h.value||[])) if(i.player){   // Hot stats has NBL players too: keep them out of the NBA list
+    if(i.lg==='NBL'){ if(!nbl.has(i.player)) nbl.set(i.player,i.team||'NBL'); }
+    else if(!names.has(i.player)) names.set(i.player,'');
+  }
+  // open bets saved as NBA for a player who's only in the NBL (e.g. read from a screenshot before this fix): move them to NBL
+  let moved=false;
+  for(const b of BETS){
+    if(b.result!=='open'||b.kind==='other'||(b.lg||'NBA')!=='NBA') continue;
+    const ps=b.kind==='sgm'?(b.legs||[]).map(l=>l.player):[b.player];
+    if(ps.length&&ps.every(n=>n&&nbl.has(n)&&!names.has(n))){b.lg='NBL';moved=true;}
+  }
+  if(moved){save();draw();}
   $('playersNBL').innerHTML=[...nbl].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
-  for(const i of (h.items||[]).concat(h.value||[])) if(i.player&&!names.has(i.player)) names.set(i.player,'');
   $('players').innerHTML=[...names].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
 });
 if(Q.get('add')){
