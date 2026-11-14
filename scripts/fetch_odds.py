@@ -14,7 +14,7 @@ Env:
   MARKETS              default h2h,spreads,totals
   PROP_SPORTS          sports to pull player props for (default below)
   PROPS_EVERY_HOURS    re-pull props for a game at most this often (default 6)
-  PROPS_WINDOW_HOURS   only pull props for games starting within this many hours (default 24)
+  PROPS_WINDOW_HOURS   only pull props for games starting within this many hours (default 48)
   MIN_CREDITS          stop spending once remaining credits drop below this (default 50)
 """
 import base64, gzip, hashlib, json, os, re, secrets, sys, urllib.request, urllib.parse, urllib.error
@@ -55,7 +55,7 @@ _SOCCER = ("player_goal_scorer_anytime,player_first_goal_scorer,player_shots_on_
            "player_assists,player_to_receive_card")
 PROP_MARKETS.update({lg: _SOCCER for lg in _SOCCER_PROP_LEAGUES})
 PROPS_EVERY = timedelta(hours=float(os.environ.get("PROPS_EVERY_HOURS", "6")))
-PROPS_WINDOW = timedelta(hours=float(os.environ.get("PROPS_WINDOW_HOURS", "24")))
+PROPS_WINDOW = timedelta(hours=float(os.environ.get("PROPS_WINDOW_HOURS", "48")))
 SHARP_BOOK = os.environ.get("SHARP_BOOK", "pinnacle")
 SHARP_SPORTS = [x.strip() for x in os.environ.get("SHARP_SPORTS", "basketball_nba").split(",") if x.strip()]
 MIN_CREDITS = int(os.environ.get("MIN_CREDITS", "50"))

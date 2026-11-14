@@ -656,7 +656,7 @@ function render(){
     :'Fair = the true price with the margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the Aussie bookies. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best value: the best price at the most common line, unless a bookie on an easier line (e.g. Over 31.5 instead of 32.5) is worth more, then that one lights up with its line shown. Props refresh 3× a day. NBA: L10 7/10 = the player cleared this line in 7 of his last 10 games (green 70%+, red 30% or less). Tap View graph for his game log.';
 
   if(view==='props' && !P.events.length){
-    $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
+    $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 48 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
   }
   const q=$('q').value.trim().toLowerCase();
   let items=inSport.map(e=>({e,t:market&&eventRows(e,market)})).filter(x=>x.t);
