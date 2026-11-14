@@ -437,6 +437,13 @@ def main():
                     keep.append(it)
                 hj[lst] = keep
             legs = [l for l in legs if l.get("lg") == "NBL" or not avail.check(l.get("player"), l.get("team"))["drop"]]
+        try:   # tipster-style write-up per prop, built only from the numbers above (writeup.py)
+            import writeup
+            for lst in ("items", "value"):
+                for it in hj.get(lst) or []:
+                    it["why"] = writeup.writeup(it)
+        except Exception as e:
+            print("write-ups failed:", type(e).__name__, e)
         with open(os.path.join(OUT, "hot.json"), "w") as f:
             json.dump(hj, f, separators=(",", ":"))
         print(f"hot stats: {len(hj['items'])} props")

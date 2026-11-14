@@ -86,6 +86,7 @@
   .up{color:var(--mint)} .down{color:var(--red)} .flat{color:var(--muted)}
   .gbtn{background:var(--panel2);border:1px solid var(--mint-dim);color:var(--mint);border-radius:999px;padding:2px 9px;margin-left:8px;cursor:pointer;vertical-align:middle;font:600 11px Archivo,system-ui,sans-serif;white-space:nowrap}
   .gbtn:hover{border-color:var(--mint)}
+  .gcase{color:#d7e3de;font-size:14px;line-height:1.55;margin:4px 0 10px}
   .gbox{max-height:calc(100vh - 32px);overflow-y:auto}
   .gbox h4{font-size:14px;margin:16px 0 4px;color:var(--text)} .gbox h4 small{color:var(--muted);font-weight:400}
   .gmodal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -762,7 +763,7 @@ function showGraph(evId,mk,player){
     <div class="seg gside" style="margin:2px 0 8px">${sides2.map((n,k)=>`<button type="button" data-k="${k}" class="${k?'':'on'}">${esc(n)}</button>`).join('')}</div><div id="gbk"></div>`:'';
   $('gmodal').innerHTML=`<div class="gbox" role="dialog" aria-modal="true"><button class="gclose" type="button" aria-label="Close">×</button>
     <h3>${esc(player)}</h3><div class="gsub">${esc(PROP_LABEL[mk]||mk)} · ${esc(ev.home_team)} v ${esc(ev.away_team)}</div>
-    ${statsPanel(ev,mk,player,rows)}
+    ${statsPanel(ev,mk,player,rows)}<div id="gcase"></div>
     <h4>Probability <small>· implied from the best price over time</small></h4>
     ${body}<div class="gleg">${leg}${rows.some(r=>r.fair)?'<span>dashed = fair</span>':''}</div>${body2}</div>`;
   if(body2){
@@ -771,6 +772,16 @@ function showGraph(evId,mk,player){
   }
   $('gmodal').hidden=false;
   $('gmodal').querySelector('.gclose').onclick=()=>$('gmodal').hidden=true;
+  showCase(evId,mk,player);
+}
+// the write-up for this prop from the public Hot stats feed (built from the same numbers: scripts/writeup.py)
+let HOT=null;
+function showCase(evId,mk,player){
+  const put=h=>{const its=(h&&(h.value||[]).concat(h.items||[]))||[], it=its.find(i=>i.ev===evId&&i.mk===mk&&i.desc===player&&i.why);
+    const el=$('gcase'); if(el&&it) el.innerHTML=`<h4>The case <small>· ${esc(it.line)} ${esc(it.stat)} @ $${it.price.toFixed(2)} ${esc(it.book)}</small></h4><p class="gcase">${esc(it.why)}</p>`;};
+  if(HOT) return put(HOT);
+  fetch('https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json?t='+Math.floor(Date.now()/300000))
+    .then(r=>r.ok?r.json():null).then(h=>{HOT=h;put(h);}).catch(()=>{});
 }
 const BK_COL=['#62f0a8','#ff6b6b','#efd38f','#87b7ff','#d59bff','#ff9f5a','#5ee0e0','#f27fc0','#b6e36b','#c4953f','#9aa8ff','#e8e8e8'];
 function bookieLines(ev,mk,player,t,r){

@@ -130,7 +130,9 @@ def _frac(x):
 
 
 def analysis(v, side):
-    """Short tipster-style case for an NBA/NBL prop."""
+    """Short tipster-style case for an NBA/NBL prop: the write-up from hot.json (writeup.py), else quick bullets."""
+    if v.get("why"):
+        return [v["why"]]
     out, pt, sd = [], v.get("point"), side.lower()
     games = v.get("games") or []
     if games:

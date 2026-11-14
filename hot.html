@@ -67,6 +67,14 @@
 .hs-pill.val{background:var(--gold);color:#1a1305;font-size:15px}
 .hs-why{color:#c9d6d0;font-size:13px;margin-top:8px}
 .hs-why b{color:#ecf5f1}
+.hs-take{margin-top:10px;border:0;border-top:1px solid #1b2523;border-radius:0;background:none;padding:8px 0 0}
+.hs-take[open]{border-color:#1b2523}
+.hs-take summary{cursor:pointer;color:var(--mint);font-size:13px;font-weight:800;padding:0;display:block;list-style:none}
+.hs-take summary::-webkit-details-marker{display:none}
+.hs-take summary::after{content:none}
+.hs-take summary::before{content:'▸ ';display:inline-block;transition:transform .15s}
+.hs-take[open] summary::before{transform:rotate(90deg)}
+.hs-take p{color:#d7e3de;font-size:14px;line-height:1.55;margin:6px 0 0}
 .hs-note{color:#87978f;font-size:13px;margin-top:22px;line-height:1.5}
 .hs-note a{color:var(--mint)}
 .hs-empty{border:1px dashed #1b2523;border-radius:16px;padding:28px;color:#87978f;text-align:center}
@@ -238,6 +246,7 @@ function card(it,val){
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     ${ctxRow(it)}
     ${it.wo?`<div class="hs-wo">🚑 <b>${esc(it.wo.n)}</b> is out: ${esc(it.stat).toLowerCase()} avg <b>${it.wo.avg}</b> without him vs ${it.wo.with} with (${it.wo.hit[0]}/${it.wo.hit[1]} games cleared this line)</div>`:''}
+    ${it.why?`<details class="hs-take"${val?' open':''}><summary>The case</summary><p>${esc(it.why)}</p></details>`:''}
     <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;
 }

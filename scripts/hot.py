@@ -261,7 +261,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 "avg": round(sum(f(g) for g in l10) / len(l10), 1),
                 "prob": round(prob, 3), "hit": round(p_hit, 3), "mkt": round(p_mkt, 3), "msrc": src, "books": len(ps), "value": round((prob * price - 1) * 100, 1),
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
-                "games": [[g[0], g[1], g[2], f(g)] for g in l10],
+                "games": [[g[0], g[1], g[2], f(g), round(g[3])] for g in l10],   # 5th = minutes (write-up workload)
             }
             # last meetings with tonight's opponent, this season then last season (newest first)
             meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
