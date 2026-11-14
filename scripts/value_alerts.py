@@ -200,7 +200,10 @@ def collect(now):
                     "game": v.get("game", ""), "lg": v.get("lg", ""), "emoji": "🏀",
                     "sub": f"fair {100*v.get('prob',0):.0f}%",
                     "why": analysis(v, side),
-                    "add": add})
+                    "add": add,
+                    "log": {"ev": v.get("ev"), "mk": v.get("mk"), "desc": v.get("desc") or v["player"], "side": side,
+                            "point": v.get("point"), "sport_key": v.get("sk"), "fair": round(1 / v["prob"], 3) if v.get("prob") else None,
+                            "src": "hot-" + str(v.get("msrc") or "")}})
     key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
     bundle = load(os.path.join(OUT, "picks.json"), None)
     if key and bundle and bundle.get("ct"):
@@ -221,7 +224,10 @@ def collect(now):
                         "game": away_at_home(o["game"], o.get("sport_key")), "lg": o.get("sport", ""),
                         "emoji": emoji(o.get("sport_key"), o.get("sport")),
                         "sub": f"fair {o['fair']:.2f}",
-                        "add": None})
+                        "add": None,
+                        "log": {"ev": o.get("ev"), "mk": o.get("mk"), "desc": o.get("desc") or "", "side": o.get("side"),
+                                "point": o.get("point"), "sport_key": o.get("sport_key"), "fair": o.get("fair"),
+                                "src": o.get("fair_src")}})
     return out
 
 
@@ -301,8 +307,17 @@ def main():
     cutoff = (now - timedelta(days=2)).isoformat()
     state = {k: v for k, v in state.items() if v.get("at", "") >= cutoff}
 
+    try:   # league + market types the bet log found don't beat the closing price
+        import bet_log
+        mute = bet_log.muted()
+    except Exception as e:
+        print(f"::warning::couldn't read mutes: {e}")
+        mute = set()
     new = []
     for p in sorted(collect(now), key=lambda x: -x["edge"]):
+        if mute and (p.get("log") or {}).get("sport_key") and \
+                bet_log.bucket({"lg": p.get("lg"), "sport_key": p["log"]["sport_key"], "desc": p["log"]["desc"]}) in mute:
+            continue
         old = state.get(p["key"])
         cleared = "⚠️" in old.get("tag", "") if old else False   # was questionable, now isn't
         if old and p["edge"] < old["edge"] + 3 and p["price"] <= old["price"] and not (cleared and "⚠️" not in p["tag"]):
@@ -333,6 +348,16 @@ def main():
                 sent += rest
         for p in sent:
             state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
+        # hand every sent bet to the bet log (bet_log.py scores it on closing price + result)
+        rows = [{**p["log"], "id": p["key"] + "|" + p.get("start", ""), "price": p["price"], "book": p["book"],
+                 "edge": p["edge"], "stake": stake(p["edge"], p["price"]), "sel": p["sel"], "game": p.get("game", ""),
+                 "lg": p.get("lg", ""), "start": p.get("start", "")} for p in sent if p.get("log") and p.get("start")]
+        try:
+            old = load(os.path.join(OUT, "new_alerts.json"), [])
+            with open(os.path.join(OUT, "new_alerts.json"), "w") as f:
+                json.dump(old + rows, f)
+        except Exception as e:
+            print(f"::warning::couldn't hand alerts to the bet log: {e}")
     arb_sent = 0
     try:
         arb_sent = send_arbs(state, now) or 0

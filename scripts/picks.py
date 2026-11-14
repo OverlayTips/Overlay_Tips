@@ -10,7 +10,10 @@ import base64, gzip, json, os, secrets
 from datetime import datetime, timedelta, timezone
 from statistics import median
 
-EDGE_MIN = 0.03        # 3% above consensus fair price
+EDGE_MIN = 0.03        # 3% above the Pinnacle (sharp) fair price
+EDGE_MIN_MKT = float(os.environ.get("EDGE_MIN_MKT", "5")) / 100   # no Pinnacle: soft-bookie consensus is noisier, so need more
+# Only quote prices at bookies we can actually bet with (everyone else still counts toward the fair price).
+MY_BOOKS = {b.strip() for b in os.environ.get("MY_BOOKS", "sportsbet,tab,tabtouch,betr_au").split(",") if b.strip()}
 EDGE_MAX = 0.15        # above this it's nearly always a stale or wrong price, not real value: left out
 MIN_BOOKS = 4          # need at least this many bookies pricing a market to trust the consensus
 WINDOW = timedelta(hours=26)
@@ -155,7 +158,7 @@ def lay_arbs(pool, c=None):
         lays = {m["key"][:-4]: m["outcomes"] for m in bf.get("markets", []) if m["key"].endswith("_lay")}
         best = {}
         for b in ev["bookmakers"]:
-            if b["key"] == "betfair_ex_au":
+            if b["key"] == "betfair_ex_au" or (MY_BOOKS and b["key"] not in MY_BOOKS):
                 continue
             for m in b.get("markets", []):
                 lo = lays.get(m["key"])
@@ -207,7 +210,7 @@ def compute(events, props, hist, now):
                 fair = {s: median(v) for s, v in per.items()}
             best = {}
             for s, bk in sides.items():
-                cands = [(p, b) for b, (p, _) in bk.items() if b not in NO_BEST] or [(p, b) for b, (p, _) in bk.items()]
+                cands = [(p, b) for b, (p, _) in bk.items() if b not in NO_BEST and (not MY_BOOKS or b in MY_BOOKS)]
                 if cands:
                     best[s] = max(cands)
             def sel(s):
@@ -220,11 +223,13 @@ def compute(events, props, hist, now):
                     continue
                 price, book = best[s]
                 edge = price * fp - 1
-                if EDGE_MIN <= edge <= EDGE_MAX:
+                if (EDGE_MIN if src == "pin" else EDGE_MIN_MKT) <= edge <= EDGE_MAX:
                     overlays.append({"sport": ev.get("sport_title"), "sport_key": ev.get("sport_key"), "game": _game(ev), "start": ev["commence_time"],
                                      "market": _mlabel(mk), "pick": sel(s), "price": price,
                                      "book": SHORT.get(book, book), "fair": round(1 / fp, 2),
-                                     "edge_pct": round(edge * 100, 1), "books": len(books), "fair_src": src})
+                                     "edge_pct": round(edge * 100, 1), "books": len(books), "fair_src": src,
+                                     # raw keys so the bet log can find this exact selection again (closing price, result)
+                                     "ev": ev["id"], "mk": mk, "desc": desc, "side": s, "point": main.get(s)})
             if len(best) == len(sides) and (mk != "h2h" or len(sides) >= 2):
                 pct = sum(1 / p for p, _ in best.values())
                 if pct < 1:

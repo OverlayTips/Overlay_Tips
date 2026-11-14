@@ -76,6 +76,16 @@ jobs:
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
         run: python scripts/value_alerts.py
 
+      - name: Bet log (closing-price CLV, results, daily report)
+        if: env.RUN == 'true' && env.PW_SET == 'true'
+        continue-on-error: true
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}   # daily report goes to Jayden's channel only
+          ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
+          ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python scripts/bet_log.py
+
       - name: Wipe unprotected data (no ODDS_PAGE_PASSWORD secret yet)
         if: env.RUN == 'true' && env.PW_SET != 'true'
         run: |
@@ -93,6 +103,7 @@ jobs:
           if [ -f hot.json ]; then cp hot.json .git-tmp/; fi   # free public Hot stats page
           if [ -f lines.json ]; then cp lines.json .git-tmp/; fi   # members Live page (encrypted)
           if [ -f alerted.json ]; then cp alerted.json .git-tmp/; fi   # value alerts already sent
+          if [ -f bet_log.json ]; then cp bet_log.json .git-tmp/; fi   # tracker's own bet log (encrypted)
           if [ -f nbl_players.json ]; then cp nbl_players.json .git-tmp/; fi   # bet tracker NBL name search
           cd .git-tmp
           git config user.name "odds-bot"
