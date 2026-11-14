@@ -239,6 +239,37 @@ def report(log, now):
     return lines
 
 
+def write_public(log, now):
+    """odds-data/record.json for the public Tracker record page (record.html). UNENCRYPTED on purpose, so only
+    bets that have already started go in: it proves the record without giving away a live tip."""
+    done = sorted((b for b in log["bets"] if _parse(b["start"]) <= now), key=lambda b: b["start"])
+    groups, srcs = {}, {}
+    for b in done:
+        groups.setdefault(bucket(b), []).append(b)
+        srcs.setdefault("Pinnacle" if b.get("src") in ("pin", "hot-pin") else "Bookie consensus", []).append(b)
+    units, days = 0.0, []
+    for b in done:   # running profit in units at the suggested stakes, one point per day
+        if b.get("result") in ("win", "loss"):
+            units += ((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1)
+        d = _parse(b["start"]).astimezone(MEL).date().isoformat()
+        if days and days[-1][0] == d:
+            days[-1][1] = round(units, 2)
+        else:
+            days.append([d, round(units, 2)])
+    keep = ("sel", "game", "lg", "book", "price", "close", "clv", "result", "start", "stake", "edge")
+    out = {"updated": now.isoformat().replace("+00:00", "Z"),
+           "since": done[0]["start"] if done else None,
+           "periods": {"7d": summarise([b for b in done if _parse(b["start"]) > now - timedelta(days=7)]),
+                       "30d": summarise([b for b in done if _parse(b["start"]) > now - timedelta(days=30)]),
+                       "all": summarise(done)},
+           "groups": [{"name": k.replace("|", " "), **summarise(v)} for k, v in sorted(groups.items(), key=lambda x: -len(x[1]))],
+           "sources": [{"name": k, **summarise(v)} for k, v in srcs.items()],
+           "units": days,
+           "recent": [{k: b.get(k) for k in keep} for b in reversed(done[-60:])]}
+    with open(os.path.join(OUT, "record.json"), "w") as f:
+        json.dump(out, f, separators=(",", ":"))
+
+
 # ---------------- main ----------------
 def main():
     if not KEY:
@@ -325,6 +356,10 @@ def main():
         log["report_day"] = today
 
     save_log(log)
+    try:
+        write_public(log, now)
+    except Exception as e:
+        print("bet log: public record failed:", type(e).__name__, e)
     print(f"bet log: {len(bets)} bets ({len(new)} new alerts), {updated} closing prices updated, {graded} graded, "
           f"{len(mutes)} muted")
 

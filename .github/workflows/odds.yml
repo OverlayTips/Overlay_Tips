@@ -104,6 +104,7 @@ jobs:
           if [ -f lines.json ]; then cp lines.json .git-tmp/; fi   # members Live page (encrypted)
           if [ -f alerted.json ]; then cp alerted.json .git-tmp/; fi   # value alerts already sent
           if [ -f bet_log.json ]; then cp bet_log.json .git-tmp/; fi   # tracker's own bet log (encrypted)
+          if [ -f record.json ]; then cp record.json .git-tmp/; fi     # public Tracker record page (started bets only)
           if [ -f nbl_players.json ]; then cp nbl_players.json .git-tmp/; fi   # bet tracker NBL name search
           cd .git-tmp
           git config user.name "odds-bot"

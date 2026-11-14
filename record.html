@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tracker record | Every odds-tracker alert, scored | Overlay Tips</title>
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Overlay">
+<script src="/pwa.js" defer></script>
+<meta name="description" content="The Overlay Tips odds tracker's full record: every value alert it sent, the price, the closing price, CLV and the result. Updated every 5 minutes.">
+<link rel="canonical" href="https://overlay.tips/record.html">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overlay Tips">
+<meta property="og:title" content="Tracker record | Every odds-tracker alert, scored | Overlay Tips">
+<meta property="og:description" content="The Overlay Tips odds tracker's full record: every value alert it sent, the price, the closing price, CLV and the result. Updated every 5 minutes.">
+<meta property="og:url" content="https://overlay.tips/record.html">
+<meta property="og:image" content="https://overlay.tips/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tracker record | Every odds-tracker alert, scored | Overlay Tips">
+<meta name="twitter:description" content="The Overlay Tips odds tracker's full record: every value alert it sent, the price, the closing price, CLV and the result. Updated every 5 minutes.">
+<meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
+<meta name="theme-color" content="#060807">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=20261111a">
+<link rel="stylesheet" href="plain.css?v=6">
+<style>
+.rc-meta{color:#87978f;font-size:13px;margin-bottom:14px}
+.rc-per{display:flex;gap:6px;margin:0 0 14px;padding:4px;background:#0e1312;border:1px solid #1b2523;border-radius:14px;width:max-content}
+.rc-per button{border:0;background:none;color:#c9d6d0;font:800 15px Archivo,system-ui,sans-serif;padding:9px 20px;border-radius:10px;cursor:pointer}
+.rc-per button.on{background:var(--mint);color:#04130b}
+.rc-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.rc-tile{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:16px;padding:14px 16px}
+.rc-tile span{display:block;font-size:12px;color:#87978f;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.rc-tile b{display:block;font-size:28px;font-weight:900;color:#ecf5f1;line-height:1.15;margin-top:4px}
+.rc-tile small{color:#87978f;font-size:12px}
+.rc-card{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:18px;padding:16px;margin-bottom:22px;position:relative}
+.rc-card h2{font-size:19px;font-weight:900;color:#ecf5f1;margin:0 0 4px}
+.rc-card p.sub{color:#87978f;font-size:13px;margin:0 0 12px}
+#chart svg{width:100%;height:auto;display:block}
+.rc-tip{position:absolute;pointer-events:none;background:#060807;border:1px solid #2a3633;border-radius:10px;padding:7px 10px;font-size:13px;color:#ecf5f1;white-space:nowrap;transform:translate(-50%,-115%)}
+.rc-tip small{color:#87978f;display:block}
+.rc-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.rc-tbl th{text-align:left;color:#87978f;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid #1b2523}
+.rc-tbl td{padding:9px 8px;border-bottom:1px solid #141c1a;color:#d7e3de;vertical-align:top}
+.rc-tbl td.n,.rc-tbl th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rc-tbl td small{display:block;color:#87978f;font-size:12px}
+.rc-scroll{overflow-x:auto}
+.rc-pill{display:inline-block;font-size:12px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #2a3633;color:#c9d6d0}
+.rc-pill.win{border-color:var(--mint-dim);color:var(--mint2)}
+.rc-pill.loss{border-color:#5a2a2a;color:#ffb3b3}
+.rc-more{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:8px 16px;font:700 14px Archivo,system-ui,sans-serif;cursor:pointer}
+.rc-empty{color:#87978f;padding:18px 4px}
+.rc-note{color:#87978f;font-size:13px;line-height:1.55}
+@media(max-width:560px){.rc-hide{display:none}}
+</style>
+<script src="nav.js?v=6"></script>
+</head>
+<body class="no-js">
+
+<nav>
+  <div class="wrap navrow">
+    <a href="index.html" class="brand" aria-label="Overlay Tips home">
+      <img src="logo-nav.png?v=1" alt="Overlay Tips" class="brand-logo">
+    </a>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="lineups.html">Overlay Wire</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+      <a href="membership.html">Membership</a>
+      <a href="index.html#results">Results</a>
+      <a href="record.html" class="on" aria-current="page">Tracker record</a>
+      <a href="record.html">Tracker record</a>
+      <a href="calculator.html">Bonus bet calc</a>
+      <a href="giveaway.html">Giveaway</a>
+      <a href="merch.html">Merch</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a class="btn btn-mint" href="portal.html?signup">Sign up</a>
+    </div>
+  </div>
+  <div class="tabbar" aria-label="Site sections">
+    <a href="index.html">Home</a>
+    <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="lineups.html">Overlay Wire</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+    <a href="membership.html">Membership</a>
+    <a href="index.html#results">Results</a>
+      <a href="record.html" class="on" aria-current="page">Tracker record</a>
+    <a href="record.html">Tracker record</a>
+    <a href="calculator.html">Bonus bet calc</a>
+    <a href="giveaway.html">Giveaway</a>
+    <a href="merch.html">Merch</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+  </div>
+</nav>
+
+
+<main>
+<header class="page-head">
+  <div class="wrap">
+    <div class="mono">Every alert · scored automatically</div>
+    <h1>Tracker record</h1>
+    <p>Every value bet the odds tracker has alerted, at the price it was sent with, then checked against the closing price and the result. Nothing deleted, nothing cherry-picked. Bets only show up here once the game has started.</p>
+  </div>
+</header>
+<section class="page-sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="rc-meta" id="meta">Loading…</div>
+    <div class="rc-per" id="per" role="tablist" aria-label="Period">
+      <button type="button" data-p="7d">7 days</button><button type="button" data-p="30d">30 days</button><button type="button" data-p="all" class="on">All time</button>
+    </div>
+    <div class="rc-tiles" id="tiles"></div>
+
+    <div class="rc-card">
+      <h2>Running profit (units)</h2>
+      <p class="sub">At the suggested stake on each alert. Graded bets only (NBA/NBL props, head-to-head, line and total).</p>
+      <div id="chart"></div>
+    </div>
+
+    <div class="rc-card">
+      <h2>Where it's working</h2>
+      <p class="sub">CLV = how much better the alert price was than the fair price at tip-off. Beating the close over 100+ bets is the clearest sign of a real edge.</p>
+      <div class="rc-scroll"><table class="rc-tbl" id="groups"></table></div>
+    </div>
+
+    <div class="rc-card">
+      <h2>Recent alerts</h2>
+      <p class="sub">Newest first.</p>
+      <div class="rc-scroll"><table class="rc-tbl" id="recent"></table></div>
+    </div>
+
+    <p class="rc-note">How it's scored: each alert is logged at the moment it's sent, with the bookie and price (Sportsbet, TAB, TABtouch or Betr). Until tip-off the tracker keeps updating the fair price for that exact line, using Pinnacle's no-vig price where it has one, otherwise the bookies' consensus with their margin taken off. CLV = alert price ÷ closing fair price − 1. Results are graded from official game logs and scores. AFL, NFL and soccer props are scored on CLV only for now. Profit uses the suggested stake (0.5U to 3U), 1U = $10. Past results don't guarantee future profit. <a href="membership.html">Get the alerts →</a></p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="rg">
+      <b>18+ only. Gamble responsibly.</b> Analysed tips, not guaranteed wins. Only bet what you can afford to lose.
+      Need help? Call Gambling Help Online on <b>1800 858 858</b> or visit <a href="https://www.gamblinghelponline.org.au" target="_blank" rel="noopener">gamblinghelponline.org.au</a>.
+      You can self-exclude from all Australian bookmakers at <a href="https://www.betstop.gov.au" target="_blank" rel="noopener">betstop.gov.au</a>.
+    </div>
+    <div class="foot">
+      <span>© 2026 Overlay Tips · 1U = $10 in examples</span>
+      <span>Past results don't guarantee future profit. · <a href="membership-terms.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Giveaway T&amp;Cs</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+const SRC=new URLSearchParams(location.search).get('data')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/record.json';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sg=(x,d=1)=>x==null?'–':(x>0?'+':x<0?'−':'')+Math.abs(x).toFixed(d);
+const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<1?'just now':m<60?m+' min ago':Math.round(m/60)+' hr ago';};
+const day=iso=>new Date(iso).toLocaleDateString('en-AU',{day:'numeric',month:'short',timeZone:'Australia/Melbourne'});
+let D=null, per='all';
+
+function tiles(s){
+  const t=[['Alerts',s.n,s.clv_n?`${s.clv_n} with a closing price`:''],
+           ['Avg CLV',s.clv==null?'–':sg(s.clv)+'%','vs the closing fair price'],
+           ['Beat the close',s.beat==null?'–':s.beat+'%','of alerts'],
+           ['Record',s.w+s.l?`${s.w}-${s.l}`:'–','graded bets'],
+           ['ROI',s.roi==null?'–':sg(s.roi)+'%','flat 1U per bet'],
+           ['Profit',s.w+s.l?sg(s.units)+'U':'–','at suggested stakes']];
+  $('tiles').innerHTML=t.map(([a,b,c])=>`<div class="rc-tile"><span>${a}</span><b>${esc(b)}</b><small>${esc(c)}</small></div>`).join('');
+}
+
+function chart(pts){
+  const el=$('chart');
+  if(!pts||pts.length<2){el.innerHTML='<div class="rc-empty">The chart fills in once a few days of alerts have been graded.</div>';return;}
+  const W=Math.max(300,el.clientWidth||700),H=W<500?200:240,L=44,R=12,T=16,B=26;
+  const ys=pts.map(p=>p[1]); let lo=Math.min(0,...ys), hi=Math.max(0,...ys); if(hi-lo<2){hi+=1;lo-=1;}
+  const pad=(hi-lo)*.08; lo-=pad; hi+=pad;
+  const x=i=>L+(W-L-R)*i/(pts.length-1), y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  const raw=(hi-lo)/4, mag=Math.pow(10,Math.floor(Math.log10(raw))), step=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw), ticks=[]; for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step) ticks.push(v);
+  const grid=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${v===0?'#3a4743':'#18211f'}" stroke-width="1"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" fill="#87978f" font-size="11">${v>0?'+':''}${v}U</text>`).join('');
+  const lab=[0,Math.floor((pts.length-1)/2),pts.length-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>`<text x="${x(i)}" y="${H-6}" text-anchor="${i===0?'start':i===pts.length-1?'end':'middle'}" fill="#87978f" font-size="11">${day(pts[i][0])}</text>`).join('');
+  const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ');
+  const last=pts[pts.length-1];
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running profit in units: ${sg(last[1])}U as of ${day(last[0])}">${grid}${lab}
+    <path d="${d}" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(pts.length-1)}" cy="${y(last[1])}" r="4" fill="var(--mint)" stroke="#0b100f" stroke-width="2"/>
+    <text x="${x(pts.length-1)-8}" y="${y(last[1])-10}" text-anchor="end" fill="#ecf5f1" font-size="12" font-weight="800">${sg(last[1])}U</text>
+    <line id="xh" y1="${T}" y2="${H-B}" stroke="#5b6b65" stroke-width="1" visibility="hidden"/>
+    <circle id="xd" r="5" fill="var(--mint)" stroke="#0b100f" stroke-width="2" visibility="hidden"/>
+    <rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" id="hit"/></svg><div class="rc-tip" id="tip" hidden></div>`;
+  const svg=el.querySelector('svg'), tip=$('tip');
+  const move=e=>{const r=svg.getBoundingClientRect(), sx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const vx=sx*W/r.width, i=Math.max(0,Math.min(pts.length-1,Math.round((vx-L)/(W-L-R)*(pts.length-1))));
+    const px=x(i), py=y(pts[i][1]);
+    for(const id of ['xh','xd']) svg.getElementById(id).setAttribute('visibility','visible');
+    svg.getElementById('xh').setAttribute('x1',px); svg.getElementById('xh').setAttribute('x2',px);
+    svg.getElementById('xd').setAttribute('cx',px); svg.getElementById('xd').setAttribute('cy',py);
+    tip.hidden=false; tip.innerHTML=`<b>${sg(pts[i][1])}U</b><small>${day(pts[i][0])}</small>`;
+    const card=el.parentElement.getBoundingClientRect();
+    tip.style.left=(r.left-card.left+px*r.width/W)+'px'; tip.style.top=(r.top-card.top+py*r.height/H)+'px';};
+  const out=()=>{tip.hidden=true; for(const id of ['xh','xd']) svg.getElementById(id).setAttribute('visibility','hidden');};
+  const hit=svg.getElementById('hit'); hit.addEventListener('mousemove',move); hit.addEventListener('touchmove',move,{passive:true});
+  hit.addEventListener('mouseleave',out); hit.addEventListener('touchend',out);
+}
+
+function groups(){
+  const rows=(D.groups||[]).concat([{sep:1}],(D.sources||[]).map(s=>({...s,name:'Fair price: '+s.name})));
+  if(!(D.groups||[]).length){$('groups').innerHTML='<tr><td class="rc-empty">No alerts scored yet.</td></tr>';return;}
+  $('groups').innerHTML='<tr><th>League · type</th><th class="n">Alerts</th><th class="n">Avg CLV</th><th class="n rc-hide">Beat close</th><th class="n">Record</th><th class="n rc-hide">Profit</th></tr>'+
+    rows.map(g=>g.sep?'<tr><td colspan="6" style="border:0;padding:4px"></td></tr>':
+      `<tr><td>${esc(g.name)}${g.n>=100&&g.clv!=null&&g.clv<-1?' <small>Alerts paused (not beating the close)</small>':''}</td><td class="n">${g.n}</td><td class="n">${g.clv==null?'–':sg(g.clv)+'%'}</td><td class="n rc-hide">${g.beat==null?'–':g.beat+'%'}</td><td class="n">${g.w+g.l?g.w+'-'+g.l:'–'}</td><td class="n rc-hide">${g.w+g.l?sg(g.units)+'U':'–'}</td></tr>`).join('');
+}
+
+let SHOW=15;
+function recent(){
+  const all=D.recent||[], xs=all.slice(0,SHOW);
+  if(!xs.length){$('recent').innerHTML='<tr><td class="rc-empty">Alerts show up here once their games start.</td></tr>';return;}
+  const res=r=>r==='win'?'<span class="rc-pill win">✓ Won</span>':r==='loss'?'<span class="rc-pill loss">✗ Lost</span>':r==='void'?'<span class="rc-pill">Void</span>':r==='ungraded'?'<span class="rc-pill">CLV only</span>':'<span class="rc-pill">Pending</span>';
+  $('recent').innerHTML='<tr><th>Bet</th><th class="n">Price</th><th class="n rc-hide">Close</th><th class="n">CLV</th><th>Result</th></tr>'+
+    xs.map(b=>`<tr><td>${esc(b.sel)}<small>${esc(b.game)}${b.lg?' · '+esc(b.lg):''} · ${day(b.start)} · ${esc(b.book)} · ${b.stake??1}U</small></td><td class="n">$${Number(b.price).toFixed(2)}</td><td class="n rc-hide">${b.close?'$'+Number(b.close).toFixed(2):'–'}</td><td class="n">${b.clv==null?'–':sg(b.clv)+'%'}</td><td>${res(b.result)}</td></tr>`).join('')+
+    (all.length>SHOW?`<tr><td colspan="5" style="border:0;padding-top:12px"><button type="button" class="rc-more" id="more">Show more</button></td></tr>`:'');
+  if($('more')) $('more').onclick=()=>{SHOW+=30;recent();};
+}
+
+function draw(){ tiles(D.periods[per]); }
+$('per').querySelectorAll('button').forEach(b=>b.onclick=()=>{per=b.dataset.p;$('per').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));draw();});
+fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0;return r.json();}).then(d=>{
+  D=d; $('meta').textContent=(d.since?`Tracking since ${day(d.since)} · `:'')+`updated ${ago(d.updated)}`;
+  draw(); chart(d.units); groups(); recent();
+  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>chart(d.units),150);});
+}).catch(()=>{ $('meta').textContent='The record starts filling in after the first alerts go out and their games start.';
+  D={periods:{'7d':{n:0,w:0,l:0},'30d':{n:0,w:0,l:0},all:{n:0,w:0,l:0}},groups:[],recent:[]}; draw(); chart([]); groups(); recent(); });
+</script>
+
+</body>
+</html>
