@@ -117,6 +117,7 @@
     var who = nameIn(s.split(/\b(?:over|under|to score|to get|to record|to have|to make|at least)\b|\b[ou]\s*(?=\d)|\d/i)[0]);
     if (!who) who = nameIn(prev || '');
     if (!who) return null;
+    who = who.replace(/\s+\(?[A-Z]{2,4}\)?$/, '');   // team code after the name ("Reed Sheppard HOU")
     return { player: who, stat: stat, side: side, line: val };
   }
 
