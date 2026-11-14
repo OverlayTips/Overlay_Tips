@@ -40,7 +40,8 @@ def _push(topic, title, lines, click=None, actions=(), priority=4):
     wa = f"{title}\n\n{body}\n\n{FOOT}"
     acts = list(actions)[:2] + [{"action": "view", "label": "Share to WhatsApp",
                                  "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]
-    msg = {"topic": topic, "title": title, "message": body, "tags": ["moneybag"], "priority": priority, "actions": acts}
+    msg = {"topic": topic, "title": title, "message": f"{title}\n{body}",   # title repeated so "Copy notification" includes it
+           "tags": ["moneybag"], "priority": priority, "actions": acts}
     if click:
         msg["click"] = click
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(msg).encode(),

@@ -60,7 +60,8 @@ def push(title, lines, tags="basketball"):
         return
     body = "\n".join(lines)
     wa = f"{title}\n\n{body}\n\n{FOOT}"
-    msg = {"topic": TOPIC, "title": title, "message": body, "tags": tags.split(","),
+    msg = {"topic": TOPIC, "title": title, "message": f"{title}\n{body}",   # title repeated so "Copy notification" includes it
+            "tags": tags.split(","),
            "actions": [{"action": "view", "label": "Share to WhatsApp",
                         "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]}
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(msg).encode(),
