@@ -273,6 +273,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
     <div id="sgmF" hidden>
       <div id="legs"></div>
       <button type="button" class="tr-btn" id="addLeg" style="margin-top:10px">+ Add leg</button>
+      <button type="button" class="tr-btn" id="addTeam" style="margin-top:10px">+ Team to win</button>
     </div>
     <div id="otherF" hidden>
       <label>Sport<select id="fSport"><option>Racing</option><option>NBA</option><option>NBL</option><option>AFL</option><option>NRL</option><option>Soccer</option><option>Tennis</option><option>Cricket</option><option>NFL</option><option>Other</option></select></label>
@@ -312,7 +313,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
   </div>
 </footer>
 
-<script src="slip.js?v=5" defer></script>
+<script src="slip.js?v=6" defer></script>
 <script>
 document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
@@ -377,7 +378,20 @@ window.otMergeCloud=c=>{
 };
 window.otSyncNote=on=>{const n=$('syncNote'); if(n) n.innerHTML=on?'Your bets are saved to your Overlay Tips account, so they show on any device you log in on. Nobody else can see them.':'Your bets are saved in this browser only, on this device. <a href="portal.html">Log in</a> to keep them in your account on every device. Nobody else can see them.';};
 const label=b=>b.kind==='prop'?`${b.player} ${b.side} ${b.line} ${b.stat}`:b.kind==='sgm'?`SGM · ${(b.legs||[]).length} legs`:b.desc;
-const legLabel=l=>`${l.player} ${l.side} ${l.line} ${l.stat}`;
+// SGM legs are player props, or a team to win ({team:'San Antonio Spurs'})
+const isTeamLeg=l=>!!(l&&l.team);
+const legLabel=l=>isTeamLeg(l)?`${l.team} to win`:`${l.player} ${l.side} ${l.line} ${l.stat}`;
+const cleanTeam=s=>String(s||'').trim().replace(/\s+to win$/i,'').replace(/^[A-Z]{1,3}\s+(?=[A-Z][a-z]+\s+[A-Z0-9])/,'');   // "JM San Antonio Spurs" (logo read as text) -> "San Antonio Spurs"
+const tWords=s=>String(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+// does a feed team ({name:"San Antonio Spurs", abbr:"SAS"}) match what's on the slip ("San Antonio Spurs", "Spurs", "LA Clippers", "SAS")?
+const teamHit=(leg,t)=>{
+  if(!t) return false; const w=tWords(leg), n=tWords(t.name);
+  if(t.abbr&&w.length===1&&w[0]===String(t.abbr).toLowerCase()) return true;
+  if(!n.length) return false;
+  if(n.every(x=>w.includes(x))) return true;
+  const nick=n.slice(-2).join(' ')==='trail blazers'?['trail','blazers']:n.slice(-1);
+  return nick.every(x=>w.includes(x));
+};
 const profit=b=>!(b.stake>0)?0:b.result==='won'?b.stake*(b.odds-1):b.result==='lost'?(b.bonus?0:-b.stake):0;
 
 /* ---------- stats + chart ---------- */
@@ -535,6 +549,7 @@ function boxLine(x){
 }
 const L_STATE_SKIP=x=>typeof x!=='object';
 function legState(l){
+  if(isTeamLeg(l)){const L=l.live; if(!L||L.state!=='post'||!L.a) return 'pend'; const m=+(L.mine==='h'?L.h.s:L.a.s), o=+(L.mine==='h'?L.a.s:L.h.s); return m>o?'won':m<o?'lost':'void';}
   const L=l.live; if(!L||L.v==null) return 'pend';
   const over=l.side==='Over';
   if(L.state==='post') return L.dnp||L.v===+l.line?'void':(over?L.v>l.line:L.v<l.line)?'won':'lost';
@@ -546,10 +561,17 @@ function sgmLegs(b){
   const legs=b.legs||[];
   return `<div class="tr-legs">${legs.map(l=>{
     const st=legState(l), L=l.live;
-    const court=L&&L.state==='in'&&fresh(L)&&L.court?`<span class="tr-court ${L.court}">${L.court==='on'?'On court':'Bench'}</span>`:'';
+    const court=!isTeamLeg(l)&&L&&L.state==='in'&&fresh(L)&&L.court?`<span class="tr-court ${L.court}">${L.court==='on'?'On court':'Bench'}</span>`:'';
     const tag=`<span class="st ${st}">${st==='won'?'Hit':st==='lost'?'Missed':st==='void'?'Void':L&&L.state==='in'&&fresh(L)?'Live':'Pending'}</span>`;
-    return `<div class="tr-lg"><div class="ln"><span>${esc(legLabel(l))}${court}</span>${tag}</div>${prog({...l,kind:'prop'}).replace(/<div class="tr-box">[\s\S]*?<\/div>/,'')}</div>`;
+    return `<div class="tr-lg"><div class="ln"><span>${esc(legLabel(l))}${court}</span>${tag}</div>${isTeamLeg(l)?teamProg(l):prog({...l,kind:'prop'}).replace(/<div class="tr-box">[\s\S]*?<\/div>/,'')}</div>`;
   }).join('')}</div>`;
+}
+function teamProg(l){
+  const L=l.live; if(!L||!L.a) return '';
+  if(L.state==='pre') return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.a.t)} @ ${esc(L.h.t)}</span><span>Not started</span></div></div>`;
+  const m=+(L.mine==='h'?L.h.s:L.a.s)||0, o=+(L.mine==='h'?L.a.s:L.h.s)||0, df=m-o;
+  const note=L.state==='post'?(df>0?`Won by ${df} ✅`:df<0?`Lost by ${-df} ❌`:'Tied'):(df>0?`Leading by ${df}`:df<0?`Trailing by ${-df}`:'Level');
+  return `<div class="tr-prog"><div class="tr-row"><span>${esc(L.game)}${L.state==='in'&&L.clock?' · '+esc(L.clock):''}</span><span>${note}</span></div></div>`;
 }
 function prog(b){
   const L=b.live; if(b.kind!=='prop'||!L||L.v==null) return '';
@@ -585,7 +607,7 @@ $('list').onclick=e=>{
   if(t.dataset.g){const g=t.dataset.g; if(OPEN_PBP.has(g)) OPEN_PBP.delete(g); else {OPEN_PBP.add(g); if(!PLAYS_BY[g]) fetchPlays(g);} drawList(); return;}
   const b=BETS.find(x=>x.id===(t.dataset.id||t.dataset.edit||t.dataset.del||t.dataset.copy)); if(!b) return;
   if(t.dataset.copy){
-    openForm(null,{kind:b.kind,lg:b.lg,player:b.player,stat:b.stat,side:b.side,event:b.event,book:b.book,stake:b.stake,bonus:b.bonus,date:sydDate(),legs:b.kind==='sgm'?(b.legs||[]).map(l=>({player:l.player,stat:l.stat,side:l.side})):undefined});
+    openForm(null,{kind:b.kind,lg:b.lg,player:b.player,stat:b.stat,side:b.side,event:b.event,book:b.book,stake:b.stake,bonus:b.bonus,date:sydDate(),legs:b.kind==='sgm'?(b.legs||[]).map(l=>isTeamLeg(l)?{team:l.team}:{player:l.player,stat:l.stat,side:l.side}):undefined});
     $('dlgTitle').textContent='Add a bet (copied)';
     setTimeout(()=>(b.kind==='prop'?$('fStat'):$('fDesc')).focus(),60);
     return;
@@ -612,6 +634,13 @@ function setKind(k){KIND=k;$('kind').querySelectorAll('button').forEach(x=>x.cla
   if(k==='sgm'&&!$('legs').children.length){addLegRow();addLegRow();}}
 function addLegRow(l={}){
   const d=document.createElement('div'); d.className='tr-leg';
+  if(isTeamLeg(l)||l.teamRow){   // team to win leg
+    d.innerHTML=`<div class="lh"><span>Leg</span><button type="button" aria-label="Remove leg">×</button></div>
+    <label>Team to win<input class="lt" autocomplete="off" placeholder="e.g. San Antonio Spurs"></label>`;
+    d.querySelector('.lt').value=l.team||'';
+    d.querySelector('.lh button').onclick=()=>{d.remove();numberLegs();};
+    $('legs').appendChild(d); numberLegs(); return d;
+  }
   d.innerHTML=`<div class="lh"><span>Leg</span><button type="button" aria-label="Remove leg">×</button></div>
     <label>Player<input class="lp" list="${LGF==='NBL'?'playersNBL':'players'}" autocomplete="off" placeholder="${LGF==='NBL'?'e.g. Bryce Cotton':'e.g. Jayson Tatum'}"></label>
     <div class="three" style="margin-top:8px"><label>Stat<select class="ls">${statOpts(LGF)}</select></label>
@@ -624,7 +653,8 @@ function addLegRow(l={}){
 }
 function numberLegs(){[...$('legs').children].forEach((d,i)=>d.querySelector('.lh span').textContent='Leg '+(i+1));}
 $('addLeg').onclick=()=>addLegRow().querySelector('.lp').focus();
-function readLegs(){return [...$('legs').children].map(d=>({player:d.querySelector('.lp').value.trim(),stat:d.querySelector('.ls').value,side:d.querySelector('.lo').value,line:d.querySelector('.ll').value===''?NaN:+d.querySelector('.ll').value}));}
+$('addTeam').onclick=()=>addLegRow({teamRow:true}).querySelector('.lt').focus();
+function readLegs(){return [...$('legs').children].map(d=>d.querySelector('.lt')?{team:cleanTeam(d.querySelector('.lt').value)}:({player:d.querySelector('.lp').value.trim(),stat:d.querySelector('.ls').value,side:d.querySelector('.lo').value,line:d.querySelector('.ll').value===''?NaN:+d.querySelector('.ll').value}));}
 $('kind').onclick=e=>{const t=e.target.closest('button');if(t)setKind(t.dataset.k);};
 function openForm(b,pre){
   $('fShot').hidden=true; EDIT=b||null; const v=b||pre||{};
@@ -671,7 +701,7 @@ $('shotFile').onchange=async()=>{
     }
     if(!all.length) throw new Error(files.length>1?'no bets found in any of them':'no bets found');
     if(fails.length) alert(`Couldn't read screenshot${fails.length>1?'s':''} ${fails.join(', ')} of ${files.length}. The rest will open one by one. Add the missing ones by hand or try a clearer screenshot.`);
-    SHOTQ=all.map((b,i)=>({...b,lg:isNBL(b.player||(b.legs&&b.legs[0]&&b.legs[0].player))?'NBL':'NBA',n:i+1,of:all.length})); nextShot();
+    SHOTQ=all.map((b,i)=>({...b,lg:isNBL(b.player||((b.legs||[]).find(l=>l.player)||{}).player)?'NBL':'NBA',n:i+1,of:all.length})); nextShot();
   }catch(e){
     alert("Couldn't read "+(files.length>1?'those screenshots':'that screenshot')+" ("+(e&&e.message||e)+"). Try a clearer screenshot of just the bet slip, or add it by hand.");
   }finally{btn.textContent=was;btn.disabled=false;}
@@ -684,10 +714,10 @@ $('form').onsubmit=e=>{
   if(KIND==='prop'&&!$('fPlayer').value.trim()) return err('Add the player.');
   if(KIND==='prop'&&!isFinite(line)) return err('Add the line, e.g. 24.5.');
   if(KIND==='other'&&!$('fDesc').value.trim()) return err('Say what the bet is.');
-  const legs=KIND==='sgm'?readLegs().filter(l=>l.player||isFinite(l.line)):[];
+  const legs=KIND==='sgm'?readLegs().filter(l=>isTeamLeg(l)||l.player||isFinite(l.line)):[];
   if(KIND==='sgm'){
     if(legs.length<2) return err('An SGM needs at least 2 legs.');
-    const bad=legs.findIndex(l=>!l.player||!isFinite(l.line)); if(bad>=0) return err(`Leg ${bad+1}: add the player and the line.`);
+    const bad=legs.findIndex(l=>!isTeamLeg(l)&&(!l.player||!isFinite(l.line))); if(bad>=0) return err(`Leg ${bad+1}: add the player and the line.`);
   }
   if(!(odds>1)) return err('Odds need to be more than 1.00.');
   if($('fStake').value!==''&&!(stake>0)) return err('Stake needs to be more than $0, or leave it blank.');
@@ -697,7 +727,7 @@ $('form').onsubmit=e=>{
   Object.assign(b,{kind:KIND,player:KIND==='prop'?$('fPlayer').value.trim():'',stat:$('fStat').value,side:$('fSide').value,line:KIND==='prop'?line:null,
     desc:KIND==='other'?$('fDesc').value.trim():'',event:KIND==='other'?$('fEvent').value.trim():'',sport:KIND==='other'?$('fSport').value:undefined,book:$('fBook').value.trim(),
     odds:Math.round(odds*100)/100,stake:stake>0?Math.round(stake*100)/100:0,date:$('fDate').value||sydDate(),bonus:!!$('fBonus').value});
-  if(KIND==='sgm'){const old=JSON.stringify((b.legs||[]).map(legLabel)); b.legs=legs.map(l=>({player:l.player,stat:l.stat,side:l.side,line:l.line})); if(EDIT&&old!==JSON.stringify(b.legs.map(legLabel))){b.live=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}}
+  if(KIND==='sgm'){const old=JSON.stringify((b.legs||[]).map(legLabel)); b.legs=legs.map(l=>isTeamLeg(l)?{team:l.team}:{player:l.player,stat:l.stat,side:l.side,line:l.line}); if(EDIT&&old!==JSON.stringify(b.legs.map(legLabel))){b.live=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}}
   else delete b.legs;
   if(changed){b.live=null;b.pre=null;b.hold=false;if(b.auto){b.result='open';b.auto=false;b.settled=null;}}
   if(!EDIT) BETS.push(b);
@@ -834,7 +864,7 @@ async function tick(){
   const rowOf=n=>rows[key(n)]||altKeys(n).map(k=>ALT[k]).find(x=>x&&x!=='dup');
   // on court or bench: replay the play-by-play ("X enters the game for Y"; anyone named in a play is on the floor)
   const COURT={}, need=new Set(), gameOf={};
-  for(const b of bets) for(const l of legsOf(b)){const m=rowOf(l.player); if(m&&m.g.state==='in'&&m.g.lg!=='NBL'){need.add(m.g.id); gameOf[key(l.player)]=m.g.id;}}
+  for(const b of bets) for(const l of legsOf(b)){if(isTeamLeg(l)) continue; const m=rowOf(l.player); if(m&&m.g.state==='in'&&m.g.lg!=='NBL'){need.add(m.g.id); gameOf[key(l.player)]=m.g.id;}}
   await Promise.all([...need].map(async id=>{
     try{
       const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(id)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
@@ -851,7 +881,17 @@ async function tick(){
     }catch(e){}
   }));
   let changed=false, anyLive=false;
-  const legLive=b=>{
+  const clockOf=g=>g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'';
+  const gameTxt=g=>`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' ');
+  const legLive=(b,date)=>{
+    if(isTeamLeg(b)){   // team to win: find their game (the one that starts on the bet's day, if they play twice in the window)
+      const gs=(d.games||[]).filter(g=>g.home&&g.away&&(teamHit(b.team,g.home)||teamHit(b.team,g.away)));
+      const day=date||b.date, on=x=>{try{return x.start&&sydDate(new Date(x.start))===day;}catch(e){return false;}};
+      const g=gs.find(on)||gs.find(x=>x.state==='in')||gs[0]; if(!g) return false;
+      b.live={gid:g.id,mine:teamHit(b.team,g.home)?'h':'a',a:{t:g.away.abbr,s:g.away.score},h:{t:g.home.abbr,s:g.home.score},game:gameTxt(g),state:g.state,at:Date.now(),clock:clockOf(g)};
+      if(g.state==='in') anyLive=true;
+      return true;
+    }
     const m=rowOf(b.player); if(!m||!STATS[b.stat]) return false;
     if(m.g.lg==='NBL'&&NBL_NO.includes(b.stat)) return false;
     const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
@@ -863,7 +903,7 @@ async function tick(){
   };
   for(const b of bets){
     if(b.kind==='sgm'){
-      let any=false; for(const l of b.legs||[]) if(legLive(l)) any=true;
+      let any=false; for(const l of b.legs||[]) if(legLive(l,b.date)) any=true;
       if(!any) continue;
       const ls=(b.legs||[]).filter(l=>l.live);
       b.live=(ls.find(l=>l.live.state==='in')||ls[0]).live;
@@ -889,7 +929,27 @@ async function tick(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) tick();});
 
 /* ---------- start ---------- */
-load(); draw(); tick();
+load();
+// multis with a team leg read from a slip before team legs existed were saved as plain text ("SGM: Spurs to win + De'Anthony Melton Under 3.5 Assists"):
+// turn open ones into real SGMs so live tracking follows them
+(()=>{let n=0;
+  for(const b of BETS){
+    if(b.result!=='open'||b.kind!=='other'||!/^(SGM|Multi):\s*/i.test(b.desc||'')) continue;
+    const parts=b.desc.replace(/^(SGM|Multi):\s*/i,'').split(/\s+\+\s+/), legs=[];
+    for(const p of parts){
+      const pr=p.match(/^(.+?)\s+(Over|Under)\s+(\d+(?:\.\d+)?)\s+(.+)$/);
+      if(pr&&STATS[pr[4].trim()]){legs.push({player:pr[1].trim(),side:pr[2],line:+pr[3],stat:pr[4].trim()});continue;}
+      const tm=p.match(/^(.+?)\s+to win$/i);
+      if(tm){legs.push({team:cleanTeam(tm[1])});continue;}
+      legs.length=0; break;
+    }
+    const bball=/^(NBA|NBL)$/.test(b.sport||'')||legs.some(l=>l.player);
+    if(legs.length<2||!bball) continue;
+    b.kind='sgm'; b.lg=b.sport==='NBL'?'NBL':'NBA'; b.legs=legs; b.desc=''; delete b.sport; b.live=null; n++;
+  }
+  if(n) save();
+})();
+draw(); tick();
 // player search: every active NBA player (published with the lineups), every NBL player, plus anyone on Hot stats
 const PSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-data/players.json';
 Promise.all([
@@ -916,7 +976,7 @@ Promise.all([
   let moved=false;
   for(const b of BETS){
     if(b.result!=='open'||b.kind==='other'||(b.lg||'NBA')!=='NBA') continue;
-    const ps=b.kind==='sgm'?(b.legs||[]).map(l=>l.player):[b.player];
+    const ps=b.kind==='sgm'?(b.legs||[]).filter(l=>!isTeamLeg(l)).map(l=>l.player):[b.player];
     if(ps.length&&ps.every(n=>n&&nbl.has(n)&&!names.has(n))){b.lg='NBL';moved=true;}
   }
   if(moved){save();draw();}
