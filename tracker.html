@@ -216,6 +216,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         
+        <select id="sportF" class="tr-bookf" aria-label="Filter by sport" hidden><option value="">All sports</option></select>
         <select id="bookF" class="tr-bookf" aria-label="Filter by bookie" hidden><option value="">All bookies</option></select>
         <select id="typeF" class="tr-bookf" aria-label="Filter by prop type" hidden><option value="">All prop types</option></select>
         <button type="button" class="tr-btn main" id="addBtn">+ Add bet</button>
@@ -383,7 +384,16 @@ let BOOK=''; try{BOOK=localStorage.getItem('ot-book-filter')||'';}catch(e){}
 const bookKey=b=>String(b||'').trim().toLowerCase();
 let PTYPE=''; try{PTYPE=localStorage.getItem('ot-type-filter')||'';}catch(e){}
 const typeOf=b=>b.kind==='prop'?b.stat:b.kind==='sgm'?'SGM':b.sport&&b.sport!=='Other'?b.sport:'Other bets';
-const inBook=b=>(!BOOK||bookKey(b.book)===BOOK)&&(!PTYPE||typeOf(b)===PTYPE);
+let SPORT=''; try{SPORT=localStorage.getItem('ot-sport-filter')||'';}catch(e){}
+const sportOfBet=b=>b.kind==='other'?(b.sport||'Other'):(b.lg||'NBA');
+const inBook=b=>(!BOOK||bookKey(b.book)===BOOK)&&(!PTYPE||typeOf(b)===PTYPE)&&(!SPORT||sportOfBet(b)===SPORT);
+function sportOptions(){
+  const order=['Racing','NBA','NBL','NFL','AFL','NRL','Soccer','Tennis','Cricket','Other'], have=new Set(BETS.map(sportOfBet));
+  const sel=$('sportF'); if(SPORT&&!have.has(SPORT)) SPORT='';
+  sel.hidden=have.size<2&&!SPORT;
+  sel.innerHTML='<option value="">All sports</option>'+order.filter(t=>have.has(t)).concat([...have].filter(t=>!order.includes(t))).map(t=>`<option>${esc(t)}</option>`).join('');
+  sel.value=SPORT; sel.classList.toggle('on',!!SPORT);
+}
 function typeOptions(){
   const order=Object.keys(STATS).concat(['SGM','Other bets']), have=new Set(BETS.map(typeOf));
   const sel=$('typeF'); if(PTYPE&&!have.has(PTYPE)) PTYPE='';
@@ -399,7 +409,7 @@ function bookOptions(){
   sel.value=BOOK; sel.classList.toggle('on',!!BOOK);
 }
 function drawStats(){
-  bookOptions(); typeOptions();
+  sportOptions(); bookOptions(); typeOptions();
   const ALL=BETS.filter(inBook);
   const set=ALL.filter(b=>b.result!=='open'), wl=set.filter(b=>b.result==='won'||b.result==='lost');
   const won=wl.filter(b=>b.result==='won').length, pl=set.reduce((s,b)=>s+profit(b),0);
@@ -587,6 +597,7 @@ $('list').onclick=e=>{
 $('filt').onclick=e=>{const t=e.target.closest('button');if(!t)return;FILTER=t.dataset.f;PICKED=true;$('filt').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===t));drawList();};
 function draw(){drawStats();drawList();liveBar();}
 $('typeF').onchange=e=>{PTYPE=e.target.value;try{localStorage.setItem('ot-type-filter',PTYPE);}catch(_){} draw();};
+$('sportF').onchange=e=>{SPORT=e.target.value;try{localStorage.setItem('ot-sport-filter',SPORT);}catch(_){} draw();};
 $('bookF').onchange=e=>{BOOK=e.target.value;try{localStorage.setItem('ot-book-filter',BOOK);}catch(_){} draw();};
 
 /* ---------- add / edit ---------- */
