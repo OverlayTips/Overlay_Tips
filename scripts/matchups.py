@@ -220,14 +220,15 @@ def minutes(p, teammates, out_keys, starters, lineup_known, spread):
                 freed += tm
     if freed:
         # his share of the team's other 240 - freed minutes, 80% of it (some go to deep-bench guys)
-        add = min(8.0, freed * base / max(120.0, 240.0 - freed) * 0.8)
+        add = min(5.0, freed * base / max(120.0, 240.0 - freed) * 0.6)
         base += add
         why.append(f"+{add:.0f} with teammates out")
     if spread is not None and base >= 28 and abs(spread) >= 10:
         cut = 3.0 if abs(spread) >= 14 else 1.5
         base -= cut
         why.append("blowout risk")
-    return {"min": round(max(0.0, min(42.0, base)) * 2) / 2, "l10": round(l10, 1), "l5": round(l5, 1), "why": why}
+    top = max(g[3] for g in gs[:10])   # never above his busiest recent game (+2), or 40
+    return {"min": round(max(0.0, min(40.0, top + 2, base)) * 2) / 2, "l10": round(l10, 1), "l5": round(l5, 1), "why": why}
 
 
 def _per36(ctx, team, b, cols):
