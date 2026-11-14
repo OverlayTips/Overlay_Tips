@@ -30,7 +30,7 @@ MARKETS = os.environ.get("MARKETS", "h2h,spreads,totals")
 # Soccer leagues The Odds API carries player props for (others just come back empty, so they're harmless to ask for)
 _SOCCER_PROP_LEAGUES = ("soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a", "soccer_germany_bundesliga",
                         "soccer_france_ligue_one", "soccer_uefa_champs_league", "soccer_uefa_europa_league",
-                        "soccer_usa_mls", "soccer_australia_aleague")
+                        "soccer_usa_mls", "soccer_australia_aleague", "soccer_uefa_nations_league")
 PROP_SPORTS = [s.strip() for s in os.environ.get("PROP_SPORTS",
                "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,americanfootball_nfl,"
                + ",".join(_SOCCER_PROP_LEAGUES)).split(",") if s.strip()]
