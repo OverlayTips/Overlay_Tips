@@ -312,7 +312,7 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
   </div>
 </footer>
 
-<script src="slip.js?v=4" defer></script>
+<script src="slip.js?v=5" defer></script>
 <script>
 document.body.classList.remove('no-js');
 const $=id=>document.getElementById(id);
@@ -321,7 +321,8 @@ const TZ='Australia/Sydney', KEY='ot-bets-v1';
 const Q=new URLSearchParams(location.search);
 const HSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json';
 // name key: accents, dots, apostrophes, Jr/Sr/II and spaces off
-const key=n=>String(n||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[.'’`]/g,'').replace(/-/g,' ').split(/\s+/).filter(t=>t&&!['jr','sr','ii','iii','iv','v'].includes(t)).join('');
+const noTeam=n=>String(n||'').replace(/\s+\(?[A-Z]{2,4}\)?\s*$/,'');   // "Reed Sheppard HOU" -> "Reed Sheppard"
+const key=n=>noTeam(n).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[.'’`]/g,'').replace(/-/g,' ').split(/\s+/).filter(t=>t&&!['jr','sr','ii','iii','iv','v'].includes(t)).join('');
 
 // NBL feed names come as "Cotton Bryce", "B. Cotton" or "Bryce Cotton": match on the full name in any order,
 // or first initial + surname either way round
@@ -903,6 +904,14 @@ Promise.all([
     if(i.lg==='NBL'){ if(!nbl.has(i.player)) nbl.set(i.player,i.team||'NBL'); }
     else if(!names.has(i.player)) names.set(i.player,'');
   }
+  // open bets whose player has a team code stuck on ("Reed Sheppard HOU", read from a slip): drop it
+  let fixed=false;
+  for(const b of BETS){
+    if(b.result!=='open') continue;
+    const fix=o=>{const n=noTeam(o.player); if(n!==o.player&&(names.has(n)||nbl.has(n))){o.player=n;fixed=true;}};
+    if(b.kind==='prop'&&b.player) fix(b); if(b.kind==='sgm') (b.legs||[]).forEach(l=>l.player&&fix(l));
+  }
+  if(fixed){save();draw();}
   // open bets saved as NBA for a player who's only in the NBL (e.g. read from a screenshot before this fix): move them to NBL
   let moved=false;
   for(const b of BETS){
