@@ -506,6 +506,13 @@ def main():
                         o["inj"] = a["flag"]
                 keep.append(o)
             summary["overlays"] = keep
+        try:   # the case for each overlay (writeup.py): full write-up for NBA/NBL props, short one otherwise
+            import writeup
+            sbs = {"basketball_nba": stats.get("nba") or {}, "basketball_nbl": stats.get("nbl") or {}}
+            for o in summary["overlays"]:
+                o["why"] = writeup.overlay_writeup(o, sbs)
+        except Exception as e:
+            print("overlay write-ups failed:", type(e).__name__, e)
         summary.update({"generated": TS, "credits_remaining": api.remaining, "errors": api.errors})
         with open(os.path.join(OUT, "picks.json"), "w") as f:
             json.dump(picks.encrypt_with_key(summary, alerts_key), f)

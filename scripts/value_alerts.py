@@ -228,6 +228,7 @@ def collect(now):
                         "game": away_at_home(o["game"], o.get("sport_key")), "lg": o.get("sport", ""),
                         "emoji": emoji(o.get("sport_key"), o.get("sport")),
                         "sub": f"fair {o['fair']:.2f}",
+                        "why": [o["why"]] if o.get("why") else [],
                         "add": None,
                         "log": {"ev": o.get("ev"), "mk": o.get("mk"), "desc": o.get("desc") or "", "side": o.get("side"),
                                 "point": o.get("point"), "sport_key": o.get("sport_key"), "fair": o.get("fair"),

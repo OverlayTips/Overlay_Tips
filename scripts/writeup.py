@@ -64,24 +64,28 @@ def _local_day(iso):
 
 
 def writeup(it):
+    """The case for one prop. it: a Hot stats item (or prop_item() below); it["side"] = "Under" flips the logic."""
     name, last = it.get("player", "He"), _last(it.get("player", "He"))
     pt, stat = it.get("point"), _stat(it.get("stat", ""))
-    n = int(pt + 0.5) if isinstance(pt, (int, float)) else None
-    line = f"{n}+ {stat}" if n is not None else stat
+    under = str(it.get("side", "")).lower() == "under"
+    sgn = -1 if under else 1   # a signal that helps the Over hurts the Under
+    num = isinstance(pt, (int, float))
     opp, nba = it.get("opp"), it.get("lg") != "NBL"
-    hit = lambda v: isinstance(pt, (int, float)) and v > pt
+    hit = lambda v: num and (v < pt if under else v > pt)
     out, score = [], 0
 
     # 1. form
     l10, l5 = it.get("l10") or [0, 0], it.get("l5") or [0, 0]
     if l10[1]:
-        s = (f"{name} has hit {line} in every one of his last {l10[1]}" if l10[0] == l10[1]
-             else f"{name} has hit {line} in {l10[0]} of his last {l10[1]}")
+        did = f"stayed under {_num(pt)} {stat}" if under else f"hit {int(pt + 0.5)}+ {stat}" if num else f"hit this line"
+        s = (f"{name} has {did} in every one of his last {l10[1]}" if l10[0] == l10[1]
+             else f"{name} has {did} in {l10[0]} of his last {l10[1]}")
         s += "" if l10[0] == l10[1] else f", including all of his last {l5[1]}" if l5[1] and l5[0] == l5[1] else (f" and {l5[0]} of the last {l5[1]}" if l5[1] else "")
         out.append(s + f", averaging {_num(it.get('avg'))}.")
-        score += (l10[0] / l10[1] >= 0.8) + (l5[1] and l5[0] == l5[1])
+        score += (l10[0] / l10[1] >= 0.8) + bool(l5[1] and l5[0] == l5[1]) - (l10[0] / l10[1] < 0.5)
+    weak = bool(l10[1]) and l10[0] / l10[1] < 0.5
 
-    # 2. last game, workload, back-to-back
+    # 2. last game, workload, back-to-back (tired legs help an Under)
     games = it.get("games") or []
     if games:
         g = games[0]
@@ -90,19 +94,18 @@ def writeup(it):
         heavy = False
         if len(g) > 4 and g[4]:
             s += f" in {round(g[4])} minutes"
-            avg_min = sum(mins) / len(mins) if mins else 0
-            heavy = g[4] >= 38 and g[4] >= avg_min + 5
+            heavy = mins and g[4] >= 38 and g[4] >= sum(mins) / len(mins) + 5
         s += "."
         if heavy:
             s += f" That's a heavy load next to his usual {round(sum(mins) / len(mins))}, and big-minute games can take a toll on the next one."
-            score -= 1
+            score -= sgn
         out.append(s)
         try:
             if nba and it.get("start"):
                 _, day = _local_day(it["start"])
                 if (day - datetime.fromisoformat(g[0]).date()).days == 1:
-                    out.append("Tonight is the second night of a back-to-back.")
-                    score -= 1
+                    out.append("Tonight is the second night of a back-to-back" + (", which suits the Under." if under else "."))
+                    score -= sgn
         except ValueError:
             pass
 
@@ -111,14 +114,13 @@ def writeup(it):
     if mu and opp:
         r, of, pct, pos = mu["rank"], mu["of"], mu.get("pct", 0), POS.get(mu.get("pos"), "his position")
         if r <= of / 3:
-            out.append(f"{_cap(_the(opp))} give up the {_ord(r)}-most {stat} to {pos} in the league "
-                       f"({pct:+d}% on average), so the matchup is on his side.")
-            score += 1
+            out.append(f"{_cap(_the(opp))} give up the {_ord(r)}-most {stat} to {pos} in the league ({pct:+d}% on average), "
+                       + ("which works against the Under." if under else "so the matchup is on his side."))
+            score += sgn
         elif r > of * 2 / 3:
-            f = of + 1 - r
-            out.append(f"{_cap(_the(opp))} allow the {_ord(f)}-fewest {stat} to {pos} ({pct:+d}% on average), "
-                       f"which makes this a tougher spot.")
-            score -= 1
+            out.append(f"{_cap(_the(opp))} allow the {_ord(of + 1 - r)}-fewest {stat} to {pos} ({pct:+d}% on average), "
+                       + ("so the matchup is on the Under's side." if under else "which makes this a tougher spot."))
+            score -= sgn
         else:
             out.append(f"{_cap(_the(opp))} sit around the middle of the league defending {pos} on {stat}.")
 
@@ -130,15 +132,15 @@ def writeup(it):
         if len(h2h) == 1:
             out.append(f"He had {vals[0]} the last time he played {_the(opp)}{' (a hit)' if k else ''}.")
         else:
-            out.append(f"His last {len(h2h)} games against {_the(opp)}: {_list(vals)}, clearing this line {k} of {len(h2h)} times.")
+            out.append(f"His last {len(h2h)} games against {_the(opp)}: {_list(vals)}, landing this bet {k} of {len(h2h)} times.")
         score += 1 if k * 2 > len(h2h) else (-1 if k * 2 < len(h2h) else 0)
 
     # 5. role: a teammate out, projected minutes, blowout risk
     wo = it.get("wo")
     if wo:
-        out.append(f"With {wo['n']} out, he's cleared it in {wo['hit'][0]} of {wo['hit'][1]} games without him, "
-                   f"averaging {_num(wo['avg'])} compared with {_num(wo['with'])} when they play together.")
-        score += 1 if wo["avg"] > wo["with"] else 0
+        out.append(f"With {wo['n']} out, he's averaging {_num(wo['avg'])} without him compared with {_num(wo['with'])} "
+                   f"when they play together ({wo['hit'][0]} of {wo['hit'][1]} games landing).")
+        score += sgn if wo["avg"] > wo["with"] else -sgn if wo["avg"] < wo["with"] else 0
     proj = it.get("proj")
     if proj:
         why = " ".join(proj.get("why") or [])
@@ -146,27 +148,36 @@ def writeup(it):
         if d >= 2:
             rs = ("with teammates out" if "teammates out" in why else "as a starter" if "starting" in why else "")
             out.append(f"He projects for about {_num(proj['min'])} minutes tonight, up from {_num(proj['l10'])} lately"
-                       + (f" {rs}" if rs else "") + ".")
-            score += 1
+                       + (f" {rs}" if rs else "") + (", a worry for the Under." if under else "."))
+            score += sgn
         elif d <= -2 and "blowout" not in why:
             out.append(f"He projects for about {_num(proj['min'])} minutes, down on his recent {_num(proj['l10'])}.")
-            score -= 1
+            score -= sgn
         if "blowout" in why:
-            out.append("The spread points to a possible blowout, which could cut into his minutes late.")
-            score -= 1
+            out.append("The spread points to a possible blowout, which could cut into his minutes late"
+                       + (" and help the Under." if under else "."))
+            score -= sgn
     pace = it.get("pace")
     if isinstance(pace, (int, float)) and abs(pace) >= 2:
-        out.append(f"It shapes as a {'fast' if pace > 0 else 'slow'} game ({pace:+.0f}% pace), "
-                   + ("so more chances to get there." if pace > 0 else "which takes a few chances away."))
+        fast = pace > 0
+        out.append(f"It shapes as a {'fast' if fast else 'slow'} game ({pace:+.0f}% pace), "
+                   + ("so more chances to get there." if fast and not under else "which works against the Under." if fast
+                      else "which suits the Under." if under else "which takes a few chances away."))
 
     # 6. price
+    pr = it.get("price")
     prices = sorted((it.get("prices") or {}).values())
-    if prices and it.get("price"):
-        med = prices[len(prices) // 2]
-        s = f"The ${it['price']:.2f} at {it.get('book')}"
-        s += f" beats most bookies (around ${med:.2f})" if it["price"] >= med * 1.04 else " is in line with the market"
+    if pr:
+        s = f"The ${pr:.2f} at {it.get('book')}"
+        if isinstance(it.get("fair"), (int, float)) and it["fair"] > 1:
+            src = "Pinnacle's line" if it.get("fair_src") == "pin" else "the bookies' consensus"
+            s += f" is {it.get('edge') or round((pr / it['fair'] - 1) * 100, 1)}% above the fair price of ${it['fair']:.2f} ({src} with the margin taken off)"
+            score += 1
+        elif prices:
+            med = prices[len(prices) // 2]
+            s += f" beats most bookies (around ${med:.2f})" if pr >= med * 1.04 else " is in line with the market"
         if isinstance(it.get("prob"), (int, float)) and it["prob"] > 0:
-            need = round(100 / it["price"])
+            need = round(100 / pr)
             s += f". It needs a {need}% chance and we rate it about {round(it['prob'] * 100)}%"
             score += it["prob"] * 100 > need + 2
         out.append(s + ".")
@@ -177,10 +188,73 @@ def writeup(it):
         out.append(f"He's listed {'questionable' if inj == 'Q' else 'as a game-time decision'}, so wait for confirmation he plays.")
 
     # 8. the lean
-    if score >= 3:
-        out.append(f"Form, role and price mostly point the same way, so {last} is one we like at this number.")
+    if weak:
+        out.append(f"His recent form doesn't back it up ({l10[0]} of {l10[1]}), so this one is mostly about the price. Keep the stake small.")
+    elif score >= 3:
+        out.append(f"Form, role and price mostly point the same way, so the {last} {'Under' if under else 'Over'} is one we like at this number.")
     elif score >= 1:
-        out.append(f"On balance it leans {last}'s way, but it's not without risk.")
+        out.append(f"On balance it leans the {'Under' if under else 'Over'}, but it's not without risk.")
     else:
-        out.append("The form is there, but there are enough warning signs to keep the stake small.")
+        out.append("There's value in the price, but enough warning signs to keep the stake small.")
     return " ".join(out)
+
+
+# ---------------- overlays (picks.py) ----------------
+def prop_item(o, stats, sport_key):
+    """A Hot-stats-shaped item for an overlay on an NBA/NBL player prop, from the raw box scores, or None."""
+    import hot
+    mk, desc, side, pt = o.get("mk"), o.get("desc"), o.get("side"), o.get("point")
+    if mk not in hot.STAT or not desc or side not in ("Over", "Under") or not isinstance(pt, (int, float)):
+        return None
+    players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
+    p = players.get(by.get(desc, ""))
+    if not p:
+        return None
+    label, f = hot.STAT[mk]
+    gs = [g for g in p.get("g", []) if g[3] > 0]
+    if len(gs) < 3:
+        return None
+    under = side == "Under"
+    hit = lambda xs: sum(1 for g in xs if (f(g) < pt if under else f(g) > pt))
+    l10, l5 = gs[:10], gs[:5]
+    names = [x.strip() for x in str(o.get("game", "")).replace(" @ ", " v ").split(" v ")]
+    abbrs = [teams.get(n) for n in names]
+    opp = next((a for a in abbrs if a and a != p.get("team")), None)
+    meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
+    return {"player": p.get("n") or desc, "team": p.get("team"), "opp": opp,
+            "lg": "NBL" if sport_key == "basketball_nbl" else "NBA", "start": o.get("start"),
+            "stat": label, "point": pt, "side": side, "price": o.get("price"), "book": o.get("book"),
+            "fair": o.get("fair"), "fair_src": o.get("fair_src"), "edge": o.get("edge_pct"), "inj": o.get("inj"),
+            "l10": [hit(l10), len(l10)], "l5": [hit(l5), len(l5)],
+            "avg": round(sum(f(g) for g in l10) / len(l10), 1),
+            "games": [[g[0], g[1], g[2], f(g), round(g[3])] for g in l10],
+            "h2h": [[g[0], g[1], g[2], f(g)] for g in meet[:3]]}
+
+
+def market_writeup(o):
+    """Short case for a game-market overlay (head-to-head, line, total) in any sport: price v fair, books."""
+    src = "Pinnacle's line" if o.get("fair_src") == "pin" else "the bookies' consensus"
+    s = (f"{o['pick']} ({o.get('market')}) is ${o['price']:.2f} at {o['book']}, {o['edge_pct']}% above the fair price of "
+         f"${o['fair']:.2f}, which comes from {src} with the margin taken off.")
+    if o.get("books"):
+        s += f" {o['books']} bookies are pricing it" + (", so the fair price is well supported." if o["books"] >= 8 else ".")
+    if o.get("market") == "H2H" and o["fair"] >= 3:
+        s += f" It's still an outsider: the fair price puts its chance at about {round(100 / o['fair'])}%, so keep the stake small."
+    elif o.get("books", 0) < 4:
+        s += " Not many bookies price it, so treat the fair price with some caution."
+    if o.get("inj") in ("Q", "GTD"):
+        s += " He's listed questionable, so wait for confirmation he plays."
+    return s
+
+
+def overlay_writeup(o, stats_by_sport):
+    """The case for an overlay: the full prop write-up for NBA/NBL player props we have box scores for, else the short one."""
+    sk = o.get("sport_key")
+    if o.get("desc") and sk in stats_by_sport:
+        try:
+            it = prop_item(o, stats_by_sport[sk] or {}, sk)
+            if it:
+                return writeup(it)
+        except Exception:
+            pass
+    return market_writeup(o)
