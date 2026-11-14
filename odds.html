@@ -86,6 +86,7 @@
   .up{color:var(--mint)} .down{color:var(--red)} .flat{color:var(--muted)}
   .gbtn{background:var(--panel2);border:1px solid var(--mint-dim);color:var(--mint);border-radius:999px;padding:2px 9px;margin-left:8px;cursor:pointer;vertical-align:middle;font:600 11px Archivo,system-ui,sans-serif;white-space:nowrap}
   .gbtn:hover{border-color:var(--mint)}
+  .gcase{color:#d7e3de;font-size:14px;line-height:1.55;margin:4px 0 10px}
   .gbox{max-height:calc(100vh - 32px);overflow-y:auto}
   .gbox h4{font-size:14px;margin:16px 0 4px;color:var(--text)} .gbox h4 small{color:var(--muted);font-weight:400}
   .gmodal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -236,6 +237,7 @@
 .og-up details[open]{display:flex;flex-direction:column;gap:10px}
 .inj{font-size:11px;font-weight:700;color:#f5b041;white-space:nowrap}.inj.ok{color:#4cd07d}
 .ec-gm{display:block;font-size:11.5px;color:#8fa39b;margin-top:1px}
+.pincol{color:var(--gold)!important;font-style:italic}
 </style>
 <link rel="stylesheet" href="plain.css?v=6">
 <script src="keys.js?v=2"></script>
@@ -550,8 +552,14 @@ function eventRows(ev, mk){
     g.forEach((r,k)=>{const p=med(probs[k]); r.fair=1/p; r.edge=isFinite(r.best)?(r.best*p-1)*100:null; r.nfair=probs[k].length;});
   });
   altLines(rows,books,mk);
+  // Pinnacle's own price, shown as a benchmark column only (never counted as a bookie, best price or arb)
+  if(sm) rows.forEach(r=>{
+    const os=sm.outcomes.filter(o=>o.name===r.s.name&&(o.description||'')===(r.s.desc||'')); if(!os.length) return;
+    const o=r.point==null?os[0]:(os.find(o=>o.point===r.point)||os.reduce((a,o)=>Math.abs(o.point-r.point)<Math.abs(a.point-r.point)?o:a));
+    r.pin={price:o.price,point:o.point,ok:o.point==null||o.point===r.point};
+  });
   const pct=rows.reduce((t,r)=>t+(isFinite(r.best)?100/r.best:0),0);
-  return {books,rows,pct};
+  return {books,rows,pct,hasPin:rows.some(r=>r.pin)};
 }
 
 /* off-line prices on player over/unders, e.g. Unibet Over 31.5 @ 1.87 when most bookies sit on 32.5.
@@ -656,7 +664,7 @@ function render(){
     :'Fair = the true price with the margin taken out: Pinnacle’s de-vigged line where it has one (PIN), otherwise the Aussie bookies. If bet365 (or any bookie) pays more than Fair at the same line, it\'s +EV. Mint = best value: the best price at the most common line, unless a bookie on an easier line (e.g. Over 31.5 instead of 32.5) is worth more, then that one lights up with its line shown. Props refresh 3× a day. NBA: L10 7/10 = the player cleared this line in 7 of his last 10 games (green 70%+, red 30% or less). Tap View graph for his game log.';
 
   if(view==='props' && !P.events.length){
-    $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 24 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
+    $('list').innerHTML=`<div class="empty"><h3>No player props yet</h3>Props get pulled for every sport's games starting in the next 48 hours. If this stays empty, the Aussie bookies on the odds feed aren't offering props for these games yet.</div>`; return;
   }
   const q=$('q').value.trim().toLowerCase();
   let items=inSport.map(e=>({e,t:market&&eventRows(e,market)})).filter(x=>x.t);
@@ -682,7 +690,7 @@ function render(){
       <span class="badge">${t.books.length} books</span></div></div>`;
     const first=view==='props'?(t.ladder?'Player · line':'Player'):market==='h2h'?(/^(tennis_|mma_)/.test(e.sport_key||'')?(/^mma_/.test(e.sport_key)?'Fighter':'Player'):'Team'):market==='spreads'?'Line':'Total';
     const cols=t.books.map((b,i)=>i).filter(i=>myBook==='all'||t.books[i].key===myBook);
-    const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed (ladders: worked out from the player's main over/under)">Fair</th><th>Open → now</th>${cols.map(i=>`<th class="${myBook!=='all'?'bookpick':''}">${esc(bkName(t.books[i]))}</th>`).join('')}</tr>`;
+    const th=`<tr><th>${first}</th><th>Best</th><th title="True price with the bookie margin removed (ladders: worked out from the player's main over/under)">Fair</th><th>Open → now</th>${t.hasPin?'<th class="pincol" title="Pinnacle: the sharpest bookie in the world. Not open to Aussie punters, shown as the benchmark the Fair price comes from">Pinnacle</th>':''}${cols.map(i=>`<th class="${myBook!=='all'?'bookpick':''}">${esc(bkName(t.books[i]))}</th>`).join('')}</tr>`;
     let prev=null;
     const trs=t.rows.map(r=>{
       const gb=(!r.ladder&&r.s.desc&&r.s.desc!==prev)?`<button class="gbtn" type="button" data-ev="${esc(e.id)}" data-mk="${esc(market)}" data-p="${esc(r.s.desc)}">View graph</button>`:'';
@@ -701,7 +709,7 @@ function render(){
         return `<td class="${cls}"${tip}>${pt}${c.price.toFixed(2)}</td>`;}).join('');
       const bestTxt=r.alt?`${r.alt.price.toFixed(2)}<span class="bbk">${esc(bkName(r.alt.book))} · ${esc(r.s.name)} ${r.alt.point}</span><span class="bbk">≈ ${r.alt.eq.toFixed(2)} at ${r.point}</span>`
         :isFinite(r.best)?r.best.toFixed(2)+(r.bestBook?`<span class="bbk">${esc(bkName(r.bestBook))}</span>`:''):'–';
-      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${bestTxt}</td><td class="fair">${r.ladder&&!r.fair?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${cells}</tr>`;
+      return `<tr class="${grp?'grp':''}"><td>${nm}</td><td class="bestcol">${bestTxt}</td><td class="fair">${r.ladder&&!r.fair?(r.gap!=null?`${(100/r.best).toFixed(0)}%`+(r.gap>=3?` <span class="evp">+${r.gap.toFixed(0)}% vs others</span>`:''):(100/r.best).toFixed(0)+'%'):r.fair?r.fair.toFixed(2)+(r.fairSrc==='pin'?' <span class="pin">PIN</span>':'')+(r.edge>0.5?` <span class="evp">+${r.edge.toFixed(1)}%</span>`:''):'–'}</td><td class="mv">${mv}</td>${t.hasPin?(r.pin?`<td class="pincol">${r.pin.ok?'':`<span class="pt">${fmtPt(market,r.pin.point)}</span>`}${r.pin.price.toFixed(2)}</td>`:'<td class="pincol off">–</td>'):''}${cells}</tr>`;
     }).join('');
     return `<div class="ev">${head}${cols.length>2?'<div class="swipe">Swipe for every bookie →</div>':''}<div class="tbl-wrap"><table>${th}${trs}</table></div></div>`;
   }).join('');
@@ -755,7 +763,7 @@ function showGraph(evId,mk,player){
     <div class="seg gside" style="margin:2px 0 8px">${sides2.map((n,k)=>`<button type="button" data-k="${k}" class="${k?'':'on'}">${esc(n)}</button>`).join('')}</div><div id="gbk"></div>`:'';
   $('gmodal').innerHTML=`<div class="gbox" role="dialog" aria-modal="true"><button class="gclose" type="button" aria-label="Close">×</button>
     <h3>${esc(player)}</h3><div class="gsub">${esc(PROP_LABEL[mk]||mk)} · ${esc(ev.home_team)} v ${esc(ev.away_team)}</div>
-    ${statsPanel(ev,mk,player,rows)}
+    ${statsPanel(ev,mk,player,rows)}<div id="gcase"></div>
     <h4>Probability <small>· implied from the best price over time</small></h4>
     ${body}<div class="gleg">${leg}${rows.some(r=>r.fair)?'<span>dashed = fair</span>':''}</div>${body2}</div>`;
   if(body2){
@@ -764,6 +772,16 @@ function showGraph(evId,mk,player){
   }
   $('gmodal').hidden=false;
   $('gmodal').querySelector('.gclose').onclick=()=>$('gmodal').hidden=true;
+  showCase(evId,mk,player);
+}
+// the write-up for this prop from the public Hot stats feed (built from the same numbers: scripts/writeup.py)
+let HOT=null;
+function showCase(evId,mk,player){
+  const put=h=>{const its=(h&&(h.value||[]).concat(h.items||[]))||[], it=its.find(i=>i.ev===evId&&i.mk===mk&&i.desc===player&&i.why);
+    const el=$('gcase'); if(el&&it) el.innerHTML=`<h4>The case <small>· ${esc(it.line)} ${esc(it.stat)} @ $${it.price.toFixed(2)} ${esc(it.book)}</small></h4><p class="gcase">${esc(it.why)}</p>`;};
+  if(HOT) return put(HOT);
+  fetch('https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json?t='+Math.floor(Date.now()/300000))
+    .then(r=>r.ok?r.json():null).then(h=>{HOT=h;put(h);}).catch(()=>{});
 }
 const BK_COL=['#62f0a8','#ff6b6b','#efd38f','#87b7ff','#d59bff','#ff9f5a','#5ee0e0','#f27fc0','#b6e36b','#c4953f','#9aa8ff','#e8e8e8'];
 function bookieLines(ev,mk,player,t,r){
@@ -928,6 +946,7 @@ function evChart(top,ptOf){
 }
 
 /* ---------- bonus bet conversions (stake not returned): bonus at a bookie, lay on Betfair ---------- */
+const BONUS_MIN=0.65;   // hide conversions keeping under 65% of the bonus
 let bbook=store.get('bbook','all'), bcomm=store.get('bcomm',6);
 function conversions(evs,c){
   const now=new Date(), out=[];
@@ -943,6 +962,7 @@ function conversions(evs,c){
           const l=lo.find(x=>x.name===o.name&&(x.description||'')===(o.description||'')&&(o.point==null||x.point===o.point));
           if(!l||!(l.price>1)) return;
           const conv=(o.price-1)*(1-c)/(l.price-c);
+          if(conv<BONUS_MIN) return;   // only show worthwhile conversions
           out.push({ev,mk:m.key,c:{book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price},lay:{name:l.name,desc:l.description||'',point:l.point,price:l.price},conv});
         });
       });
@@ -961,11 +981,11 @@ function renderBonus(){
     .map(([k,l])=>`<button class="chip ${k===bbook?'on':''}" data-s="${esc(k)}">${esc(l)}</button>`).join('');
   $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{bbook=b.dataset.s;store.set('bbook',bbook);render();});
   $('q').placeholder='Search team';
-  $('legend').textContent=`Pick the bookie your bonus bet is with. Bet the bonus at the bookie, then lay the same selection on Betfair. % = how much of the bonus you keep as cash, whatever happens, after ${bcomm}% Betfair commission. Lay prices are from the last update, so check the price and the money available on Betfair before you bet.`;
+  $('legend').textContent=`Pick the bookie your bonus bet is with. Only conversions keeping 65% or more are shown. Bet the bonus at the bookie, then lay the same selection on Betfair. % = how much of the bonus you keep as cash, whatever happens, after ${bcomm}% Betfair commission. Lay prices are from the last update, so check the price and the money available on Betfair before you bet.`;
   const q=$('q').value.trim().toLowerCase();
   let rows=all.filter(x=>(bbook==='all'||x.c.book.key===bbook)&&
     (!q||(x.ev.home_team+' '+x.ev.away_team+' '+x.c.desc).toLowerCase().includes(q)));
-  if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No Betfair lay conversions found for this bookie right now.</div>';return;}
+  if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No conversions of 65% or better for this bookie right now.</div>';return;}
   const pt=(mk,p)=>p==null?'':' '+fmtPt(mk,p);
   const lbl=(mk)=>mk==='h2h'?'H2H':mk==='spreads'?'Line':mk==='totals'?'Total':(PROP_LABEL[mk]||mk);
   const sel=(x,o)=>`${o.desc?esc(o.desc)+' ':''}${esc(o.name)}${pt(x.mk,o.point)}`;
