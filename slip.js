@@ -105,8 +105,8 @@
 
   // ---------- one selection line -> {player, stat, side, line} ----------
   function selection(line, prev, next) {
-    var s = line, low = s.toLowerCase(), m, side, val, stat = statOf(low) || statOf(prev || '') || statOf(next || '');
-    if ((m = low.match(new RegExp('\\b(over|under|o|u)\\s*' + NUM)))) {
+    var s = line, low = s.toLowerCase(), m, side, val, stat = statOf(low) || (/\s[-–]\s+[A-Za-z]/.test(next || '') && statOf(next)) || statOf(prev || '') || statOf(next || '');   // Sportsbet puts "Player - Assists" under the pick
+    if ((m = low.match(new RegExp('\\b(over|under|o|u)\\s*\\(?\\s*' + NUM)))) {   // "Under 3.5" / Sportsbet's "Under (3.5)"
       side = /^u/.test(m[1]) ? 'Under' : 'Over'; val = parseFloat(m[2].replace(',', '.'));
     } else if ((m = low.match(new RegExp(NUM + '\\s*\\+')))) {
       side = 'Over'; val = parseFloat(m[1]) - 0.5;              // "25+ Points" = over 24.5
@@ -185,6 +185,25 @@
       return bet;
     }
 
+    // team legs in a multi ("San Antonio Spurs" + "Match Betting"): the tracker's SGM legs are player props only,
+    // so a multi with any team leg becomes an "other" bet that names every leg
+    var teams = [];
+    for (var q = 1; q < lines.length; q++) {
+      var mkt = lines[q].match(/^(match betting|head to head|h2h|money ?line|line|handicap|pick your own line|winning margin|total (?:match )?points)\b/i);
+      var who2 = lines[q - 1].replace(/\s*[-–]\s*$/, '').trim();
+      if (!mkt || !/[A-Za-z]{3}/.test(who2) || selection(who2, '', '')) continue;
+      teams.push(/match betting|head to head|h2h|money ?line/i.test(mkt[1]) ? who2 + ' to win' : who2 + ' (' + mkt[1] + ')');
+    }
+    var isMulti = /same game multi|\bmulti\b|\b\d+\s*legs?\b/i.test(t);
+    if (teams.length && (isMulti || sels.length + teams.length >= 2)) {
+      bet.kind = 'other';
+      var parts = teams.concat(sels.map(function (x) { return x.player + ' ' + x.side + ' ' + x.line + ' ' + x.stat; }));
+      bet.desc = ((/same game/i.test(t) ? 'SGM: ' : 'Multi: ') + parts.join(' + ')).slice(0, 140);
+      var evl = lines.find(function (l) { return /\s(v|vs)\s|\s@\s+[A-Za-z]/.test(l) && !/multi|@\s*\$?\d/i.test(l); });
+      if (evl) bet.event = evl.slice(0, 80);
+      bet.sport = sportOf(t);
+      return bet;
+    }
     if (sels.length >= 2) { bet.kind = 'sgm'; bet.legs = sels; }
     else if (sels.length === 1) Object.assign(bet, sels[0]);
     else {
