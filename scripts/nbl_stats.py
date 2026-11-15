@@ -86,7 +86,10 @@ def _match(desc, cands):
     hits = []
     for c in cands:
         ct = norm(c["n"]).split()
-        if last in ct and any(t != last and (t == first or (len(t) == 1 and first.startswith(t))) for t in ct):
+        # first name: exact, an initial ('B. Cotton'), or a short form ('Sam' vs 'Samuel', 'Will' vs 'William')
+        if last in ct and any(t != last and (t == first or (len(t) == 1 and first.startswith(t))
+                                             or (min(len(t), len(first)) >= 3 and (t.startswith(first) or first.startswith(t))))
+                              for t in ct):
             hits.append(c)
     return hits[0] if len(hits) == 1 else None
 
