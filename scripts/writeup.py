@@ -253,17 +253,21 @@ def writeup(it):
     # 8. the lean
     if weak:
         out.append(f"His recent form doesn't back it up ({l10[0]} of {l10[1]}), so this one is mostly about the price. Keep the stake small.")
+    elif score >= 3 and not pr:
+        out.append(f"Form, role and matchup mostly point the same way, so the {last} {'Under' if under else 'Over'} looks the right side of this line.")
     elif score >= 3:
         out.append(f"Form, role and price mostly point the same way, so the {last} {'Under' if under else 'Over'} is one we like at this number.")
     elif score >= 1:
         out.append(f"On balance it leans the {'Under' if under else 'Over'}, but it's not without risk.")
+    elif not pr:
+        out.append("The signals are mixed, so it comes down to the price.")
     else:
         out.append("There's value in the price, but enough warning signs to keep the stake small.")
     return " ".join(out)
 
 
 # ---------------- overlays (picks.py) ----------------
-def prop_item(o, stats, sport_key):
+def prop_item(o, stats, sport_key, ctx=None):
     """A Hot-stats-shaped item for an overlay on an NBA/NBL player prop, from the raw box scores, or None."""
     import hot
     mk, desc, side, pt = o.get("mk"), o.get("desc"), o.get("side"), o.get("point")
@@ -295,10 +299,64 @@ def prop_item(o, stats, sport_key):
             "games": [[g[0], g[1], g[2], f(g), None if nfl else round(g[3])] for g in l10],
             "h2h": [[g[0], g[1], g[2], f(g)] for g in meet[:3]]}
     if nfl:
-        c = hot.nfl_ctx(players, p, gs, mk, f, opp)
+        gm = o.get("gm")
+        c = hot.nfl_ctx(players, p, gs, mk, f, opp, gm, o.get("_dcache"))
         if c:
             it["nfl"] = c
+    elif sport_key == "basketball_nba" and ctx:   # matchup v his position, pace, usage (matchups.py)
+        try:
+            import matchups as mx
+            pk = by.get(desc, "")
+            pos = {k: v[3] for k, v in ((stats.get("ids") or {}).get("map") or {}).items() if len(v) > 3}.get(pk)
+            mu = mx.matchup(ctx, opp, pos, mk)
+            pc = mx.pace(ctx, p.get("team"), opp)
+            usg = (ctx.get("usg") or {}).get(str(p.get("id")))
+            if mu:
+                it["mu"] = {k: mu[k] for k in ("pos", "rank", "of", "pct")}
+            if pc is not None:
+                it["pace"] = pc
+            if usg:
+                it["usg"] = usg
+        except Exception:
+            pass
     return it
+
+
+def all_cases(prop_events, stats_by_sport, ctx=None, games=()):
+    """Write-up for every main player prop line, both sides, for the odds page's "Why":
+    {"<event id>|<market>|<player>|<Over/Under>|<point>": text}. No price sentence (the page adds its own,
+    for whichever bookie you pick)."""
+    import hot, picks
+    lines = {ev["id"]: hot._nfl_lines(ev) for ev in games or () if ev.get("sport_key") == "americanfootball_nfl"}
+    out, dcache = {}, {}
+    for ev in prop_events:
+        sk = ev.get("sport_key")
+        st = stats_by_sport.get(sk)
+        if not st or not st.get("players"):
+            continue
+        spr, tot = lines.get(ev["id"], ({}, None))
+        teams = st.get("teams", {})
+        for mk, desc, sides, main in picks._groups(ev):
+            if not desc or mk.endswith("_alternate"):
+                continue
+            pt = main.get("Over", main.get("Under"))
+            if not isinstance(pt, (int, float)):
+                continue
+            for side in ("Over", "Under"):
+                o = {"mk": mk, "desc": desc, "side": side, "point": pt, "game": f"{ev['away_team']} @ {ev['home_team']}",
+                     "start": ev["commence_time"], "_dcache": dcache}
+                if sk == "americanfootball_nfl":
+                    p = (st.get("players") or {}).get((st.get("by") or {}).get(desc, ""))
+                    me = next((n for n in (ev["home_team"], ev["away_team"]) if p and teams.get(n) == p.get("team")), None)
+                    if me in spr and tot:
+                        o["gm"] = (spr[me], tot)
+                try:
+                    it = prop_item(o, st, sk, ctx if sk == "basketball_nba" else None)
+                except Exception:
+                    it = None
+                if it:
+                    out[f"{ev['id']}|{mk}|{desc}|{side}|{pt:g}"] = writeup(it)
+    return out
 
 
 def market_writeup(o):

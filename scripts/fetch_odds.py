@@ -496,7 +496,18 @@ def main():
     except Exception as e:
         print("prop lines failed:", type(e).__name__, e)
 
+    # ---- a write-up for every main prop line, both sides, for the odds page's "Why" (writeup.py) ----
+    cases = {}
+    try:
+        import writeup
+        cases = writeup.all_cases(list(props.values()), {"basketball_nba": stats.get("nba") or {}, "basketball_nbl": stats.get("nbl") or {},
+                                                        "americanfootball_nfl": stats.get("nfl") or {}}, ctx=stats.get("ctx"), games=events)
+        print(f"prop write-ups: {len(cases)}")
+    except Exception as e:
+        print("prop write-ups failed:", type(e).__name__, e)
+
     bundle = {
+        "cases": cases,
         "stats": stats,
         "sgm": {"updated": TS, "items": sgms},
         "racing": racing,

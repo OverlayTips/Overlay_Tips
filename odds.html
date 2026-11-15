@@ -919,6 +919,15 @@ function quickCase(e,mk,r,pt,pk,edge,fair){
   const out=[], sd=r.s.desc&&sideOf2(r,pt), lbl=(PROP_LABEL[mk]||MKT_LABEL[mk]||'').replace(' ladder','').toLowerCase();
   if(sd){
     const hc=hotCase(e,mk,r.s.desc,sd[0]); if(hc) return hc;
+    // full write-up from the odds run (form, last game, matchup v his position, pace/usage or NFL workload + game script)
+    const C=DATA.cases||{}, side=sd[0]?'Over':'Under', base=mk.replace(/_alternate$/,''), p=sd[1];
+    let full=p!=null?C[`${e.id}|${base}|${r.s.desc}|${side}|${+p}`]:null, note='';
+    if(!full&&p!=null){const k=Object.keys(C).find(k=>k.startsWith(`${e.id}|${base}|${r.s.desc}|${side}|`));
+      if(k){full=C[k];note=`On his main line (${k.split('|').pop()}): `;}}
+    if(full){
+      const src=r.fairSrc==='pin'?"Pinnacle's price":`the consensus of ${r.nfair} bookies`;
+      return note+full+` Price: $${pk.price.toFixed(2)} at ${bkName(pk.book)} is ${edge.toFixed(1)}% above the fair $${fair.toFixed(2)} (${src}, margin off). It needs a ${Math.round(100/pk.price)}% chance and the market rates it about ${Math.round(100/fair)}%.`;
+    }
     const h=propHits(e,mk,r.s.desc,sd[0],sd[1]);
     if(h&&h.l10[1]){
       const did=sd[1]==null?(sd[0]?'landed it':'missed it'):sd[0]?`gone over ${sd[1]} ${lbl}`:`stayed under ${sd[1]} ${lbl}`;
