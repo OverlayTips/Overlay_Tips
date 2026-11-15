@@ -386,6 +386,8 @@ def market_writeup(o):
         s += " Not many bookies price it, so treat the fair price with some caution."
     if o.get("inj") in ("Q", "GTD"):
         s += " He's listed questionable, so wait for confirmation he plays."
+    if o.get("desc"):
+        s += f" We don't have enough of {o['desc']}'s games logged yet to judge his form, so this one is on price alone."
     return s
 
 

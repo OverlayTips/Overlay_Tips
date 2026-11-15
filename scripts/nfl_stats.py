@@ -7,7 +7,7 @@ Same output shape as player_stats.py / nbl_stats.py so hot.py can use it unchang
    "players": {key: {"n": name, "id": BDL id, "team": abbr, "pos": "QB",
                      "g": [[date, opp, "@"|"vs", 1, pyd, ptd, cmp, patt, int, ryd, ratt, rec, ryds, tgt], ...]}}}
 newest first. Slot 3 is 1 for "played" (the NBA logs keep minutes there). Only players with passing, rushing
-or receiving numbers are kept. Each run pulls box scores for finished games it hasn't seen yet.
+or receiving numbers are kept, plus every game a QB/RB/WR/TE played, even with zero numbers. Each run pulls box scores for finished games it hasn't seen yet.
 Best effort: any failure keeps the previous data and never stops the odds run.
 """
 import json, os, re, time, unicodedata, urllib.error, urllib.parse, urllib.request
@@ -17,6 +17,8 @@ BASE = "https://api.balldontlie.io/nfl/v1"
 KEY = os.environ.get("NBA_STATS_KEY", "").strip()
 MAX_CALLS = 150
 BATCH = 8   # game ids per stats request
+SKILL = {"QB", "RB", "FB", "WR", "TE"}   # keep their 0-catch / 0-carry games: they count for Unders and hit rates
+VERSION = 2   # bump to rebuild the season's logs from scratch (v2: keep skill players' zero games)
 
 
 def norm(name):
@@ -86,7 +88,8 @@ def update(prev, prop_events, now, ts):
     if not KEY:
         return prev, "NBA_STATS_KEY secret not set: no NFL player stats"
     season = season_of(now)
-    data = prev if prev.get("season") == season else {"season": season, "done": [], "players": {}}
+    fresh = prev.get("season") != season or prev.get("v") != VERSION
+    data = {"season": season, "v": VERSION, "done": [], "players": {}} if fresh else prev
     data.setdefault("done", []); data.setdefault("players", {})
     api = _Api()
     note = ""
@@ -113,7 +116,7 @@ def update(prev, prop_events, now, ts):
                 if not pl.get("id") or not gm:
                     continue
                 r = _row(s, gm, tm.get("id"))
-                if not any(r[4:]):
+                if not any(r[4:]) and pl.get("position_abbreviation") not in SKILL:
                     continue   # no passing/rushing/receiving numbers (linemen, defence, kickers)
                 name = f"{pl.get('first_name', '')} {pl.get('last_name', '')}".strip()
                 k = norm(name)
