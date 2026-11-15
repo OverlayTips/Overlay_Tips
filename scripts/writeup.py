@@ -84,6 +84,9 @@ def writeup(it):
     _LG["nfl"] = it.get("lg") == "NFL"
     hit = lambda v: num and (v < pt if under else v > pt)
     out, score = [], 0
+    secs, sec = {}, "Form"   # labelled paragraphs: Form, Matchup, Role, Game, Price, Verdict
+    def add(t):
+        secs.setdefault(sec, []).append(t)
 
     # 1. form
     l10, l5 = it.get("l10") or [0, 0], it.get("l5") or [0, 0]
@@ -91,8 +94,8 @@ def writeup(it):
         did = f"stayed under {_num(pt)} {stat}" if under else f"hit {int(pt + 0.5)}+ {stat}" if num else f"hit this line"
         s = (f"{name} has {did} in every one of his last {l10[1]}" if l10[0] == l10[1]
              else f"{name} has {did} in {l10[0]} of his last {l10[1]}")
-        s += "" if l10[0] == l10[1] else f", including all of his last {l5[1]}" if l5[1] and l5[0] == l5[1] else (f" and {l5[0]} of the last {l5[1]}" if l5[1] else "")
-        out.append(s + f", averaging {_num(it.get('avg'))}.")
+        s += "" if l10[0] == l10[1] else f", including all of his last {l5[1]}" if l5[1] and l5[0] == l5[1] else (f" and {l5[0]} of the last {l5[1]}" if l5[1] and l5[1] < l10[1] else "")
+        add(s + f", averaging {_num(it.get('avg'))}.")
         score += (l10[0] / l10[1] >= 0.8) + bool(l5[1] and l5[0] == l5[1]) - (l10[0] / l10[1] < 0.5)
     weak = bool(l10[1]) and l10[0] / l10[1] < 0.5
 
@@ -110,31 +113,33 @@ def writeup(it):
         if heavy:
             s += f" That's a heavy load next to his usual {round(sum(mins) / len(mins))}, and big-minute games can take a toll on the next one."
             score -= sgn
-        out.append(s)
+        add(s)
         try:
             if nba and it.get("start"):
                 _, day = _local_day(it["start"])
                 if (day - datetime.fromisoformat(g[0]).date()).days == 1:
-                    out.append("Tonight is the second night of a back-to-back" + (", which suits the Under." if under else "."))
+                    add("Tonight is the second night of a back-to-back" + (", which suits the Under." if under else "."))
                     score -= sgn
         except ValueError:
             pass
 
+    sec = "Matchup"
     # 3. matchup: how tonight's opponent defends his position for this stat
     mu = it.get("mu")
     if mu and opp:
         r, of, pct, pos = mu["rank"], mu["of"], mu.get("pct", 0), POS.get(mu.get("pos"), "his position")
         if r <= of / 3:
-            out.append(f"{_cap(_the(opp))} give up the {_ord(r)}-most {stat} to {pos} in the league ({pct:+d}% on average), "
+            add(f"{_cap(_the(opp))} give up the {_ord(r)}-most {stat} to {pos} in the league ({pct:+d}% on average), "
                        + ("which works against the Under." if under else "so the matchup is on his side."))
             score += sgn
         elif r > of * 2 / 3:
-            out.append(f"{_cap(_the(opp))} allow the {_ord(of + 1 - r)}-fewest {stat} to {pos} ({pct:+d}% on average), "
+            add(f"{_cap(_the(opp))} allow the {_ord(of + 1 - r)}-fewest {stat} to {pos} ({pct:+d}% on average), "
                        + ("so the matchup is on the Under's side." if under else "which makes this a tougher spot."))
             score -= sgn
         else:
-            out.append(f"{_cap(_the(opp))} sit around the middle of the league defending {pos} on {stat}.")
+            add(f"{_cap(_the(opp))} sit around the middle of the league defending {pos} on {stat}.")
 
+    sec = "Role"
     # 3b. NFL: workload trend, what the defence gives up to his position, game script
     nf = it.get("nfl") or {}
     u = nf.get("use")
@@ -148,21 +153,23 @@ def writeup(it):
             s += f", right on his season average of {_num(u['season'])}"
         if u.get("catch") is not None:
             s += f", and he catches {u['catch']}% of his targets"
-        out.append(s + ".")
+        add(s + ".")
+    sec = "Matchup"
     df = nf.get("def")
     if df:
         pos = {"QB": "quarterbacks", "RB": "running backs", "WR": "receivers", "TE": "tight ends"}.get(df["pos"], "his position")
         r, of = df["rank"], df["of"]
         if r <= of / 3:
-            out.append(f"{_cap(_the(df['opp']))} give up the {_ord(r)}-most {stat} to {pos} ({_num(df['avg'])} a game, {df['pct']:+d}% on the league average), "
+            add(f"{_cap(_the(df['opp']))} give up the {_ord(r)}-most {stat} to {pos} ({_num(df['avg'])} a game, {df['pct']:+d}% on the league average), "
                        + ("which works against the Under." if under else "a good matchup for him."))
             score += sgn
         elif r > of * 2 / 3:
-            out.append(f"{_cap(_the(df['opp']))} allow the {_ord(of + 1 - r)}-fewest {stat} to {pos} ({_num(df['avg'])} a game, {df['pct']:+d}%), "
+            add(f"{_cap(_the(df['opp']))} allow the {_ord(of + 1 - r)}-fewest {stat} to {pos} ({_num(df['avg'])} a game, {df['pct']:+d}%), "
                        + ("which suits the Under." if under else "so it's a tougher matchup."))
             score -= sgn
         else:
-            out.append(f"{_cap(_the(df['opp']))} are around the league average against {pos} on {stat} ({_num(df['avg'])} a game).")
+            add(f"{_cap(_the(df['opp']))} are around the league average against {pos} on {stat} ({_num(df['avg'])} a game).")
+    sec = "Game"
     gm = nf.get("gm")
     if gm:
         sp, tt = gm["spread"], gm["tt"]
@@ -185,23 +192,25 @@ def writeup(it):
         elif tt <= 18:
             s += ", a low-scoring script" + (" that suits the Under." if under else " that limits his chances.")
             score -= sgn
-        out.append(s + ("" if s.endswith(".") else "."))
+        add(s + ("" if s.endswith(".") else "."))
 
+    sec = "Matchup"
     # 4. head-to-head
     h2h = [m for m in (it.get("h2h") or []) if len(m) > 3]
     if h2h and opp:
         vals = [_num(m[3]) for m in h2h]
         k = sum(1 for m in h2h if hit(m[3]))
         if len(h2h) == 1:
-            out.append(f"He had {vals[0]} the last time he played {_the(opp)}{' (a hit)' if k else ''}.")
+            add(f"He had {vals[0]} the last time he played {_the(opp)}{' (a hit)' if k else ''}.")
         else:
-            out.append(f"His last {len(h2h)} games against {_the(opp)}: {_list(vals)}, landing this bet {k} of {len(h2h)} times.")
+            add(f"His last {len(h2h)} games against {_the(opp)}: {_list(vals)}, landing this bet {k} of {len(h2h)} times.")
         score += 1 if k * 2 > len(h2h) else (-1 if k * 2 < len(h2h) else 0)
 
+    sec = "Role"
     # 5. role: a teammate out, projected minutes, blowout risk
     wo = it.get("wo")
     if wo:
-        out.append(f"With {wo['n']} out, he's averaging {_num(wo['avg'])} without him compared with {_num(wo['with'])} "
+        add(f"With {wo['n']} out, he's averaging {_num(wo['avg'])} without him compared with {_num(wo['with'])} "
                    f"when they play together ({wo['hit'][0]} of {wo['hit'][1]} games landing).")
         score += sgn if wo["avg"] > wo["with"] else -sgn if wo["avg"] < wo["with"] else 0
     proj = it.get("proj")
@@ -210,23 +219,25 @@ def writeup(it):
         d = proj["min"] - proj["l10"]
         if d >= 2:
             rs = ("with teammates out" if "teammates out" in why else "as a starter" if "starting" in why else "")
-            out.append(f"He projects for about {_num(proj['min'])} minutes tonight, up from {_num(proj['l10'])} lately"
+            add(f"He projects for about {_num(proj['min'])} minutes tonight, up from {_num(proj['l10'])} lately"
                        + (f" {rs}" if rs else "") + (", a worry for the Under." if under else "."))
             score += sgn
         elif d <= -2 and "blowout" not in why:
-            out.append(f"He projects for about {_num(proj['min'])} minutes, down on his recent {_num(proj['l10'])}.")
+            add(f"He projects for about {_num(proj['min'])} minutes, down on his recent {_num(proj['l10'])}.")
             score -= sgn
         if "blowout" in why:
-            out.append("The spread points to a possible blowout, which could cut into his minutes late"
+            add("The spread points to a possible blowout, which could cut into his minutes late"
                        + (" and help the Under." if under else "."))
             score -= sgn
+    sec = "Game"
     pace = it.get("pace")
     if isinstance(pace, (int, float)) and abs(pace) >= 2:
         fast = pace > 0
-        out.append(f"It shapes as a {'fast' if fast else 'slow'} game ({pace:+.0f}% pace), "
+        add(f"It shapes as a {'fast' if fast else 'slow'} game ({pace:+.0f}% pace), "
                    + ("so more chances to get there." if fast and not under else "which works against the Under." if fast
                       else "which suits the Under." if under else "which takes a few chances away."))
 
+    sec = "Price"
     # 6. price
     pr = it.get("price")
     prices = sorted((it.get("prices") or {}).values())
@@ -243,27 +254,30 @@ def writeup(it):
             need = round(100 / pr)
             s += f". It needs a {need}% chance and we rate it about {round(it['prob'] * 100)}%"
             score += it["prob"] * 100 > need + 2
-        out.append(s + ".")
+        add(s + ".")
 
+    sec = "Role"
     # 7. injury flag
     inj = it.get("inj")
     if inj in ("Q", "GTD"):
-        out.append(f"He's listed {'questionable' if inj == 'Q' else 'as a game-time decision'}, so wait for confirmation he plays.")
+        add(f"He's listed {'questionable' if inj == 'Q' else 'as a game-time decision'}, so wait for confirmation he plays.")
 
+    sec = "Verdict"
     # 8. the lean
     if weak:
-        out.append(f"His recent form doesn't back it up ({l10[0]} of {l10[1]}), so this one is mostly about the price. Keep the stake small.")
+        add(f"His recent form doesn't back it up ({l10[0]} of {l10[1]}), so this one is mostly about the price. Keep the stake small.")
     elif score >= 3 and not pr:
-        out.append(f"Form, role and matchup mostly point the same way, so the {last} {'Under' if under else 'Over'} looks the right side of this line.")
+        add(f"Form, role and matchup mostly point the same way, so the {last} {'Under' if under else 'Over'} looks the right side of this line.")
     elif score >= 3:
-        out.append(f"Form, role and price mostly point the same way, so the {last} {'Under' if under else 'Over'} is one we like at this number.")
+        add(f"Form, role and price mostly point the same way, so the {last} {'Under' if under else 'Over'} is one we like at this number.")
     elif score >= 1:
-        out.append(f"On balance it leans the {'Under' if under else 'Over'}, but it's not without risk.")
+        add(f"On balance it leans the {'Under' if under else 'Over'}, but it's not without risk.")
     elif not pr:
-        out.append("The signals are mixed, so it comes down to the price.")
+        add("The signals are mixed, so it comes down to the price.")
     else:
-        out.append("There's value in the price, but enough warning signs to keep the stake small.")
-    return " ".join(out)
+        add("There's value in the price, but enough warning signs to keep the stake small.")
+    order = [("Form", "📈"), ("Matchup", "🛡"), ("Role", "👤"), ("Game", "🎯"), ("Price", "💰"), ("Verdict", "✅")]
+    return "\n\n".join(f"{e} {k}: " + " ".join(secs[k]) for k, e in order if secs.get(k))
 
 
 # ---------------- overlays (picks.py) ----------------
