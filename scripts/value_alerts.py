@@ -324,6 +324,40 @@ def send_arbs(state, now):
     return sent
 
 
+RACE_AM_HOUR = int(os.environ.get("RACE_AM_HOUR", "9"))   # Sydney time
+
+
+def race_morning(now, state):
+    """Once a race day, from 9am Sydney: the Betfair models' standout picks (top-rated runner well clear of
+    the next best), so there's a racing push even without live Betfair prices."""
+    syd = now.astimezone(SYD)
+    if syd.hour < RACE_AM_HOUR or syd.hour >= 18:
+        return
+    key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
+    bundle = load(os.path.join(OUT, "picks.json"), None)
+    if not (key and bundle and bundle.get("ct")):
+        return
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import picks
+    tops = (picks.decrypt_with_key(bundle, key) or {}).get("race_tops") or {}
+    day = syd.date().isoformat()
+    if tops.get("date") != day or not tops.get("items") or (state.get("race_am") or {}).get("date") == day:
+        return
+    lines = []
+    for kind, emo in (("Horse", "🏇"), ("Greyhound", "🐕")):
+        xs = [x for x in tops["items"] if x["kind"] == kind]
+        if not xs:
+            continue
+        lines += ["", f"{emo} {'Horses' if kind == 'Horse' else 'Greyhounds'}"]
+        for x in xs:
+            lines.append(f"{x['venue']} R{x['num']}: {(str(x['no']) + '. ') if x.get('no') else ''}{x['name']} rated ${x['rated']:.2f} "
+                         f"(next best {x['next']} ${x['next_rated']:.2f})")
+    lines += ["", "Rated prices from Betfair's data scientists' models. Only back them if your bookie pays more than the rated price."]
+    _push(TOPIC, f"🏇 Model's top picks · {syd.strftime('%a %-d %b')}", lines[1:], click=SITE + "/odds.html", priority=3)
+    state["race_am"] = {"at": now.isoformat(), "date": day}
+    print(f"racing morning push: {len(tops['items'])} picks")
+
+
 def main():
     now = datetime.now(timezone.utc)
     if os.environ.get("TEST") == "1":
@@ -341,6 +375,10 @@ def main():
     except Exception as e:
         print(f"::warning::couldn't read mutes: {e}")
         mute = set()
+    try:
+        race_morning(now, state)
+    except Exception as e:
+        print(f"::warning::racing morning push failed: {e}")
     new = []
     for p in sorted(collect(now), key=lambda x: -x["edge"]):
         if mute and (p.get("log") or {}).get("sport_key") and \

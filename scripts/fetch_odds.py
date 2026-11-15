@@ -584,6 +584,7 @@ def main():
             print("overlay write-ups failed:", type(e).__name__, e)
         try:   # racing value: Betfair back price over the Hub's rated price (needs a fresh racing upload)
             summary["racing_value"] = betfair_models.racing_value(rratings, racing, NOW)
+            summary["race_tops"] = betfair_models.racing_tops(rratings, NOW)
             print(f"racing value: {len(summary['racing_value'])}")
         except Exception as e:
             print("racing value failed:", type(e).__name__, e)

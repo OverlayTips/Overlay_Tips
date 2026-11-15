@@ -206,3 +206,22 @@ def racing_value(ratings, racing, now, fresh_min=20, window_min=90):
                                 + " Check your bookie's price is at least the rated price before betting.")})
     out.sort(key=lambda o: -o["edge_pct"])
     return out[:10]
+
+
+def racing_tops(ratings, now, horses=8, dogs=4):
+    """Today's standout model picks: races where the top-rated runner is clearly ahead of the next best
+    (short rated price, big gap to the second). For the morning racing push."""
+    day = now.astimezone(SYD).date().isoformat()
+    picks = []
+    for r in ((ratings or {}).get("races") or {}).values():
+        rs = r.get("runners") or []
+        if r.get("date") != day or len(rs) < 3:
+            continue
+        a, b = rs[0], rs[1]
+        if a["rated"] > 3.5:
+            continue
+        picks.append({"kind": r["kind"], "venue": r["venue"], "num": r.get("num"), "no": a.get("no"), "name": a["name"],
+                      "rated": a["rated"], "next": b["name"], "next_rated": b["rated"], "gap": round(b["rated"] / a["rated"], 2)})
+    picks.sort(key=lambda x: -x["gap"])
+    out = [p for p in picks if p["kind"] == "Horse"][:horses] + [p for p in picks if p["kind"] == "Greyhound"][:dogs]
+    return {"date": day, "items": out}
