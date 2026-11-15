@@ -6,7 +6,7 @@ create table if not exists public.push_subs (
   user_id uuid not null default auth.uid() references public.profiles(id) on delete cascade,
   p256dh text not null,
   auth text not null,
-  prefs jsonb not null default '{"nba":true,"nfl":true,"nbl":true,"racing":true,"news":true,"games":true,"arbs":true}'::jsonb,
+  prefs jsonb not null default '{"botd":true,"nba":true,"nfl":true,"nbl":true,"racing":true,"news":true,"games":true,"arbs":true}'::jsonb,
   ua text,
   created_at timestamptz not null default now(),
   last_ok timestamptz

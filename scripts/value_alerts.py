@@ -337,6 +337,75 @@ def send_arbs(state, now):
 
 
 RACE_AM_HOUR = int(os.environ.get("RACE_AM_HOUR", "9"))   # Sydney time
+BOTD_HOUR = int(os.environ.get("BOTD_HOUR", "8"))         # Melbourne time: pick the bet of the day from 8am
+MEL = ZoneInfo("Australia/Melbourne")
+
+
+def bet_of_day(now, state):
+    """One free pick a day: the best value bet starting in the next 20 hours that its stats (props) or Betfair's
+    model (game bets) back, at a sensible price. Locked once picked, logged so it's graded like every alert,
+    published as botd.json for the home page and pushed to every member + Jayden."""
+    mel = now.astimezone(MEL)
+    day = mel.date().isoformat()
+    b = state.get("botd") or {}
+    hist = b.get("hist") or []
+    # results for past picks, from the public Tracker record the bet log writes
+    rec = load(os.path.join(OUT, "record.json"), {}) or {}
+    done = {(r.get("sel"), str(r.get("start"))[:16]): r.get("result") for r in rec.get("recent") or []}
+    for h in hist:
+        if not h.get("result"):
+            h["result"] = done.get((h.get("sel"), str(h.get("start"))[:16]))
+    if b.get("date") != day and mel.hour >= BOTD_HOUR:
+        cands = []
+        for p in collect(now):
+            if not p.get("log") or not p.get("start") or not (1.55 <= p["price"] <= 3.2) or p["edge"] < 3:
+                continue
+            try:
+                mins = (datetime.fromisoformat(p["start"].replace("Z", "+00:00")) - now).total_seconds() / 60
+            except ValueError:
+                continue
+            if 45 <= mins <= 20 * 60:
+                cands.append(p)
+        # props with a full write-up first (stats already back them), then the biggest edge
+        cands.sort(key=lambda p: (bool((p["log"] or {}).get("desc")) and bool(p.get("why")), p["edge"]), reverse=True)
+        if cands:
+            p = cands[0]
+            pick = {"date": day, "sel": p["sel"], "game": p.get("game", ""), "lg": p.get("lg", ""), "start": p["start"],
+                    "price": p["price"], "book": p["book"], "edge": p["edge"], "emoji": p["emoji"],
+                    "why": (p.get("why") or [""])[0], "add": p.get("add")}
+            hist = ([{k: pick[k] for k in ("date", "sel", "game", "lg", "start", "price", "book")}] + hist)[:30]
+            b = {"at": now.isoformat(), "date": day, "pick": pick, "hist": hist}
+            state["botd"] = b
+            title = f"⭐ Bet of the day · {p['sel']}"
+            lines = [f"{p['emoji']} {p['game']}{' (' + p['lg'] + ')' if p.get('lg') else ''} · {tip(p['start'])}",
+                     f"${p['price']:.2f} at {p['book']}"]
+            why = pick["why"]
+            try:
+                _push(TOPIC, title, lines + ([why] if why else []), click=SITE + "/#botd")
+            except Exception as e:
+                print(f"::warning::bet of the day ntfy failed: {e}")
+            app_push("botd", title, lines + [x for x in why.split("\n\n") if x.startswith(("📈", "✅", "🤖"))][:2],
+                     SITE + "/#botd", "founder")
+            try:   # graded by the bet log like every alert
+                old = load(os.path.join(OUT, "new_alerts.json"), [])
+                row = {**p["log"], "id": p["key"] + "|" + p["start"], "price": p["price"], "book": p["book"], "edge": p["edge"],
+                       "stake": stake(p["edge"], p["price"]), "sel": p["sel"], "game": p.get("game", ""), "lg": p.get("lg", ""),
+                       "start": p["start"]}
+                with open(os.path.join(OUT, "new_alerts.json"), "w") as f:
+                    json.dump(old + [row], f)
+            except Exception as e:
+                print(f"::warning::couldn't log the bet of the day: {e}")
+            print(f"bet of the day: {p['sel']} @ {p['price']}")
+    elif b:
+        b["hist"] = hist
+        b["at"] = now.isoformat()   # keep it in the state file
+    # public file for the home page: today's pick (once it's picked) + the record of past picks
+    w = sum(1 for h in hist if h.get("result") == "win")
+    l = sum(1 for h in hist if h.get("result") == "loss")
+    pub = {"updated": now.isoformat(), "today": (b.get("pick") if b.get("date") == day else None),
+           "record": [w, l], "hist": hist[:14]}
+    with open(os.path.join(OUT, "botd.json"), "w") as f:
+        json.dump(pub, f, separators=(",", ":"))
 
 
 def race_morning(now, state):
@@ -389,6 +458,10 @@ def main():
     except Exception as e:
         print(f"::warning::couldn't read mutes: {e}")
         mute = set()
+    try:
+        bet_of_day(now, state)
+    except Exception as e:
+        print(f"::warning::bet of the day failed: {e}")
     try:
         race_morning(now, state)
     except Exception as e:

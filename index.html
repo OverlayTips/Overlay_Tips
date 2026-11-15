@@ -168,6 +168,17 @@
   </div>
 </section>
 
+<section id="botd" style="padding-top:8px;padding-bottom:8px" hidden>
+  <div class="wrap">
+    <div class="tool-card botd-card reveal" style="display:block">
+      <div class="mono"><span class="dot" style="display:inline-block;margin-right:8px;vertical-align:middle"></span>Free · one pick a day</div>
+      <h3 style="margin:6px 0 4px">⭐ Bet of the <span class="g">day</span></h3>
+      <div id="botdBody"></div>
+      <p class="note" style="margin:10px 0 0;font-size:12.5px">Picked by the odds tracker and backed by the player's stats or Betfair's model. Graded on the <a href="record.html">Tracker record</a> like every alert. Price signals, not sure things. 18+, gamble responsibly.</p>
+    </div>
+  </div>
+</section>
+
 <section id="tracker">
   <div class="wrap">
     <div class="mono reveal">By sport</div>
@@ -639,6 +650,25 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb()});
       const n=d.games.length, c=d.games.reduce((a,g)=>a+(g.away.status==='confirmed')+(g.home.status==='confirmed'),0);
       const out=d.games.reduce((a,g)=>a+g.away.injuries.filter(i=>i.s==='Out').length+g.home.injuries.filter(i=>i.s==='Out').length,0);
       $('wireLu').innerHTML=`<span class="k m">Lineups</span><b>${c} of ${n*2}</b> confirmed · ${n} games · ${out} players out`; show();}).catch(()=>{});
+})();
+</script>
+<script>
+/* Bet of the day (odds-data/botd.json, written by scripts/value_alerts.py) */
+(function(){
+  var esc=function(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  fetch('https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/botd.json?t='+Math.floor(Date.now()/300000)).then(function(r){return r.ok?r.json():null;}).then(function(d){
+    if(!d) return; var p=d.today, rec=d.record||[0,0], el=document.getElementById('botdBody'); if(!el) return;
+    var when=function(iso){return new Date(iso).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'});};
+    var past=(d.hist||[]).filter(function(h){return h.result==='win'||h.result==='loss';}).slice(0,7);
+    var recTxt=(rec[0]+rec[1])?'<p style="margin:10px 0 0;font-size:14px;color:#87978f">Record: <b style="color:#ecf5f1">'+rec[0]+'–'+rec[1]+'</b> '+past.map(function(h){return h.result==='win'?'<span style="color:#62f0a8">✓</span>':'<span style="color:#ff6b6b">✗</span>';}).join(' ')+'</p>':'';
+    if(p){
+      var why=String(p.why||'').split('\n\n').filter(function(x){return /^(📈|✅|🤖)/.test(x);}).join('\n\n');
+      el.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-top:6px"><div><b style="font-size:19px;color:#ecf5f1">'+esc(p.sel)+'</b><div style="color:#87978f;font-size:14px;margin-top:3px">'+esc(p.emoji||'')+' '+esc(p.game)+(p.lg?' ('+esc(p.lg)+')':'')+' · '+esc(when(p.start))+'</div></div><div style="text-align:right;white-space:nowrap"><b style="font-size:26px;color:#efbe3b;font-style:italic">$'+Number(p.price).toFixed(2)+'</b><div style="color:#87978f;font-size:13px">'+esc(p.book)+'</div></div></div>'+(why?'<p style="white-space:pre-line;color:#c9d6d0;font-size:14px;line-height:1.55;margin:10px 0 0">'+esc(why)+'</p>':'')+recTxt;
+    } else {
+      el.innerHTML='<p style="margin:6px 0 0;color:#c9d6d0">Today\'s pick drops from 8am. Turn on alerts in the <a href="portal.html">members portal</a> to get it the moment it lands.</p>'+recTxt;
+    }
+    document.getElementById('botd').hidden=false;
+  }).catch(function(){});
 })();
 </script>
 </body>
