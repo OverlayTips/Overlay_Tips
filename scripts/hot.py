@@ -385,7 +385,32 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 vtop[key] = item
         cands += top.values()
         vcands += vtop.values()
-        ccands += _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now)
+        def enrich(item, p, gs, mk, f, opp, desc, ev=ev, h=h, a=a):   # same context as the Hot stats cards, for the write-up
+            try:
+                if nfl:
+                    spr, tot = glines.get(ev["id"], ({}, None))
+                    me = ev["home_team"] if p.get("team") == h else ev["away_team"] if p.get("team") == a else None
+                    c = nfl_ctx(players, p, gs, mk, f, opp, (spr[me], tot) if me in spr and tot else None, dcache)
+                    if c:
+                        item["nfl"] = c
+                elif mx:
+                    pk = by.get(desc, "")
+                    mu = mx.matchup(ctx, opp, posmap.get(pk), mk)
+                    pc = mx.pace(ctx, p.get("team"), opp)
+                    usg = (ctx.get("usg") or {}).get(str(p.get("id")))
+                    if mu:
+                        item["mu"] = {k: mu[k] for k in ("pos", "rank", "of", "pct")}
+                    if pc is not None:
+                        item["pace"] = pc
+                    if usg:
+                        item["usg"] = usg
+                    if pk in proj_cache and proj_cache[pk]:
+                        item["proj"] = proj_cache[pk]
+                    if mu or usg or pc is not None:
+                        item["ctx"] = mx.describe(proj_cache.get(pk), mu, usg, pc)
+            except Exception:
+                pass
+        ccands += _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich)
     cands.sort(key=lambda x: (x["l10"][0] / x["l10"][1], x["l5"][0] / x["l5"][1], x["price"]), reverse=True)
     out, per = [], {}
     for c in cands:
@@ -419,7 +444,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
 COLD_MAX_PRICE = 3.0
 
 
-def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now):
+def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich=None):
     """Cold streaks: main-line unders the player has stayed under in 80%+ of his last 10.
     Needs a two-sided market (Pinnacle, or 3+ Aussie bookies pricing Over and Under) for a fair price."""
     h, a = teams.get(ev["home_team"]), teams.get(ev["away_team"])
@@ -469,6 +494,8 @@ def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now):
         meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
         if meet:
             item["h2h"] = [[g[0], g[1], g[2], f(g)] for g in meet[:3]]
+        if enrich:
+            enrich(item, p, gs, mk, f, opp, desc)
         key = (desc, mk)
         if key not in top or price > top[key]["price"]:
             top[key] = item

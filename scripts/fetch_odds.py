@@ -459,7 +459,7 @@ def main():
             legs = [l for l in legs if l.get("lg") == "NBL" or not avail.check(l.get("player"), l.get("team"))["drop"]]
         try:   # tipster-style write-up per prop, built only from the numbers above (writeup.py)
             import writeup
-            for lst in ("items", "value"):
+            for lst in ("items", "value", "cold"):
                 for it in hj.get(lst) or []:
                     it["why"] = writeup.writeup(it)
         except Exception as e:
