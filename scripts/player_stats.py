@@ -20,7 +20,9 @@ from datetime import datetime, timedelta
 
 API = "https://api.balldontlie.io/v1"
 KEY = os.environ.get("NBA_STATS_KEY", "").strip()
-REFRESH = timedelta(hours=6)     # re-pull a player's log at most this often
+REFRESH = timedelta(hours=3)     # re-pull a player's log at most this often
+AFTER = timedelta(hours=36)      # keep re-pulling for this long after his props drop off, so finished games
+                                 # land in his log and the bet log can grade them (props vanish at tip-off)
 KEEP = timedelta(days=4)         # drop players who haven't had props for this long
 BATCH = 25                       # players per /stats request
 MAX_CALLS = 200                  # GOAT allows 600/min; stay well under
@@ -184,6 +186,15 @@ def update(prev, prop_events, now, ts, extra=()):
         elif old:
             old["s"] = ts
 
+    # players whose props dropped off (game started or finished): keep their logs fresh for a while so
+    # tonight's result shows up and pending bets get graded
+    for key, old in list(out["players"].items()):
+        if key in seen or not old.get("id"):
+            continue
+        last_seen = datetime.fromisoformat(old.get("s", old["f"]).replace("Z", "+00:00"))
+        if now - last_seen < AFTER and now - datetime.fromisoformat(old["f"].replace("Z", "+00:00")) >= REFRESH:
+            todo[old["id"]] = (key, {"id": old["id"], "team": old.get("team"), "n": old.get("n")})
+
     # game logs, BATCH players per request
     season, items = _season(now), list(todo.items())
     for i in range(0, len(items), BATCH):
@@ -196,7 +207,7 @@ def update(prev, prop_events, now, ts, extra=()):
             fails += 1
             print("  stats batch failed:", type(e).__name__, e)
             for _, (key, _) in chunk:
-                if key in out["players"]:
+                if key in out["players"] and key in seen:
                     out["players"][key]["s"] = ts
             continue
         per = {}
@@ -204,7 +215,8 @@ def update(prev, prop_events, now, ts, extra=()):
             per.setdefault((s.get("player") or {}).get("id"), []).append(s)
         for pid, (key, a) in chunk:
             keep = {x: out["players"][key][x] for x in ("p", "pf", "po") if x in out["players"].get(key, {})}
-            out["players"][key] = {"n": a["n"], "id": pid, "team": a["team"], "f": ts, "s": ts,
+            seen_at = ts if key in seen else out["players"].get(key, {}).get("s", ts)   # only props count as "seen"
+            out["players"][key] = {"n": a["n"], "id": pid, "team": a["team"], "f": ts, "s": seen_at,
                                    "g": rows_from_stats(per.get(pid, []), abbr_by_id), **keep}
         time.sleep(0.2)
 

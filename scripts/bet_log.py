@@ -32,7 +32,7 @@ KEY = os.environ.get("ODDS_ALERTS_KEY", "").strip()
 MEL = ZoneInfo("Australia/Melbourne")
 KEEP = timedelta(days=180)
 MUTE_MIN, MUTE_CLV = 100, -1.0     # 100+ alerts with average CLV under -1% -> stop alerting that bucket
-GRADE_AFTER = timedelta(hours=4)   # look for a result this long after the start
+GRADE_AFTER = timedelta(hours=2, minutes=30)   # look for a result this long after the start (only Final games count)
 GIVE_UP = timedelta(days=4)        # no result by then: leave it CLV-only
 
 
