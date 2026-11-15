@@ -84,6 +84,10 @@
 .nf-list ul{columns:2;column-gap:14px;list-style:none;padding:6px 0 0;margin:0}
 .nf-list li{font-size:12.5px;color:#c9d6d0;padding:1px 0;break-inside:avoid}.nf-list li i{font-style:normal;color:#87978f;font-family:"Space Mono",monospace;font-size:11px;display:inline-block;min-width:24px}
 .nf-sub{font-size:12px;color:#87978f;margin:10px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.nb-court{position:relative;width:100%;aspect-ratio:100/86;border-radius:12px;overflow:hidden;border:1px solid #3a2f1a;background:linear-gradient(180deg,#5b3d1f,#4a3118);margin:0 0 8px}
+.nb-court svg{position:absolute;inset:0;width:100%;height:100%}
+.nb-court .nf-p{width:30%}
+.nb-court .nf-p b{width:24px;height:24px;font-size:9px}
 @media(max-width:420px){.lu-grid{grid-template-columns:1fr}.lu-teams{grid-template-columns:1fr}}
 </style>
 <script src="nav.js?v=9"></script>
@@ -154,7 +158,7 @@
     <div class="lu-meta" id="meta">Loading…</div>
     <div class="lu-chips" id="chips"></div>
     <div class="lu-grid" id="grid"></div>
-    <p class="lu-note">Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning. Data: BALLDONTLIE. Starters are listed PG, SG, SF, PF, C. Projected lineups can change before tip-off, so check for the Confirmed tag before you lock in a bet. Players marked Available are back off the injury list.</p>
+    <p class="lu-note">Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning. Data: BALLDONTLIE. Starters are shown on the court by position (PG, SG, SF, PF, C), with a Q, D or GTD badge if they're on the injury report. Projected lineups can change before tip-off, so check for the Confirmed tag before you lock in a bet. Players marked Available are back off the injury list.</p>
     </div>
     <div id="nflBox" hidden>
     <h2 class="lu-h2">🏈 NFL lineups</h2>
@@ -190,9 +194,20 @@ const tm=iso=>{try{return new Date(iso).toLocaleTimeString('en-AU',{hour:'numeri
 const pc=s=>({'Out':'out','Doubtful':'dbt','Questionable':'q','Day-To-Day':'q','Available':'ok','Probable':'ok'}[s]||'');
 function team(t){
   const tag=t.status==='confirmed'?'<span class="lu-tag c">Confirmed</span>':(t.status?'<span class="lu-tag p">Projected</span>':'');
-  const st=t.starters.length?'<ul class="lu-st">'+t.starters.map(p=>`<li><i>${esc(p.pos)}</i>${esc(p.n)}</li>`).join('')+'</ul>':'<div class="lu-none">Lineup not out yet</div>';
+  const st=t.starters.length?court(t.starters,t.injuries):'<div class="lu-none">Lineup not out yet</div>';
   const inj=t.injuries.length?'<div class="lu-inj">'+t.injuries.map(i=>`<div><span class="lu-p ${pc(i.s)}">${esc(i.s)}</span>${esc(i.n)}${i.r?` <span class="lu-none">· back ${esc(i.r)}</span>`:''}</div>`).join('')+'</div>':'<div class="lu-none">No injuries listed</div>';
   return `<div class="lu-team"><h3>${esc(t.abbr)} ${tag}</h3>${st}${inj}</div>`;
+}
+// half-court position map: starters come PG, SG, SF, PF, C
+const NB_XY={PG:[50,17],SG:[83,36],SF:[17,36],PF:[70,64],C:[33,70]}, NB_ORD=['PG','SG','SF','PF','C'];
+const COURT='<svg viewBox="0 0 100 86" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="rgba(255,236,200,.55)" stroke-width=".7"><rect x="34" y="47" width="32" height="39"/><circle cx="50" cy="47" r="11"/><path d="M6 86V66A44 40 0 0 1 94 66V86"/><circle cx="50" cy="79" r="2.2" stroke="#efbe3b"/><line x1="44" y1="82" x2="56" y2="82"/></g></svg>';
+function court(ps,inj){
+  const used=new Set(), tag={Questionable:'Q',Doubtful:'D','Day-To-Day':'GTD'}, flag={};
+  (inj||[]).forEach(i=>{if(tag[i.s]) flag[i.n]=tag[i.s];});
+  return '<div class="nb-court">'+COURT+ps.slice(0,5).map((p,i)=>{
+    let k=String(p.pos||'').toUpperCase(); if(!NB_XY[k]||used.has(k)) k=NB_ORD[i]; used.add(k);
+    const [x,y]=NB_XY[k];
+    return `<div class="nf-p" style="left:${x}%;top:${y}%"><b>${esc(k)}</b>${flag[p.n]?`<i class="${flag[p.n]==='D'?'D':''}">${flag[p.n]}</i>`:''}<span>${esc(lastN(p.n))}</span></div>`;}).join('')+'</div>';
 }
 function render(){
   const gs=(D.games||[]).filter(g=>view==='all'||(view==='conf'?(g.away.status==='confirmed'||g.home.status==='confirmed'):(g.away.status!=='confirmed'||g.home.status!=='confirmed')));
