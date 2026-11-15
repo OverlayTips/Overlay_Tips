@@ -63,6 +63,31 @@
 .lu-none{color:#5f6f68;font-size:12.5px}
 .lu-empty{border:1px dashed #1b2523;border-radius:16px;padding:28px;color:#87978f;text-align:center}
 .lu-note{color:#87978f;font-size:13px;margin-top:22px;line-height:1.5}
+.lu-sport{display:flex;gap:8px;margin:0 0 14px}
+.lu-sport button{flex:0 0 auto;background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:12px;padding:9px 16px;font:800 15px Archivo,system-ui,sans-serif;cursor:pointer}
+.lu-sport button.on{background:var(--gold);border-color:var(--gold);color:#1a1305}
+.nf-sw{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}
+.nf-sw button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:6px 12px;font:700 13px Archivo,system-ui,sans-serif;cursor:pointer}
+.nf-sw button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
+.nf-field{position:relative;width:100%;aspect-ratio:100/82;border-radius:12px;overflow:hidden;border:1px solid #1f3a2b;
+  background:repeating-linear-gradient(180deg,#14532d 0 10%,#166534 10% 20%)}
+.nf-los{position:absolute;left:0;right:0;height:2px;background:rgba(239,211,143,.7)}
+.nf-p{position:absolute;transform:translate(-50%,-12.5px);display:flex;flex-direction:column;align-items:center;width:17%;pointer-events:none}
+.nf-p b{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#ecf5f1;color:#04130b;font:800 9.5px Archivo,system-ui,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+.nf-p.d b{background:#efbe3b;color:#1a1305}
+.nf-p span{margin-top:2px;font:700 10px Archivo,system-ui,sans-serif;color:#fff;text-shadow:0 1px 3px #000,0 0 2px #000;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nf-p.lo span{margin-top:15px}
+.nf-p i{position:absolute;top:-6px;right:calc(50% - 19px);font-style:normal;font:800 8.5px Archivo,sans-serif;padding:0 3px;border-radius:4px;background:#f5e39a;color:#1a1305}
+.nf-p i.D{background:#ffd0a3}
+.nf-st{display:flex;gap:14px;font-size:12.5px;color:#87978f;margin:8px 0 4px}.nf-st b{color:#c9d6d0;font-weight:700}
+.nf-list{margin:6px 0 2px}.nf-list summary{cursor:pointer;color:#87978f;font-size:12.5px}
+.nf-list ul{columns:2;column-gap:14px;list-style:none;padding:6px 0 0;margin:0}
+.nf-list li{font-size:12.5px;color:#c9d6d0;padding:1px 0;break-inside:avoid}.nf-list li i{font-style:normal;color:#87978f;font-family:"Space Mono",monospace;font-size:11px;display:inline-block;min-width:24px}
+.nf-sub{font-size:12px;color:#87978f;margin:10px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.nb-court{position:relative;width:100%;aspect-ratio:100/86;border-radius:12px;overflow:hidden;border:1px solid #3a2f1a;background:linear-gradient(180deg,#5b3d1f,#4a3118);margin:0 0 8px}
+.nb-court svg{position:absolute;inset:0;width:100%;height:100%}
+.nb-court .nf-p{width:30%}
+.nb-court .nf-p b{width:24px;height:24px;font-size:9px}
 @media(max-width:420px){.lu-grid{grid-template-columns:1fr}.lu-teams{grid-template-columns:1fr}}
 </style>
 <script src="nav.js?v=9"></script>
@@ -119,19 +144,28 @@
 <header class="page-head">
   <div class="wrap">
     <nav class="wire-tabs" aria-label="Overlay Wire"><a href="lineups.html" class="on" aria-current="page">Lineups</a><a href="previews/">Previews</a></nav>
-    <div class="mono">Free · NBA team news</div>
+    <div class="mono">Free · NBA + NFL team news</div>
     <h1>Overlay Wire</h1>
-    <p>Today's NBA preview, starting lineups and injury news in one spot.</p>
+    <p>Today's NBA preview, NBA and NFL starting lineups and injury news in one spot.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
     <a class="lu-pv" id="pv" href="previews/" hidden></a>
+    <div class="lu-sport" id="sport"><button data-s="nba" class="on">🏀 NBA</button><button data-s="nfl">🏈 NFL</button></div>
+    <div id="nbaBox">
     <h2 class="lu-h2">🏀 Today's lineups</h2>
     <div class="lu-meta" id="meta">Loading…</div>
     <div class="lu-chips" id="chips"></div>
     <div class="lu-grid" id="grid"></div>
-    <p class="lu-note">Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning. Data: BALLDONTLIE. Starters are listed PG, SG, SF, PF, C. Projected lineups can change before tip-off, so check for the Confirmed tag before you lock in a bet. Players marked Available are back off the injury list.</p>
+    <p class="lu-note">Lineups flip to <b>Confirmed</b> once the team locks them in, usually 30 to 60 minutes before tip-off. Updated every 10 minutes through the Aussie morning. Data: BALLDONTLIE. Starters are shown on the court by position (PG, SG, SF, PF, C), with a Q, D or GTD badge if they're on the injury report. Projected lineups can change before tip-off, so check for the Confirmed tag before you lock in a bet. Players marked Available are back off the injury list.</p>
+    </div>
+    <div id="nflBox" hidden>
+    <h2 class="lu-h2">🏈 NFL lineups</h2>
+    <div class="lu-meta" id="nmeta">Loading…</div>
+    <div class="lu-grid" id="ngrid"></div>
+    <p class="lu-note">Starters come from each team's depth chart, with anyone ruled out or inactive swapped for the next man up. A team flips to <b>Confirmed</b> once its game-day inactives are out, about 90 minutes before kick-off. Before then it's <b>Projected</b>. Tap a team and Offence or Defence to switch the position map. <b>Q</b> = questionable, <b>D</b> = doubtful. Updated every 10 minutes from 3am to 2pm Sydney time. Data: BALLDONTLIE.</p>
+    </div>
   </div>
 </section>
 </main>
@@ -160,9 +194,20 @@ const tm=iso=>{try{return new Date(iso).toLocaleTimeString('en-AU',{hour:'numeri
 const pc=s=>({'Out':'out','Doubtful':'dbt','Questionable':'q','Day-To-Day':'q','Available':'ok','Probable':'ok'}[s]||'');
 function team(t){
   const tag=t.status==='confirmed'?'<span class="lu-tag c">Confirmed</span>':(t.status?'<span class="lu-tag p">Projected</span>':'');
-  const st=t.starters.length?'<ul class="lu-st">'+t.starters.map(p=>`<li><i>${esc(p.pos)}</i>${esc(p.n)}</li>`).join('')+'</ul>':'<div class="lu-none">Lineup not out yet</div>';
+  const st=t.starters.length?court(t.starters,t.injuries):'<div class="lu-none">Lineup not out yet</div>';
   const inj=t.injuries.length?'<div class="lu-inj">'+t.injuries.map(i=>`<div><span class="lu-p ${pc(i.s)}">${esc(i.s)}</span>${esc(i.n)}${i.r?` <span class="lu-none">· back ${esc(i.r)}</span>`:''}</div>`).join('')+'</div>':'<div class="lu-none">No injuries listed</div>';
   return `<div class="lu-team"><h3>${esc(t.abbr)} ${tag}</h3>${st}${inj}</div>`;
+}
+// half-court position map: starters come PG, SG, SF, PF, C
+const NB_XY={PG:[50,17],SG:[83,36],SF:[17,36],PF:[70,64],C:[33,70]}, NB_ORD=['PG','SG','SF','PF','C'];
+const COURT='<svg viewBox="0 0 100 86" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="rgba(255,236,200,.55)" stroke-width=".7"><rect x="34" y="47" width="32" height="39"/><circle cx="50" cy="47" r="11"/><path d="M6 86V66A44 40 0 0 1 94 66V86"/><circle cx="50" cy="79" r="2.2" stroke="#efbe3b"/><line x1="44" y1="82" x2="56" y2="82"/></g></svg>';
+function court(ps,inj){
+  const used=new Set(), tag={Questionable:'Q',Doubtful:'D','Day-To-Day':'GTD'}, flag={};
+  (inj||[]).forEach(i=>{if(tag[i.s]) flag[i.n]=tag[i.s];});
+  return '<div class="nb-court">'+COURT+ps.slice(0,5).map((p,i)=>{
+    let k=String(p.pos||'').toUpperCase(); if(!NB_XY[k]||used.has(k)) k=NB_ORD[i]; used.add(k);
+    const [x,y]=NB_XY[k];
+    return `<div class="nf-p" style="left:${x}%;top:${y}%"><b>${esc(k)}</b>${flag[p.n]?`<i class="${flag[p.n]==='D'?'D':''}">${flag[p.n]}</i>`:''}<span>${esc(lastN(p.n))}</span></div>`;}).join('')+'</div>';
 }
 function render(){
   const gs=(D.games||[]).filter(g=>view==='all'||(view==='conf'?(g.away.status==='confirmed'||g.home.status==='confirmed'):(g.away.status!=='confirmed'||g.home.status!=='confirmed')));
@@ -191,6 +236,61 @@ dataUrl().then(u=>fetch(u,{cache:'no-store'})).then(r=>{if(!r.ok)throw 0;return 
 load(); setInterval(load,120000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden) load();});
 window.addEventListener('pageshow',e=>{if(e.persisted) load();});
+// ---- NFL: depth-chart starters + position map (nfl_lineups.json on the nfl-lineups-data branch) ----
+const NSPOT={off:{WR:[[8,24],[92,24],[19,40]],LT:[[32,24]],LG:[[41,24]],C:[[50,24]],RG:[[59,24]],RT:[[68,24]],TE:[[78,26]],QB:[[50,54]],RB:[[50,78]]},
+  def:{DE:[[27,76],[73,76]],DT:[[42,76],[58,76]],LB:[[32,50],[68,50],[50,50]],NB:[[18,60]],CB:[[8,70],[92,70]],S:[[33,20],[67,20]]}};
+const NLOS={off:19,def:81};
+let N=null; const nst={};
+const lastN=n=>{const w=String(n).split(' ').filter(x=>!/^(jr\.?|sr\.?|ii|iii|iv)$/i.test(x));return w.length>1?w.slice(1).join(' '):n;};
+function nfield(ps,side){
+  const seen={};
+  return `<div class="nf-field"><div class="nf-los" style="top:${NLOS[side]}%"></div>`+ps.map(p=>{
+    const k=seen[p.slot]=(seen[p.slot]||0); seen[p.slot]++;
+    const xy=p.x!=null?[p.x,p.y]:(NSPOT[side][p.slot]||[])[k]; if(!xy) return '';
+    const lo=side==='off'&&/^(LG|RG|TE)$/.test(p.pos||p.slot)||side==='def'&&/^(LDT|RDT|DT|NT)$/.test(p.pos||'');
+    return `<div class="nf-p${side==='def'?' d':''}${lo?' lo':''}" style="left:${xy[0]}%;top:${xy[1]}%"><b>${esc(p.slot)}</b>${p.inj?`<i class="${p.inj}">${p.inj}</i>`:''}<span>${esc(lastN(p.n))}</span></div>`;}).join('')+'</div>';
+}
+function nteam(t,side){
+  const ps=t[side]||[];
+  if(!ps.length) return '<div class="lu-none">Depth chart not out yet</div>';
+  const st=(t.st||[]).map(p=>`<span>${esc(p.slot)} <b>${esc(p.n)}</b></span>`).join('');
+  const list=`<details class="nf-list"><summary>Full list</summary><ul>${ps.map(p=>`<li><i>${esc(p.slot)}</i>${esc(p.n)}${p.inj?` <span class="lu-p ${p.inj==='D'?'dbt':'q'}">${p.inj}</span>`:''}</li>`).join('')}</ul></details>`;
+  const ina=t.inactive.length?`<div class="nf-sub">Inactive</div><div class="lu-inj"><div>${t.inactive.map(esc).join(', ')}</div></div>`:'';
+  const inj=t.injuries.length?`<div class="nf-sub">Injury report</div><div class="lu-inj">${t.injuries.map(i=>`<div><span class="lu-p ${pc(i.s)}">${esc(i.s)}</span>${esc(i.n)} <span class="lu-none">${esc(i.pos)}${i.r?' · '+esc(i.r):''}</span></div>`).join('')}</div>`:'';
+  return nfield(ps,side)+(side==='off'&&st?`<div class="nf-st">${st}</div>`:'')+list+ina+inj;
+}
+function ncard(g){
+  const s=nst[g.id]||(nst[g.id]={t:'away',side:'off'}), t=g[s.t];
+  const tag=t.status==='confirmed'?'<span class="lu-tag c">Confirmed</span>':'<span class="lu-tag p">Projected</span>';
+  const live=g.status==='in_progress'||g.status==='halftime';
+  return `<article class="lu-game" data-g="${g.id}"><div class="lu-gh"><b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><span>${live?'Live':new Date(g.tip).toLocaleDateString('en-AU',{weekday:'short'})+' '+tm(g.tip)}</span></div>
+  <div class="nf-sw">${['away','home'].map(k=>`<button data-t="${k}" class="${s.t===k?'on':''}">${esc(g[k].abbr)}</button>`).join('')}<span style="width:6px"></span>${[['off','Offence'],['def','Defence']].map(([k,l])=>`<button data-side="${k}" class="${s.side===k?'on':''}">${l}</button>`).join('')}</div>
+  <h3 style="font-size:15px;margin:0 0 8px;color:#ecf5f1;display:flex;gap:6px;align-items:center">${esc(t.name||t.abbr)} ${tag}</h3>${nteam(t,s.side)}</article>`;
+}
+function nrender(){
+  const gs=(N&&N.games)||[];
+  $('ngrid').innerHTML=gs.length?gs.map(ncard).join(''):'<div class="lu-empty">No NFL games left this week.</div>';
+}
+$('ngrid').addEventListener('click',e=>{const b=e.target.closest('button'),c=e.target.closest('.lu-game');if(!b||!c)return;
+  const s=nst[c.dataset.g]; if(b.dataset.t) s.t=b.dataset.t; if(b.dataset.side) s.side=b.dataset.side;
+  const g=N.games.find(x=>String(x.id)===c.dataset.g); c.outerHTML=ncard(g);});
+async function nload(){
+  let u='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/nfl-lineups-data/nfl_lineups.json?t='+Date.now();
+  try{const r=await fetch('https://api.github.com/repos/OverlayTips/Overlay_Tips/commits/nfl-lineups-data',{headers:{Accept:'application/vnd.github.sha'},cache:'no-store'});
+    if(r.ok){const sha=(await r.text()).trim(); if(/^[0-9a-f]{40}$/.test(sha)) u=`https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/${sha}/nfl_lineups.json`;}}catch(e){}
+  try{const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw 0; N=await r.json();
+    const n=N.games.length, c=N.games.reduce((a,g)=>a+(g.away.status==='confirmed')+(g.home.status==='confirmed'),0);
+    $('nmeta').textContent=n?`Week ${N.week} · ${n} games · ${c} of ${n*2} lineups confirmed · updated ${tm(N.updated)}`:`No NFL games left this week · updated ${tm(N.updated)}`;
+    nrender();
+  }catch(e){ if(!N){$('nmeta').textContent='';$('ngrid').innerHTML='<div class="lu-empty">NFL lineups aren\'t up yet. Check back soon.</div>';} }
+}
+let sport=location.hash==='#nfl'?'nfl':'nba';
+function setSport(s){sport=s;[...$('sport').children].forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+  $('nbaBox').hidden=s!=='nba'; $('nflBox').hidden=s!=='nfl'; history.replaceState(null,'',s==='nfl'?'#nfl':location.pathname);
+  if(s==='nfl'&&!N) nload();}
+$('sport').onclick=e=>{const b=e.target.closest('button'); if(b) setSport(b.dataset.s);};
+setSport(sport);
+setInterval(()=>{if(sport==='nfl') nload();},300000);
 </script>
 </body>
 </html>
