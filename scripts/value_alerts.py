@@ -230,6 +230,9 @@ def collect(now):
         for o in summ.get("overlays") or []:
             if o["edge_pct"] < MIN_VALUE or started(o.get("start", ""), now):
                 continue
+            if o.get("model") and not o["model"].get("agree"):
+                print(f"skipped (Betfair's model disagrees): {o['pick']}")
+                continue
             if not backed(o.get("form")):
                 print(f"skipped (stats don't back it, {o['form'][0]}/{o['form'][1]}): {o['pick']}")
                 continue

@@ -941,7 +941,27 @@ function quickCase(e,mk,r,pt,pk,edge,fair){
   out.push(`$${pk.price.toFixed(2)} at ${bkName(pk.book)} is ${edge.toFixed(1)}% above the fair $${fair.toFixed(2)} (${src} with the margin taken off), so it needs a ${Math.round(100/pk.price)}% chance and the market rates it about ${Math.round(100/fair)}%.`);
   if(r.nfair<5&&r.fairSrc!=='pin') out.push('Only a few bookies price it, so treat the fair price with some caution.');
   if(pk.price>=3) out.push("It's still an outsider at heart, so keep the stake small.");
-  return out.join(' ');
+  const m=!r.s.desc&&bfModel(e,mk,r.s.name,pt,pk.price);
+  return out.join(' ')+(m?`\n\n🤖 Model: ${m.why}`:'');
+}
+/* Betfair Hub prediction model (Betfair's data scientists): rated price + predicted score for NBA / NFL / AFL
+   games, used as a second opinion on head-to-head, line and total. Mirrors scripts/betfair_models.py check(). */
+function bfModel(e,mk,side,pt,price){
+  const G=(DATA.bfmodel||{}).games||{}, g=G[`${e.away_team}@${e.home_team}`]||G[`${e.home_team}@${e.away_team}`];
+  if(!g||!['h2h','spreads','totals'].includes(mk)) return null;
+  const T=g.teams||{}, names=Object.keys(T), sc=n=>T[n]&&T[n].score, last=n=>n.split(' ').pop();
+  const score=names.filter(n=>sc(n)!=null).map(n=>`${last(n)} ${sc(n)}`).join(' – ');
+  if(mk==='h2h'){const t=T[side]; if(!t||!t.price) return null; const ok=t.price<=price;
+    return {ok,tag:`Model $${t.price.toFixed(2)}`,why:`Betfair's model rates ${side} at $${t.price.toFixed(2)}${score?` (predicted ${score})`:''}, so it ${ok?'backs the price':"doesn't see value at this price"}.`};}
+  if(names.some(n=>sc(n)==null)||pt==null) return null;
+  if(mk==='spreads'){ if(!(side in T)) return null; const o=names.find(n=>n!==side), m=sc(side)-sc(o), ok=m+pt>0;
+    return {ok,tag:`Model ${m>=0?'+':''}${m.toFixed(1)}`,why:`Betfair's model has it ${score} (a ${Math.abs(m).toFixed(1)}-point ${m>=0?'win':'loss'} for ${last(side)}), which ${ok?'covers':"doesn't cover"} the line.`};}
+  const tot=names.reduce((a,n)=>a+sc(n),0), ok=side==='Over'?tot>pt:side==='Under'?tot<pt:null; if(ok==null) return null;
+  return {ok,tag:`Model ${tot.toFixed(1)}`,why:`Betfair's model predicts ${score} (${tot.toFixed(1)} total), ${ok?'on the right side':'on the wrong side'} of the line.`};
+}
+function modelChip(e,mk,r,pt,pk){
+  if(r.s.desc||!pk) return ''; const m=bfModel(e,mk,r.s.name,pt,pk.price); if(!m) return '';
+  return `<span class="hr ${m.ok?'good':'bad'}" title="${esc(m.why)} (Betfair Hub prediction model)">${m.ok?'✓':'✗'} ${esc(m.tag)}</span>`;
 }
 function whyCell(e,mk,r,pt,pk,edge,fair){
   let t=''; try{t=quickCase(e,mk,r,pt,pk,edge,fair);}catch(_){}
@@ -970,7 +990,7 @@ function topEV(evs,q,o={}){
   if(!out.length) return o.empty||'';
   const rows=out.slice(0,limit).map(x=>{const {e,mk,r,pk,edge}=x, pt=ptOf(x); return `<tr>
     <td class="c-edge"><span class="evp">+${edge.toFixed(1)}%</span></td>
-    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>'+availChip(x.av)+hitChip(e,mk,r,pt):esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span>${whyCell(e,mk,r,pt,pk,edge,x.fair||r.fair)}</td>
+    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>'+availChip(x.av)+hitChip(e,mk,r,pt):esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')+modelChip(e,mk,r,pt,pk)}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span>${whyCell(e,mk,r,pt,pk,edge,x.fair||r.fair)}</td>
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
     <td class="c-fair">${(x.fair||r.fair).toFixed(2)}${r.fairSrc==='pin'?' <span class="pin">PIN</span>':''}</td>
     <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');

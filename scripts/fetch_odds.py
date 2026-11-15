@@ -421,6 +421,15 @@ def main():
     except Exception as e:
         print("NFL stats failed:", type(e).__name__, e)
 
+    # ---- Betfair Hub prediction models (rated prices + predicted scores): a second opinion on game markets ----
+    bfm = prev.get("bfmodel")
+    try:
+        import betfair_models
+        bfm, note = betfair_models.update(bfm, events, NOW)
+        print(note)
+    except Exception as e:
+        print("betfair models failed:", type(e).__name__, e)
+
     sgms = []
     # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
     try:
@@ -510,6 +519,7 @@ def main():
         print("prop write-ups failed:", type(e).__name__, e)
 
     bundle = {
+        "bfmodel": bfm,
         "cases": cases,
         "stats": stats,
         "sgm": {"updated": TS, "items": sgms},
@@ -556,6 +566,13 @@ def main():
                    "americanfootball_nfl": stats.get("nfl") or {}}
             for o in summary["overlays"]:
                 o["why"] = writeup.overlay_writeup(o, sbs)
+                try:
+                    m = betfair_models.check(o, bfm) if bfm else None   # Betfair Hub model's view (game markets)
+                except Exception:
+                    m = None
+                if m:
+                    o["model"] = m
+                    o["why"] += "\n\n🤖 Model: " + m["why"]
         except Exception as e:
             print("overlay write-ups failed:", type(e).__name__, e)
         summary.update({"generated": TS, "credits_remaining": api.remaining, "errors": api.errors})
