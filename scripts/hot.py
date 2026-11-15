@@ -22,7 +22,7 @@ import math, os
 from datetime import datetime, timedelta
 
 # Best price only from bookies we hold (same setting as picks.py); other bookies still shape the market chance
-MY_BOOKS = {b.strip() for b in os.environ.get("MY_BOOKS", "sportsbet,tab,tabtouch,betr_au").split(",") if b.strip()}
+MY_BOOKS = {b.strip() for b in os.environ.get("MY_BOOKS", "").split(",") if b.strip()}
 
 STAT = {  # game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, tov]
     "player_points": ("Points", lambda g: g[4]),

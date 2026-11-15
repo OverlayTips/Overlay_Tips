@@ -13,7 +13,7 @@ from statistics import median
 EDGE_MIN = 0.03        # 3% above the Pinnacle (sharp) fair price
 EDGE_MIN_MKT = float(os.environ.get("EDGE_MIN_MKT", "5")) / 100   # no Pinnacle: soft-bookie consensus is noisier, so need more
 # Only quote prices at bookies we can actually bet with (everyone else still counts toward the fair price).
-MY_BOOKS = {b.strip() for b in os.environ.get("MY_BOOKS", "sportsbet,tab,tabtouch,betr_au").split(",") if b.strip()}
+MY_BOOKS = {b.strip() for b in os.environ.get("MY_BOOKS", "").split(",") if b.strip()}
 EDGE_MAX = 0.15        # above this it's nearly always a stale or wrong price, not real value: left out
 MIN_BOOKS = 4          # need at least this many bookies pricing a market to trust the consensus
 WINDOW = timedelta(hours=26)
