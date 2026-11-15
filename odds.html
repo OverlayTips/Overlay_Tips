@@ -1312,10 +1312,30 @@ function renderCheck(){
 }
 
 /* ---------- racing: AU win markets from the Betfair Exchange ---------- */
-let raceVenue=store.get('raceVenue','all'), raceMode=store.get('raceMode','races');
+let raceVenue=store.get('raceVenue','all'), raceMode=store.get('raceMode','races'), raceKind='Horse';
+/* Betfair Hub rated prices (Betfair's data scientists): thoroughbreds + greyhounds, by Betfair market id */
+const RTG=()=>((DATA.rratings||{}).races)||{};
+function renderRatingsOnly(note){
+  const q=$('q').value.trim().toLowerCase(), all=Object.values(RTG());
+  const kinds=[...new Set(all.map(r=>r.kind))];
+  if(!kinds.includes(raceKind)) raceKind=kinds[0]||'Horse';
+  $('sports').innerHTML=kinds.map(k=>`<button class="chip ${k===raceKind?'on':''}" data-k="${k}">${k==='Horse'?'🏇 Horses':'🐕 Greyhounds'}</button>`).join('');
+  $('sports').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{raceKind=b.dataset.k;render();});
+  const list=all.filter(r=>r.kind===raceKind&&(!q||(r.venue+' '+r.runners.map(x=>x.name).join(' ')).toLowerCase().includes(q)))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.venue.localeCompare(b.venue)||a.num-b.num);
+  $('legend').textContent=`Betfair's ${raceKind==='Horse'?'thoroughbred':'greyhound'} model: a rated price for every runner (updated ${ago((DATA.rratings||{}).updated)}). If your bookie pays more than the rated price, the model says it's value. ${note||''}`;
+  if(!list.length){$('list').innerHTML='<div class="empty"><h3>No rated races right now</h3>Betfair publishes the ratings on race mornings.</div>';return;}
+  $('list').innerHTML=list.slice(0,60).map(r=>`<div class="ev"><div class="ev-head"><div><div class="ev-title">${esc(r.venue)} R${r.num}</div>
+      <div class="ev-meta">${esc(r.name.replace(/^R\d+\s*/,''))} · ${new Date(r.date+'T12:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})}</div></div>
+      <div class="badges"><span class="badge">${r.runners.length} rated</span></div></div>
+      <div class="tbl-wrap"><table class="rct"><tr><th>Runner</th><th>Rated</th><th>Value at</th></tr>${r.runners.filter(x=>!q||x.name.toLowerCase().includes(q)||r.venue.toLowerCase().includes(q)).map((x,i)=>
+        `<tr><td>${x.no?`<span class="rc-no">${x.no}</span>`:''}${esc(x.name)}${i===0?' <span class="hr good">Top pick</span>':''}</td><td class="bestcol">$${x.rated.toFixed(2)}</td><td>$${(x.rated*1.1).toFixed(2)}+</td></tr>`).join('')}</table></div></div>`).join('');
+}
 function renderRacing(){
   const RC=DATA.racing;
   $('q').placeholder='Search horse or track';
+  const stale=!RC||!RC.races||!RC.races.length||(Date.now()-Date.parse(RC.updated))>60*60000;
+  if(stale&&Object.keys(RTG()).length) return renderRatingsOnly(RC&&RC.races&&RC.races.length?'(Live Betfair prices are out of date, so this shows the ratings only.)':'');
   if(!RC||!RC.races){
     $('sports').innerHTML='';
     $('legend').textContent='';
@@ -1354,11 +1374,12 @@ function renderRacing(){
   $('list').innerHTML=list.slice(0,40).map(r=>{
     const rows=r.runners.filter(x=>!q||x.name.toLowerCase().includes(q)||r.venue.toLowerCase().includes(q)).map(x=>{const m=mv(r,x);
       const mvs=m&&Math.abs(m.pct)>=3?`<span class="rc-move ${m.pct<0?'rc-steam':'rc-drift'}">${m.pct<0?'▼':'▲'}${Math.abs(m.pct).toFixed(0)}% <span class="bk">${m.from.toFixed(2)}→</span></span>`:'<span class="flat">–</span>';
-      return `<tr><td>${x.no?`<span class="rc-no">${x.no}</span>`:''}${esc(x.name.replace(/^\d+\.\s*/,''))}</td><td class="bestcol">${x.fair?x.fair.toFixed(2):'–'}</td><td>${x.back?x.back.toFixed(2):'–'}</td><td>${x.lay?x.lay.toFixed(2):'–'}</td><td class="mv">${mvs}</td></tr>`;}).join('');
+      const rt=(RTG()[r.id]||{runners:[]}).runners.find(y=>y.id===x.id), val=rt&&x.back&&x.back>=rt.rated*1.1;
+      return `<tr><td>${x.no?`<span class="rc-no">${x.no}</span>`:''}${esc(x.name.replace(/^\d+\.\s*/,''))}${val?` <span class="hr good">Value +${Math.round((x.back/rt.rated-1)*100)}%</span>`:''}</td><td class="bestcol">${x.fair?x.fair.toFixed(2):'–'}</td><td>${rt?'$'+rt.rated.toFixed(2):'–'}</td><td>${x.back?x.back.toFixed(2):'–'}</td><td>${x.lay?x.lay.toFixed(2):'–'}</td><td class="mv">${mvs}</td></tr>`;}).join('');
     return `<div class="ev"><div class="ev-head"><div><div class="ev-title">${esc(r.venue)} ${esc(r.name)}</div>
       <div class="ev-meta">${t(r.start)} · ${when(r.start).split(',')[0]} · $${(r.matched||0).toLocaleString()} matched</div></div>
       <div class="badges">${isNext?`<span class="badge ${new Date(r.start)-Date.now()<15*60000?'live':''}">${until(r.start)}</span>`:''}<span class="badge">${r.runners.length} runners</span></div></div>
-      <div class="tbl-wrap"><table class="rct"><tr><th>Runner</th><th>Fair</th><th>Back</th><th>Lay</th><th>Move</th></tr>${rows}</table></div></div>`;}).join('');
+      <div class="tbl-wrap"><table class="rct"><tr><th>Runner</th><th>Fair</th><th title="Betfair Hub model rated price">Model</th><th>Back</th><th>Lay</th><th>Move</th></tr>${rows}</table></div></div>`;}).join('');
 }
 function renderArbs(){
   const O=DATA.odds, P=DATA.props||{events:[]};
