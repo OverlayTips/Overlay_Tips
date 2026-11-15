@@ -7,6 +7,9 @@ Runs on GitHub's servers during the Aussie morning/arvo (see .github/workflows/n
   3. sends ONE push with what changed for QBs, RBs, WRs and TEs in games that haven't kicked off:
      new or changed injury designations, players ruled inactive, and questionable/doubtful players
      confirmed active. Each push has a "Share to WhatsApp" button with the same text.
+  4. for anyone out, doubtful or inactive, adds a "who benefits" line from the team's season usage
+     (BALLDONTLIE season stats + depth chart): the backup QB, the next running back's carries, or the
+     receivers in line for the targets he leaves behind.
 The first run only records what's there (no flood of old news).
 
 Env: NBA_STATS_KEY (BALLDONTLIE key), NTFY_TOPIC, STATE (path to nfl_state.json), TEST=1 (test push)
@@ -33,6 +36,69 @@ def kick(iso):
         return ""
 
 
+def _usage(season, team_id, cache):
+    """{player id: per-game usage} for a team's season, plus its depth chart. Best effort."""
+    if team_id in cache:
+        return cache[team_id]
+    out = {"p": {}, "depth": {}}
+    try:
+        for r in base.pages("/season_stats", [("season", season), ("team_id", team_id)], limit=3):
+            pl, gp = r.get("player") or {}, r.get("games_played") or 0
+            if not pl.get("id") or gp <= 0:
+                continue
+            out["p"][pl["id"]] = {"n": f"{pl.get('first_name', '')} {pl.get('last_name', '')}".strip(),
+                                  "pos": pl.get("position_abbreviation") or "", "gp": gp,
+                                  "car": (r.get("rushing_attempts") or 0) / gp, "tgt": (r.get("receiving_targets") or 0) / gp,
+                                  "ryd": (r.get("rushing_yards") or 0) / gp, "recyd": (r.get("receiving_yards") or 0) / gp,
+                                  "patt": (r.get("passing_attempts") or 0) / gp}
+    except Exception as e:
+        print("season stats failed:", type(e).__name__, e)
+    try:
+        for e in base.api(f"/teams/{team_id}/roster").get("data") or []:
+            pl = e.get("player") or {}
+            if pl.get("id") and e.get("position"):
+                out["depth"].setdefault(e["position"], []).append((e.get("depth") or 9, pl["id"], e.get("player_name") or ""))
+    except Exception as e:
+        print("roster failed:", type(e).__name__, e)
+    cache[team_id] = out
+    return out
+
+
+def _f(x):
+    return f"{x:.1f}".rstrip("0").rstrip(".")
+
+
+def benefits(d, season, cache, gone):
+    """One short 'who benefits' line for a player who's out / doubtful / inactive, or None."""
+    p, t = d.get("player") or {}, d.get("team") or {}
+    pos, pid = p.get("position_abbreviation") or "", p.get("id")
+    if not t.get("id") or not pid:
+        return None
+    u = _usage(season, t["id"], cache)
+    me, ps = u["p"].get(pid), u["p"]
+    avail = {i: x for i, x in ps.items() if i != pid and i not in gone}
+    if pos == "QB":
+        nxt = sorted((x for x in u["depth"].get("QB", []) if x[1] != pid and x[1] not in gone), key=lambda x: x[0])
+        if nxt:
+            b = ps.get(nxt[0][1])
+            extra = f" ({_f(b['patt'])} att/g in {b['gp']} games)" if b and b["patt"] >= 1 else " (little game time this season)"
+            return f"↳ {nxt[0][2]} in line to start{extra}. Passing props for the {t.get('abbreviation', '')} receivers take a hit."
+        return f"↳ Backup QB starts: a downgrade for the {t.get('abbreviation', '')} passing game."
+    if pos in ("RB", "FB"):
+        rbs = sorted((x for x in avail.values() if x["pos"] in ("RB", "FB") and x["car"] >= 1), key=lambda x: -x["car"])[:2]
+        if not rbs:
+            return None
+        lost = f"{_f(me['car'])} carries/g" if me and me["car"] else "his carries"
+        return f"↳ {lost} up for grabs: " + ", ".join(f"{x['n']} ({_f(x['car'])} car, {_f(x['ryd'])} rush yds/g)" for x in rbs)
+    if pos in ("WR", "TE"):
+        rec = sorted((x for x in avail.values() if x["pos"] in ("WR", "TE", "RB") and x["tgt"] >= 2), key=lambda x: -x["tgt"])[:3]
+        if not rec:
+            return None
+        lost = f"{_f(me['tgt'])} targets/g" if me and me["tgt"] else "his targets"
+        return f"↳ {lost} to spread around: " + ", ".join(f"{x['n']} ({_f(x['tgt'])} tgt, {_f(x['recyd'])} yds/g)" for x in rec)
+    return None
+
+
 def main():
     if os.environ.get("TEST") == "1":
         base.push("🏈 NFL alerts test", ["NFL injury + inactive alerts are set up. You'll get news here on game weeks."], tags="football")
@@ -53,6 +119,8 @@ def main():
     seen = (state or {}).get("d") if (state or {}).get("wk") == [season, week, stype] else {}
     seen = seen or {}
     news = {}   # game id -> lines
+    gone = {(d.get("player") or {}).get("id") for d in des if d.get("game_status") == "out" or d.get("active") is False}
+    ucache = {}
     cur = {}
     for d in des:
         p, t, g = d.get("player") or {}, d.get("team") or {}, games.get(d.get("game_id"))
@@ -80,6 +148,13 @@ def main():
         elif was[0] in LABEL and gs is None and act is None:
             line = f"🟢 {who} off the injury report (was {LABEL[was[0]].lower()})"
         if line:
+            if act is False or (gs in ("out", "doubtful") and act is not True):
+                try:
+                    why = benefits(d, season, ucache, gone)
+                    if why:
+                        line += "\n   " + why
+                except Exception as e:
+                    print("benefits failed:", type(e).__name__, e)
             news.setdefault(g["id"], []).append((RANK.get(gs, 3) if act is not True else 4, line))
     if news:
         out = []
