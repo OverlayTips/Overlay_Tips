@@ -168,7 +168,12 @@ def fetch_scores(sport_keys):
             {"apiKey": key, "daysFrom": 3, "dateFormat": "iso"})
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "overlay-tips-betlog/1"}), timeout=30) as r:
-                for g in json.load(r):
+                js = json.load(r)
+                if sk.startswith(("tennis", "mma")):   # TEMP diagnostic: what do results look like here?
+                    done = [g for g in js if g.get("completed")]
+                    print(f"bet log diag {sk}: {len(js)} games, {len(done)} completed, sample:",
+                          json.dumps([{k: g.get(k) for k in ("home_team", "away_team", "scores", "commence_time")} for g in done[:2]]))
+                for g in js:
                     if g.get("completed") and g.get("scores"):
                         out[g["id"]] = {s["name"]: float(s["score"]) for s in g["scores"]}
         except Exception as e:
