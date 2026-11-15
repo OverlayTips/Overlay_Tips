@@ -98,6 +98,10 @@ def writeup(it):
         add(s + f", averaging {_num(it.get('avg'))}.")
         score += (l10[0] / l10[1] >= 0.8) + bool(l5[1] and l5[0] == l5[1]) - (l10[0] / l10[1] < 0.5)
     weak = bool(l10[1]) and l10[0] / l10[1] < 0.5
+    mv = it.get("moved")   # recently traded: the numbers above are new-team games only (hot.team_games)
+    if mv and mv.get("from") and mv.get("g"):
+        add(f"He's played {mv['g']} games since joining from {_the(mv['from'])}, so these numbers only count "
+            f"games with his new team.")
 
     # 2. last game, workload, back-to-back (tired legs help an Under)
     games = it.get("games") or []
@@ -294,14 +298,14 @@ def prop_item(o, stats, sport_key, ctx=None):
     if not p:
         return None
     label, f = ST[mk]
-    gs = [g for g in p.get("g", []) if g[3] > 0]
+    names = [x.strip() for x in str(o.get("game", "")).replace(" @ ", " v ").split(" v ")]
+    abbrs = [teams.get(n) for n in names]
+    gs, moved = hot.team_games(p, [g for g in p.get("g", []) if g[3] > 0], *(abbrs + [None, None])[:2], sport_key)
     if len(gs) < 3:
         return None
     under = side == "Under"
     hit = lambda xs: sum(1 for g in xs if (f(g) < pt if under else f(g) > pt))
     l10, l5 = gs[:10], gs[:5]
-    names = [x.strip() for x in str(o.get("game", "")).replace(" @ ", " v ").split(" v ")]
-    abbrs = [teams.get(n) for n in names]
     opp = next((a for a in abbrs if a and a != p.get("team")), None)
     meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
     it = {"player": p.get("n") or desc, "team": p.get("team"), "opp": opp,
@@ -312,6 +316,8 @@ def prop_item(o, stats, sport_key, ctx=None):
             "avg": round(sum(f(g) for g in l10) / len(l10), 1),
             "games": [[g[0], g[1], g[2], f(g), None if nfl else round(g[3])] for g in l10],
             "h2h": [[g[0], g[1], g[2], f(g)] for g in meet[:3]]}
+    if moved:
+        it["moved"] = moved
     if nfl:
         gm = o.get("gm")
         c = hot.nfl_ctx(players, p, gs, mk, f, opp, gm, o.get("_dcache"))

@@ -91,7 +91,8 @@ def rows_from_stats(stats, abbr_by_id):
         opp = abbr_by_id.get(g.get("visitor_team_id") if home else g.get("home_team_id"), "")
         n = lambda k: int(s.get(k) or 0)
         rows[g.get("id")] = [str(g.get("date", ""))[:10], opp, "vs" if home else "@", _mins(s.get("min")),
-                             n("pts"), n("reb"), n("ast"), n("fg3m"), n("blk"), n("stl"), n("turnover")]
+                             n("pts"), n("reb"), n("ast"), n("fg3m"), n("blk"), n("stl"), n("turnover"),
+                             abbr_by_id.get(tid, "")]   # last: his team that night (trades, see hot.team_games)
     return sorted(rows.values(), key=lambda r: r[0], reverse=True)
 
 

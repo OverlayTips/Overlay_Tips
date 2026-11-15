@@ -5,7 +5,8 @@ Same output shape as player_stats.py / nbl_stats.py so hot.py can use it unchang
    "teams": {Odds API team name: abbr},
    "by": {bookie player name: player key},
    "players": {key: {"n": name, "id": BDL id, "team": abbr, "pos": "QB",
-                     "g": [[date, opp, "@"|"vs", 1, pyd, ptd, cmp, patt, int, ryd, ratt, rec, ryds, tgt], ...]}}}
+                     "g": [[date, opp, "@"|"vs", 1, pyd, ptd, cmp, patt, int, ryd, ratt, rec, ryds, tgt, team], ...],
+                     "mv": {"from": old team, "to": new team, "d": first game date} after a trade}}}
 newest first. Slot 3 is 1 for "played" (the NBA logs keep minutes there). Only players with passing, rushing
 or receiving numbers are kept, plus every game a QB/RB/WR/TE played, even with zero numbers. Each run pulls box scores for finished games it hasn't seen yet.
 Best effort: any failure keeps the previous data and never stops the odds run.
@@ -68,7 +69,8 @@ def _row(s, g, tid):
     return [str(g.get("date") or "")[:10], opp.get("abbreviation") or "", "vs" if home else "@", 1,
             n("passing_yards"), n("passing_touchdowns"), n("passing_completions"), n("passing_attempts"),
             n("passing_interceptions"), n("rushing_yards"), n("rushing_attempts"), n("receptions"),
-            n("receiving_yards"), n("receiving_targets")]
+            n("receiving_yards"), n("receiving_targets"),
+            ((g.get("home_team") if home else g.get("visitor_team")) or {}).get("abbreviation") or ""]   # last: his team (trades)
 
 
 def _match(desc, players, idx):
@@ -116,12 +118,15 @@ def update(prev, prop_events, now, ts):
                 if not pl.get("id") or not gm:
                     continue
                 r = _row(s, gm, tm.get("id"))
-                if not any(r[4:]) and pl.get("position_abbreviation") not in SKILL:
+                if not any(r[4:14]) and pl.get("position_abbreviation") not in SKILL:
                     continue   # no passing/rushing/receiving numbers (linemen, defence, kickers)
                 name = f"{pl.get('first_name', '')} {pl.get('last_name', '')}".strip()
                 k = norm(name)
                 p = data["players"].setdefault(k, {"n": name, "id": pl["id"], "g": []})
-                p.update({"team": tm.get("abbreviation") or p.get("team"), "pos": pl.get("position_abbreviation") or p.get("pos")})
+                nt = tm.get("abbreviation")
+                if nt and p.get("team") and nt != p["team"] and (not p["g"] or r[0] > p["g"][0][0]):
+                    p["mv"] = {"from": p["team"], "to": nt, "d": r[0]}   # traded: first game for the new team
+                p.update({"team": nt or p.get("team"), "pos": pl.get("position_abbreviation") or p.get("pos")})
                 p["g"] = [x for x in p["g"] if x[0] != r[0]] + [r]
                 p["g"].sort(key=lambda x: x[0], reverse=True)
             data["done"] += [g["id"] for g in chunk]

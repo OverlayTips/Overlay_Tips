@@ -139,6 +139,33 @@ def _book(b):
     return (b.get("title") or b["key"]).replace(" (AU)", "")
 
 
+def team_games(p, gs, h, a, sport="basketball_nba"):
+    """His games for his CURRENT team only, so a trade doesn't leave his old role in the form numbers.
+    Returns (games, move): move = {"from": old team, "g": games with the new one} after a recent move, else None.
+    games is cut to the new-team games, so he drops out until he has enough of them (callers' min-games check).
+    Signals, in order: his logged team isn't playing in this game at all (traded, no games for the new side yet);
+    the team tag on each game row (last element, newer logs); the stats file's move record ("mv", NFL)."""
+    cur = p.get("team")
+    if sport not in ("basketball_nba", "americanfootball_nfl"):
+        return gs, None   # NBL logs name teams differently; not checked
+    if h and a and cur and cur not in (h, a):
+        return [], {"from": cur, "g": 0}
+    n = 0
+    for g in gs[:10]:
+        t = g[-1] if isinstance(g[-1], str) and g[-1] else None
+        if t is None:
+            break   # untagged (older logs): can't tell from the rows
+        if t != cur:
+            return gs[:n], {"from": t, "g": n}
+        n += 1
+    mv = p.get("mv") or {}
+    if mv.get("to") == cur and mv.get("d"):
+        n = sum(1 for g in gs if g[0] >= mv["d"])
+        if n < 10:
+            return gs[:n], {"from": mv.get("from"), "g": n}
+    return gs, None
+
+
 WO_MIN_MINS, WO_MIN_GAMES = 20, 3   # teammate counts if he averages 20+ min over 3+ games this season
 WO_PRIOR = 6                        # pseudo-games pulling the "without him" hit rate toward normal form
 
@@ -269,7 +296,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
             p = players.get(by.get(desc, ""))
             if not p:
                 continue
-            gs = [g for g in p.get("g", []) if g[3] > 0]
+            gs, moved = team_games(p, [g for g in p.get("g", []) if g[3] > 0], h, a, sport)
             if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
                 continue   # not enough games, or nothing recent (injured / last season)
             label, f = ST[mk]
@@ -351,6 +378,8 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
                 "games": [[g[0], g[1], g[2], f(g), round(g[3]) if sport != "americanfootball_nfl" else None] for g in l10],   # 5th = minutes (write-up workload)
             }
+            if moved:
+                item["moved"] = moved
             if nfl:   # NFL context for the write-up: workload trend, what the defence allows his position, game script
                 spr, tot = glines.get(ev["id"], ({}, None))
                 me = ev["home_team"] if p.get("team") == h else ev["away_team"] if p.get("team") == a else None
@@ -455,7 +484,7 @@ def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich
         p = players.get(by.get(desc, ""))
         if not p:
             continue
-        gs = [g for g in p.get("g", []) if g[3] > 0]
+        gs, moved = team_games(p, [g for g in p.get("g", []) if g[3] > 0], h, a, sport)
         if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
             continue
         label, f = ST[mk]
@@ -491,6 +520,8 @@ def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich
             "prices": dict(sorted(un.items(), key=lambda x: -x[1])),
             "games": [[g[0], g[1], g[2], f(g), None] for g in l10],
         }
+        if moved:
+            item["moved"] = moved
         meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
         if meet:
             item["h2h"] = [[g[0], g[1], g[2], f(g)] for g in meet[:3]]
