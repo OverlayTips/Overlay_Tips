@@ -52,8 +52,16 @@ def build(roster, des_by_pid, gone):
         rows.setdefault(r[0], []).append(r)
     used = set()
 
-    def pick(key):
+    def pick(key, fb=()):
         cands = [r for r in rows.get(key, []) if r[3] not in used and r[3] not in gone]
+        if not cands:   # nobody left at this spot: next man up from the same unit
+            for k in fb:
+                p = pick(k)
+                if p:
+                    p["pos"] = key
+                    p["slot"] = LABEL.get(key, key)
+                    return p
+            return None
         # BALLDONTLIE's game-day starter flag first (when it has one), then depth chart order
         cands.sort(key=lambda r: (not (des_by_pid.get(r[3]) or {}).get("starter") if starter_flags else 0, r[1], r[2]))
         if not cands:
@@ -66,10 +74,10 @@ def build(roster, des_by_pid, gone):
             p["inj"] = TAG[d["game_status"]]
         return p
 
-    def place(keys, xy):
+    def place(keys, xy, fb=(), first=()):
         out = []
         for k in keys:
-            p = pick(k)
+            p = pick(k, list(first) + [x for x in keys if x != k] + list(fb))
             if p:
                 p["x"], p["y"] = xy[k]
                 out.append(p)
@@ -82,7 +90,7 @@ def build(roster, des_by_pid, gone):
     if len(dl) + len(lb) + len(db) > 11 and "NB" in db:
         db.remove("NB")   # base defence when the chart lists a nickel back as well as 3 linebackers
     dxy = {**_spread(dl, 76), **_spread(lb, 50, 20, 80), **DB_XY}
-    de = place(dl, dxy) + place(lb, dxy) + place(db, dxy)
+    de = place(dl, dxy, lb) + place(lb, dxy, first=["NB"]) + place(db, dxy)
     return {"off": off, "def": de, "st": [p for k in ST for p in [pick(k)] if p]}
 
 
