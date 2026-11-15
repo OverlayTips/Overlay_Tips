@@ -21,9 +21,19 @@ def _team(x):
     return NBA.get(x, x) if x else "them"
 
 
+NFL = {"ARI": "Cardinals", "ATL": "Falcons", "BAL": "Ravens", "BUF": "Bills", "CAR": "Panthers", "CHI": "Bears",
+       "CIN": "Bengals", "CLE": "Browns", "DAL": "Cowboys", "DEN": "Broncos", "DET": "Lions", "GB": "Packers",
+       "HOU": "Texans", "IND": "Colts", "JAX": "Jaguars", "KC": "Chiefs", "LV": "Raiders", "LAC": "Chargers",
+       "LAR": "Rams", "MIA": "Dolphins", "MIN": "Vikings", "NE": "Patriots", "NO": "Saints", "NYG": "Giants",
+       "NYJ": "Jets", "PHI": "Eagles", "PIT": "Steelers", "SF": "49ers", "SEA": "Seahawks", "TB": "Buccaneers",
+       "TEN": "Titans", "WSH": "Commanders", "WAS": "Commanders"}
+_LG = {"nfl": False}   # set per write-up: NFL abbreviations clash with NBA ones (MIA, DAL, DEN ...)
+
+
 def _the(x):
-    """'the Cavaliers' for NBA nicknames, plain name otherwise (NBL names come in full)."""
-    return f"the {NBA[x]}" if x in NBA else (x or "them")
+    """'the Cavaliers' for NBA nicknames ('the Chiefs' for NFL), plain name otherwise (NBL names come in full)."""
+    names = NFL if _LG["nfl"] else NBA
+    return f"the {names[x]}" if x in names else (x or "them")
 
 
 def _last(name):
@@ -70,7 +80,8 @@ def writeup(it):
     under = str(it.get("side", "")).lower() == "under"
     sgn = -1 if under else 1   # a signal that helps the Over hurts the Under
     num = isinstance(pt, (int, float))
-    opp, nba = it.get("opp"), it.get("lg") != "NBL"
+    opp, nba = it.get("opp"), it.get("lg") not in ("NBL", "NFL")
+    _LG["nfl"] = it.get("lg") == "NFL"
     hit = lambda v: num and (v < pt if under else v > pt)
     out, score = [], 0
 
@@ -123,6 +134,58 @@ def writeup(it):
             score -= sgn
         else:
             out.append(f"{_cap(_the(opp))} sit around the middle of the league defending {pos} on {stat}.")
+
+    # 3b. NFL: workload trend, what the defence gives up to his position, game script
+    nf = it.get("nfl") or {}
+    u = nf.get("use")
+    if u and u["season"]:
+        d = u["l3"] - u["season"]
+        s = f"He's averaging {_num(u['l3'])} {u['what']} over his last 3 games"
+        if abs(d) >= max(1, 0.15 * u["season"]):
+            s += f", {'up' if d > 0 else 'down'} from {_num(u['season'])} for the season"
+            score += sgn if d > 0 else -sgn
+        else:
+            s += f", right on his season average of {_num(u['season'])}"
+        if u.get("catch") is not None:
+            s += f", and he catches {u['catch']}% of his targets"
+        out.append(s + ".")
+    df = nf.get("def")
+    if df:
+        pos = {"QB": "quarterbacks", "RB": "running backs", "WR": "receivers", "TE": "tight ends"}.get(df["pos"], "his position")
+        r, of = df["rank"], df["of"]
+        if r <= of / 3:
+            out.append(f"{_cap(_the(df['opp']))} give up the {_ord(r)}-most {stat} to {pos} ({_num(df['avg'])} a game, {df['pct']:+d}% on the league average), "
+                       + ("which works against the Under." if under else "a good matchup for him."))
+            score += sgn
+        elif r > of * 2 / 3:
+            out.append(f"{_cap(_the(df['opp']))} allow the {_ord(of + 1 - r)}-fewest {stat} to {pos} ({_num(df['avg'])} a game, {df['pct']:+d}%), "
+                       + ("which suits the Under." if under else "so it's a tougher matchup."))
+            score -= sgn
+        else:
+            out.append(f"{_cap(_the(df['opp']))} are around the league average against {pos} on {stat} ({_num(df['avg'])} a game).")
+    gm = nf.get("gm")
+    if gm:
+        sp, tt = gm["spread"], gm["tt"]
+        fav = sp < 0
+        s = (f"His team is {'favoured by ' + _num(-sp) if fav else _num(sp) + '-point underdogs' if sp > 0 else 'a pick-em'} "
+             f"with a total of {_num(gm['total'])}, so the market has them scoring about {_num(tt)}")
+        passing = any(w in stat for w in ("pass", "complet", "recept", "receiving"))
+        if sp >= 3.5 and passing:
+            s += ". Playing from behind usually means more throws" + (", a worry for the Under." if under else ", which helps.")
+            score += sgn
+        elif sp <= -3.5 and "rush" in stat:
+            s += ". Protecting a lead usually means more runs late" + (", a worry for the Under." if under else ", which helps.")
+            score += sgn
+        elif sp <= -6.5 and passing:
+            s += ". A big favourite can take its foot off the passing game late" + (", which suits the Under." if under else ".")
+            score -= sgn
+        elif tt >= 26:
+            s += ", a high-scoring script" + (" that works against the Under." if under else " with plenty of chances.")
+            score += sgn
+        elif tt <= 18:
+            s += ", a low-scoring script" + (" that suits the Under." if under else " that limits his chances.")
+            score -= sgn
+        out.append(s + ("" if s.endswith(".") else "."))
 
     # 4. head-to-head
     h2h = [m for m in (it.get("h2h") or []) if len(m) > 3]
@@ -204,13 +267,15 @@ def prop_item(o, stats, sport_key):
     """A Hot-stats-shaped item for an overlay on an NBA/NBL player prop, from the raw box scores, or None."""
     import hot
     mk, desc, side, pt = o.get("mk"), o.get("desc"), o.get("side"), o.get("point")
-    if mk not in hot.STAT or not desc or side not in ("Over", "Under") or not isinstance(pt, (int, float)):
+    nfl = sport_key == "americanfootball_nfl"
+    ST = hot.NFL_STAT if nfl else hot.STAT
+    if mk not in ST or not desc or side not in ("Over", "Under") or not isinstance(pt, (int, float)):
         return None
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
     p = players.get(by.get(desc, ""))
     if not p:
         return None
-    label, f = hot.STAT[mk]
+    label, f = ST[mk]
     gs = [g for g in p.get("g", []) if g[3] > 0]
     if len(gs) < 3:
         return None
@@ -221,14 +286,19 @@ def prop_item(o, stats, sport_key):
     abbrs = [teams.get(n) for n in names]
     opp = next((a for a in abbrs if a and a != p.get("team")), None)
     meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
-    return {"player": p.get("n") or desc, "team": p.get("team"), "opp": opp,
-            "lg": "NBL" if sport_key == "basketball_nbl" else "NBA", "start": o.get("start"),
+    it = {"player": p.get("n") or desc, "team": p.get("team"), "opp": opp,
+            "lg": "NFL" if nfl else "NBL" if sport_key == "basketball_nbl" else "NBA", "start": o.get("start"),
             "stat": label, "point": pt, "side": side, "price": o.get("price"), "book": o.get("book"),
             "fair": o.get("fair"), "fair_src": o.get("fair_src"), "edge": o.get("edge_pct"), "inj": o.get("inj"),
             "l10": [hit(l10), len(l10)], "l5": [hit(l5), len(l5)],
             "avg": round(sum(f(g) for g in l10) / len(l10), 1),
-            "games": [[g[0], g[1], g[2], f(g), round(g[3])] for g in l10],
+            "games": [[g[0], g[1], g[2], f(g), None if nfl else round(g[3])] for g in l10],
             "h2h": [[g[0], g[1], g[2], f(g)] for g in meet[:3]]}
+    if nfl:
+        c = hot.nfl_ctx(players, p, gs, mk, f, opp)
+        if c:
+            it["nfl"] = c
+    return it
 
 
 def market_writeup(o):

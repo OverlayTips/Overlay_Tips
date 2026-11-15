@@ -434,7 +434,7 @@ def main():
             legs += hn.pop("_legs", [])
             print(f"hot stats NBL: {len(hn['items'])} props, {len(hn['value'])} value")
         if (stats.get("nfl") or {}).get("players"):
-            hf = hot.build(list(props.values()), stats["nfl"], NOW, TS, sport="americanfootball_nfl")
+            hf = hot.build(list(props.values()), stats["nfl"], NOW, TS, sport="americanfootball_nfl", games=events)
             hf.pop("_legs", None)   # the SGM builder is basketball only
             hj["items"] += hf["items"]
             hj["value"] = sorted(hj["value"] + hf["value"], key=lambda x: -x["value"])
@@ -538,7 +538,8 @@ def main():
             summary["overlays"] = keep
         try:   # the case for each overlay (writeup.py): full write-up for NBA/NBL props, short one otherwise
             import writeup
-            sbs = {"basketball_nba": stats.get("nba") or {}, "basketball_nbl": stats.get("nbl") or {}}
+            sbs = {"basketball_nba": stats.get("nba") or {}, "basketball_nbl": stats.get("nbl") or {},
+                   "americanfootball_nfl": stats.get("nfl") or {}}
             for o in summary["overlays"]:
                 o["why"] = writeup.overlay_writeup(o, sbs)
         except Exception as e:

@@ -48,6 +48,75 @@ NFL_STAT = {
     "player_reception_yds": ("Receiving Yards", lambda g: g[12]),
 }
 ROUND5 = {"player_points_rebounds_assists"}
+NFL_USE = {   # which workload number drives each NFL stat: (row index, label)
+    "player_pass_yds": (7, "pass attempts"), "player_pass_tds": (7, "pass attempts"),
+    "player_pass_completions": (7, "pass attempts"), "player_pass_attempts": (7, "pass attempts"),
+    "player_rush_yds": (10, "carries"), "player_rush_attempts": (10, "carries"),
+    "player_receptions": (13, "targets"), "player_reception_yds": (13, "targets"),
+}
+NFL_POS = {"FB": "RB"}
+
+
+def _nfl_defence(players, mk, f):
+    """{(opp team, position): (avg stat allowed per game, rank, of)} from every logged player's games."""
+    per = {}   # (opp, pos) -> {(date, player's team): total}
+    for p in players.values():
+        pos = NFL_POS.get(p.get("pos"), p.get("pos"))
+        if pos not in ("QB", "RB", "WR", "TE"):
+            continue
+        for g in p.get("g", []):
+            k = (g[1], pos)
+            gk = (g[0], p.get("team"))
+            per.setdefault(k, {})[gk] = per.setdefault(k, {}).get(gk, 0) + f(g)
+    avg = {k: sum(v.values()) / len(v) for k, v in per.items() if len(v) >= 3}
+    out = {}
+    for pos in ("QB", "RB", "WR", "TE"):
+        ks = sorted((k for k in avg if k[1] == pos), key=lambda k: -avg[k])
+        lg = sum(avg[k] for k in ks) / len(ks) if ks else 0
+        for i, k in enumerate(ks):
+            out[k] = (round(avg[k], 1), i + 1, len(ks), round(100 * (avg[k] / lg - 1)) if lg else 0)
+    return out
+
+
+def nfl_ctx(players, p, gs, mk, f, opp, gm=None, cache=None):
+    """NFL write-up context for one player + market: {"use", "def", "gm"} (any may be missing). Best effort."""
+    try:
+        out = {}
+        ui, ul = NFL_USE[mk]
+        us = sum(g[ui] for g in gs) / len(gs)
+        out["use"] = {"what": ul, "l3": round(sum(g[ui] for g in gs[:3]) / min(3, len(gs)), 1), "season": round(us, 1)}
+        if ui == 13:
+            tg = sum(g[13] for g in gs)
+            if tg:
+                out["use"]["catch"] = round(100 * sum(g[11] for g in gs) / tg)
+        pos = NFL_POS.get(p.get("pos"), p.get("pos"))
+        cache = {} if cache is None else cache
+        if mk not in cache:
+            cache[mk] = _nfl_defence(players, mk, f)
+        dv = cache[mk].get((opp, pos))
+        if dv and opp:
+            out["def"] = {"opp": opp, "pos": pos, "avg": dv[0], "rank": dv[1], "of": dv[2], "pct": dv[3]}
+        if gm:
+            out["gm"] = {"spread": gm[0], "total": gm[1], "tt": round(gm[1] / 2 - gm[0] / 2, 1)}
+        return out
+    except Exception:
+        return None
+
+
+def _nfl_lines(ev):
+    """(spread by team name, game total) from the bookies' main lines (Pinnacle first), or ({}, None)."""
+    src = [ev["sharp"]] if ev.get("sharp") else ev.get("bookmakers", [])
+    sp, tot = {}, []
+    for b in src:
+        for m in b.get("markets", []):
+            for o in m.get("outcomes", []):
+                if o.get("point") is None:
+                    continue
+                if m["key"] == "spreads":
+                    sp.setdefault(o["name"], []).append(o["point"])
+                elif m["key"] == "totals" and o.get("name") == "Over":
+                    tot.append(o["point"])
+    return {n: _median(sorted(v)) for n, v in sp.items()}, (_median(sorted(tot)) if tot else None)
 PRA_MIN, PRA_MAX = 1.60, 1.90
 SKIP_BOOKS = {"betfair_ex_au", "pinnacle"}
 MIN_GAMES, MIN_HIT, MIN_PRICE, MAX_PRICE = 6, 0.8, 1.30, 4.0
@@ -119,7 +188,10 @@ def _spreads(games, teams):
 def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None, games=(), avail=None):
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
     cands, vcands, legs, ccands = [], [], [], []
-    ST = NFL_STAT if sport == "americanfootball_nfl" else STAT
+    nfl = sport == "americanfootball_nfl"
+    ST = NFL_STAT if nfl else STAT
+    dcache = {}
+    glines = {ev["id"]: _nfl_lines(ev) for ev in games or ()} if nfl else {}
     absent = _absentees(players, out)
     # role + matchup context (NBA only; see matchups.py)
     mx = None
@@ -279,6 +351,12 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
                 "games": [[g[0], g[1], g[2], f(g), round(g[3]) if sport != "americanfootball_nfl" else None] for g in l10],   # 5th = minutes (write-up workload)
             }
+            if nfl:   # NFL context for the write-up: workload trend, what the defence allows his position, game script
+                spr, tot = glines.get(ev["id"], ({}, None))
+                me = ev["home_team"] if p.get("team") == h else ev["away_team"] if p.get("team") == a else None
+                c = nfl_ctx(players, p, gs, mk, f, opp, (spr[me], tot) if me in spr and tot else None, dcache)
+                if c:
+                    item["nfl"] = c
             # last meetings with tonight's opponent, this season then last season (newest first)
             meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
             if meet:
