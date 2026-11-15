@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cold Stats | NBA, NFL + NBL unders players keep hitting | Overlay Tips</title>
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Overlay">
+<script src="/pwa.js" defer></script>
+<meta name="description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 10 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
+<link rel="canonical" href="https://overlay.tips/cold.html">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overlay Tips">
+<meta property="og:title" content="Cold Stats | NBA, NFL + NBL unders players keep hitting | Overlay Tips">
+<meta property="og:description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 10 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
+<meta property="og:url" content="https://overlay.tips/cold.html">
+<meta property="og:image" content="https://overlay.tips/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cold Stats | NBA, NFL + NBL unders players keep hitting | Overlay Tips">
+<meta name="twitter:description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 10 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
+<meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
+<meta name="theme-color" content="#060807">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=20261111a">
+<link rel="stylesheet" href="plain.css?v=6">
+<style>
+.hs-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 10px}
+.hs-lgs{display:flex;gap:6px;margin:0 0 12px;padding:4px;background:#0e1312;border:1px solid #1b2523;border-radius:14px;width:max-content}
+.hs-lgs button{border:0;background:none;color:#c9d6d0;font:800 15px Archivo,system-ui,sans-serif;padding:9px 22px;border-radius:10px;cursor:pointer}
+.hs-lgs button.on{background:var(--mint);color:#04130b}
+.hs-lgs small{font-weight:600;opacity:.7;margin-left:6px}
+.hs-chips{display:flex;flex-wrap:wrap;gap:8px}
+.hs-chips button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
+.hs-chips button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
+.hs-sort{color:#87978f;font-size:14px;display:flex;gap:8px;align-items:center}
+.hs-sort select{background:#0e1312;color:#ecf5f1;border:1px solid #1b2523;border-radius:8px;padding:6px 8px;font:inherit}
+.hs-ctl{display:flex;flex-wrap:wrap;gap:10px 16px}
+#game{max-width:min(80vw,340px);text-overflow:ellipsis}
+.hs-meta{color:#87978f;font-size:13px;margin-bottom:14px}
+.hs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.hs-card{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:18px;padding:16px 16px 14px}
+.hs-top{display:flex;justify-content:space-between;gap:10px}
+.hs-name{font-weight:900;font-size:19px;letter-spacing:-.01em;color:#ecf5f1}
+.hs-name small{color:#87978f;font-weight:600;font-size:13px;margin-left:6px}
+.hs-line{color:var(--gold);font-weight:800;font-size:16px;margin-top:3px}
+.hs-price{text-align:right;white-space:nowrap}
+.hs-price b{display:block;font-size:24px;font-weight:900;color:#ecf5f1;line-height:1.1}
+.hs-price span{font-size:12px;color:#87978f;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.hs-pill.fair.over{color:var(--mint)}
+.hs-chart{width:100%;height:auto;display:block;margin:10px 0 6px}
+.hs-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.hs-pill{border-radius:7px;padding:4px 9px;font-weight:800;font-size:13px;background:#16201d;color:#c9d6d0}
+.hs-pill.big{background:var(--mint);color:#04130b;font-size:15px}
+.hs-game{color:#87978f;font-size:12.5px;margin-top:10px}
+.hs-h{font-size:24px!important;margin:4px 0 4px!important}
+.hs-sub{color:#87978f;font-size:14px;margin-bottom:14px}
+.hs-pill.val{background:var(--gold);color:#1a1305;font-size:15px}
+.hs-why{color:#c9d6d0;font-size:13px;margin-top:8px}
+.hs-why b{color:#ecf5f1}
+.hs-take{margin-top:10px;border:0;border-top:1px solid #1b2523;border-radius:0;background:none;padding:8px 0 0}
+.hs-take[open]{border-color:#1b2523}
+.hs-take summary{cursor:pointer;color:var(--mint);font-size:13px;font-weight:800;padding:0;display:block;list-style:none}
+.hs-take summary::-webkit-details-marker{display:none}
+.hs-take summary::after{content:none}
+.hs-take summary::before{content:'▸ ';display:inline-block;transition:transform .15s}
+.hs-take[open] summary::before{transform:rotate(90deg)}
+.hs-take p{color:#d7e3de;font-size:14px;line-height:1.55;margin:6px 0 0}
+.hs-note{color:#87978f;font-size:13px;margin-top:22px;line-height:1.5}
+.hs-note a{color:var(--mint)}
+.hs-empty{border:1px dashed #1b2523;border-radius:16px;padding:28px;color:#87978f;text-align:center}
+.hs-empty h3{color:#ecf5f1;margin-bottom:6px}
+.hs-pill.inj-out{background:#5a1f1f;color:#ffb3b3}.hs-pill.inj-q{background:#4a431c;color:#f5e39a}.hs-pill.inj-dbt{background:#5a3a1f;color:#ffd0a3}
+.hs-pill.inj-p{background:#16201d;color:#a8f7cf}.hs-pill.start{background:#123325;color:#a8f7cf}
+.hs-card.out{opacity:.55}
+.hs-track{color:var(--mint);font-weight:700}
+@media(max-width:420px){.hs-grid{grid-template-columns:1fr}}
+.hs-inj{margin-left:6px;font-size:11px;font-weight:700;color:#f5b041;white-space:nowrap}.hs-inj.ok{color:#4cd07d}
+.hs-last{margin-top:8px;font-size:13px;color:#c9d6d0;line-height:1.55}.hs-last b{color:#ecf5f1}.hs-dt{color:#7f8f88;font-size:12px}.hs-y{color:#62f0a8;font-weight:700}.hs-n{color:#ff8f8f;font-weight:700}
+.hs-wo{margin-top:8px;font-size:12.5px;color:#cfd8e3;background:rgba(245,176,65,.08);border:1px solid rgba(245,176,65,.25);border-radius:8px;padding:6px 9px}
+.hs-lg{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;color:#0b1220;background:#f5b041;border-radius:4px;padding:1px 5px;margin-right:4px}
+.hs-ctx{margin-top:8px;font-size:12.5px;color:#cfd8e3;line-height:1.6}.hs-ctx b{color:#ecf5f1}.hs-ctx .hs-good{color:var(--mint)}.hs-ctx .hs-bad{color:#ffb3b3}.hs-dim{color:#87978f}.hs-sep{color:#3a4743;margin:0 7px}
+</style>
+<script src="nav.js?v=8"></script>
+<script src="gate.js?v=2" data-need="member" data-label="Cold stats"></script>
+</head>
+<body class="no-js">
+
+<nav>
+  <div class="wrap navrow">
+    <a href="index.html" class="brand" aria-label="Overlay Tips home">
+      <img src="logo-nav.png?v=1" alt="Overlay Tips" class="brand-logo">
+    </a>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="cold.html" class="on" aria-current="page">Cold stats</a>
+    <a href="lineups.html">Overlay Wire</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+    <a href="fantasy.html">Fantasy <small style="font-size:.68em;font-weight:800;letter-spacing:.04em;color:#efbe3b;margin-left:4px">SOON</small></a>
+      <a href="membership.html">Membership</a>
+      <a href="index.html#results">Results</a>
+      <a href="record.html">Tracker record</a>
+      <a href="calculator.html">Bonus bet calc</a>
+      <a href="giveaway.html">Giveaway</a>
+      <a href="merch.html">Merch <small style="font-size:.68em;font-weight:800;letter-spacing:.04em;color:#efbe3b;margin-left:4px">SOON</small></a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a class="btn btn-mint" href="portal.html?signup">Sign up</a>
+    </div>
+  </div>
+  <div class="tabbar" aria-label="Site sections">
+    <a href="index.html">Home</a>
+    <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="cold.html" class="on" aria-current="page">Cold stats</a>
+    <a href="lineups.html">Overlay Wire</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+    <a href="fantasy.html">Fantasy <small style="font-size:.68em;font-weight:800;letter-spacing:.04em;color:#efbe3b;margin-left:4px">SOON</small></a>
+    <a href="membership.html">Membership</a>
+    <a href="index.html#results">Results</a>
+    <a href="record.html">Tracker record</a>
+    <a href="calculator.html">Bonus bet calc</a>
+    <a href="giveaway.html">Giveaway</a>
+    <a href="merch.html">Merch <small style="font-size:.68em;font-weight:800;letter-spacing:.04em;color:#efbe3b;margin-left:4px">SOON</small></a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+  </div>
+</nav>
+
+<main>
+<header class="page-head">
+  <div class="wrap">
+    <div class="mono">Free · NBA, NFL + NBL unders</div>
+    <h1>Cold stats</h1>
+    <p>Lines the player keeps falling short of: the unders. Each card shows his last 10 games against the line, how often he stayed under, and the best Under price at the Aussie bookies. Updated every 5 minutes.</p>
+  </div>
+</header>
+<section class="page-sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="hs-meta" id="meta">Loading…</div>
+    <div class="hs-lgs" id="lgs" role="tablist" aria-label="League"></div>
+    <div class="hs-bar">
+      <div class="hs-chips" id="chips"></div>
+      <div class="hs-ctl"><label class="hs-sort">Game <select id="game"><option value="all">All games</option></select></label><label class="hs-sort">Bookie <select id="book"><option value="all">All bookies (best price)</option></select></label>
+      <label class="hs-sort">Sort <select id="sort"><option value="hit">Under rate</option><option value="value">Value</option><option value="price">Price</option><option value="time">Tip-off</option></select></label></div>
+    </div>
+    <div class="hs-grid" id="grid"></div>
+    <p class="hs-note">Under rate = games the player stayed under the main line, out of his last 10 (last 5, and vs tonight's opponent this season). Only lines he's stayed under in 8+ of his last 10, with a two-sided market (Pinnacle, or 3+ Aussie bookies pricing both sides) so we can work out a fair price for the Under. Value uses the same market-led method as Hot stats. Bars in red went over the line. Past form isn't a guarantee, so check the price is still there before you bet. <a href="hot.html">Overs: Hot stats →</a></p>
+    <p class="hs-note" hidden>Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks lean mostly on the market (Pinnacle's sharp price when there is one, otherwise the Aussie bookies' consensus with their margin taken off), adjusted a little for player form (recent games count more), then compare that to the chance the best price needs. Anything that looks like more than +15% is left out: that's nearly always a stale or wrong price. Fair price = that rated chance turned into odds (1 ÷ chance), so a price above fair is value. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="rg">
+      <b>18+ only. Gamble responsibly.</b> Analysed tips, not guaranteed wins. Only bet what you can afford to lose.
+      Need help? Call Gambling Help Online on <b>1800 858 858</b> or visit <a href="https://www.gamblinghelponline.org.au" target="_blank" rel="noopener">gamblinghelponline.org.au</a>.
+      You can self-exclude from all Australian bookmakers at <a href="https://www.betstop.gov.au" target="_blank" rel="noopener">betstop.gov.au</a>.
+    </div>
+    <div class="foot">
+      <span>© 2026 Overlay Tips · 1U = $10 in examples</span>
+      <span>Past results don't guarantee future profit. · <a href="membership-terms.html">Terms</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Giveaway T&amp;Cs</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+document.body.classList.remove('no-js');
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SRC=new URLSearchParams(location.search).get('data')||'https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json';
+let ITEMS=[], VALUE=[], stat='All', sort='hit', book='all';
+function status(){return {cls:'',pill:''};}   // injury badges removed (no licensed source)
+try{book=localStorage.getItem('hs-book')||'all';}catch(e){}
+// price/value at the chosen bookie (value = our chance x their price - 1); null if they don't price it
+function atBook(i){
+  if(book==='all') return i;
+  const p=i.prices&&i.prices[book]; if(!p) return null;
+  return {...i, price:p, book, value:typeof i.prob==='number'?Math.round((i.prob*p-1)*1000)/10:i.value};
+}
+const val=i=>typeof i.value==='number'?i.value:-1e9;
+const pct=a=>a[1]?Math.round(a[0]/a[1]*100):0;
+const when=iso=>new Date(iso).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'});
+const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago';};
+function chart(it){
+  const gs=it.games.slice().reverse(), n=gs.length, W=340, H=150, L=26, R=6, T=18, B=34;
+  const max=Math.max(it.point*1.25,...gs.map(g=>g[3]))||1, Y=v=>T+(1-v/max)*(H-T-B), bw=(W-L-R)/n;
+  let s='';
+  const step=max>60?20:max>30?10:max>12?5:max>6?2:1;
+  for(let v=step;v<max;v+=step) s+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1b2523" stroke-dasharray="3 4"/><text x="${L-5}" y="${Y(v)+4}" font-size="10" fill="#5f6f68" text-anchor="end">${v}</text>`;
+  gs.forEach((g,i)=>{const hit=g[3]<it.point, x=L+i*bw+bw*0.14, w=bw*0.72, y=Y(Math.max(g[3],0)), h=Math.max(2,H-B-y);
+    s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${hit?'url(#hg)':'#3a2323'}"><title>${esc(g[0])} ${g[2]==='@'?'@':'v'} ${esc(g[1])}: ${g[3]}</title></rect>`;
+    s+=`<text x="${(x+w/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="11" font-weight="700" fill="${hit?'#ecf5f1':'#ff8a8a'}" text-anchor="middle">${g[3]}</text>`;
+    s+=`<text x="${(x+w/2).toFixed(1)}" y="${H-B+14}" font-size="9.5" fill="#87978f" text-anchor="middle">${esc(g[1])}</text><text x="${(x+w/2).toFixed(1)}" y="${H-B+26}" font-size="9" fill="#5f6f68" text-anchor="middle">${g[2]==='@'?'away':'home'}</text>`;});
+  const ly=Y(it.point);
+  s+=`<line x1="${L}" x2="${W-R}" y1="${ly}" y2="${ly}" stroke="#efbe3b" stroke-width="1.6"/>`;
+  return `<svg class="hs-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(it.player)} last ${n} games"><defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8af5b6"/><stop offset="1" stop-color="#2fcf7f"/></linearGradient></defs>${s}</svg>`;
+}
+function fair(it){
+  if(typeof it.prob!=='number'||it.prob<=0) return '';
+  const f=1/it.prob; return `<span class="hs-pill fair ${it.price>f?'over':''}" title="Our rated chance (${Math.round(it.prob*100)}%) as odds. Price above this = value.">Fair ${f.toFixed(2)}</span>`;
+}
+function lastGame(it){
+  const m=it.h2h||[]; if(!it.opp) return '';
+  if(!m.length) return '';
+  const under=/^u/i.test(String(it.line||'')), pt=it.point, hit=v=>under?v<pt:v>pt;
+  const d=x=>new Date(x+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+  const one=x=>`<b>${x[3]}</b> <span class="hs-dt">${d(x[0])}</span> <span class="${hit(x[3])?'hs-y':'hs-n'}">${hit(x[3])?'✓':'✗'}</span>`;
+  return `<div class="hs-last">Last time v ${esc(it.opp)}: ${one(m[0])}${m.length>1?`<br><span class="hs-dt">Before that:</span> ${m.slice(1).map(one).join(' · ')}`:''}</div>`;
+}
+function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function ctxRow(it){   // projected minutes, usage, how tonight's opponent defends his position, game pace
+  const b=[];
+  if(it.proj){const d=it.proj.min-it.proj.l10; b.push(`⏱ Proj <b>${it.proj.min}</b> min <span class="hs-dim">(L10 ${it.proj.l10}${Math.abs(d)>=1.5?(d>0?' ▲':' ▼'):''})</span>`);}
+  if(it.usg) b.push(`Usage <b>${it.usg}%</b>`);
+  if(it.mu){const P={G:'guards',F:'forwards',C:'centres'}[it.mu.pos],top=it.mu.rank<=it.mu.of/2,r=top?it.mu.rank:it.mu.of+1-it.mu.rank;
+    b.push(`🛡 ${esc(it.opp||'Opp')}: <b class="${top?'hs-good':'hs-bad'}">${ord(r)}-${top?'most':'fewest'}</b> ${esc(it.stat).toLowerCase()} to ${P} <span class="hs-dim">(${it.mu.pct>0?'+':''}${it.mu.pct}%)</span>`);}
+  if(typeof it.pace==='number'&&Math.abs(it.pace)>=1.5) b.push(`${it.pace>0?'🏃 Fast':'🐢 Slow'} game <span class="hs-dim">(${it.pace>0?'+':''}${it.pace.toFixed(0)}% pace)</span>`);
+  return b.length?`<div class="hs-ctx">${b.join('<span class="hs-sep">·</span>')}</div>`:'';
+}
+function card(it,val){
+  const ls=status(it);
+  return `<article class="hs-card ${ls.cls}">
+    <div class="hs-top"><div><div class="hs-name">${esc(it.player)}<small>${it.lg==='NBL'||it.lg==='NFL'?`<span class="hs-lg">${it.lg}</span> `:''}${esc(it.team||'')}</small>${it.inj==='Q'||it.inj==='GTD'?`<span class="hs-inj" title="${it.inj==='Q'?'Questionable':'Game-time decision'}: check team news">⚠️ ${it.inj}</span>`:it.starting?'<span class="hs-inj ok" title="Confirmed starter">✅ Starting</span>':''}</div>
+      <div class="hs-line">🧊 ${esc(it.line)} ${esc(it.stat)}</div></div>
+      <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
+    ${chart(it)}
+    <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">Under L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
+    ${lastGame(it)}
+    ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
+    ${ctxRow(it)}
+    ${it.wo?`<div class="hs-wo">🚑 <b>${esc(it.wo.n)}</b> is out: ${esc(it.stat).toLowerCase()} avg <b>${it.wo.avg}</b> without him vs ${it.wo.with} with (${it.wo.hit[0]}/${it.wo.hit[1]} games cleared this line)</div>`:''}
+    ${it.why?`<details class="hs-take"${val?' open':''}><summary>The case</summary><p>${esc(it.why)}</p></details>`:''}
+    <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&lg=${lgOf(it)}&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Under&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
+  </article>`;
+}
+let game='all';
+let LG=(()=>{try{return localStorage.getItem('hs-lg')||'NBA';}catch(_){return 'NBA';}})();
+const lgOf=i=>i.lg==='NBL'||i.lg==='NFL'?i.lg:'NBA';
+function draw(){
+  const ALLI=ITEMS, ALLV=VALUE, live=i=>new Date(i.start)>new Date();
+  const cnt=l=>new Set(ALLI.concat(ALLV).filter(i=>lgOf(i)===l&&live(i)).map(i=>i.player+'|'+i.stat)).size;
+  $('lgs').innerHTML=['NBA','NFL','NBL'].map(l=>`<button type="button" role="tab" aria-selected="${l===LG}" class="${l===LG?'on':''}" data-l="${l}">${l}<small>${cnt(l)}</small></button>`).join('');
+  $('lgs').querySelectorAll('button').forEach(b=>b.onclick=()=>{LG=b.dataset.l;stat='All';game='all';try{localStorage.setItem('hs-lg',LG);}catch(_){}draw();});
+  ITEMS=ALLI.filter(i=>lgOf(i)===LG); VALUE=ALLV.filter(i=>lgOf(i)===LG);
+  try{ drawLg(); } finally { ITEMS=ALLI; VALUE=ALLV; }
+}
+function drawLg(){
+  const gl=[...new Map(ITEMS.concat(VALUE).filter(i=>new Date(i.start)>new Date()).map(i=>[i.game,i.start])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  if(game!=='all'&&!gl.some(g=>g[0]===game)) game='all';
+  $('game').innerHTML='<option value="all">All games</option>'+gl.map(([g,st])=>`<option value="${esc(g)}">${esc(g)} · ${when(st)}</option>`).join('');
+  $('game').value=game;
+  if(game!=='all'){ ITEMS=ITEMS.filter(i=>i.game===game); VALUE=VALUE.filter(i=>i.game===game); }
+  const stats=['All',...new Set(ITEMS.concat(VALUE).map(i=>i.stat))];
+  if(!stats.includes(stat)) stat='All';
+  $('chips').innerHTML=stats.map(s=>`<button type="button" class="${s===stat?'on':''}" data-s="${esc(s)}">${esc(s)}</button>`).join('');
+  $('chips').querySelectorAll('button').forEach(b=>b.onclick=()=>{stat=b.dataset.s;draw();});
+  const books=[...new Set(ITEMS.concat(VALUE).flatMap(i=>Object.keys(i.prices||{})))].sort((a,b)=>a.localeCompare(b));
+  if(book!=='all'&&!books.includes(book)) book='all';
+  $('book').innerHTML='<option value="all">All bookies (best price)</option>'+books.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  $('book').value=book;
+  let xs=ITEMS.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date());
+  if(sort==='hit') xs.sort((a,b)=>b.l10[0]/b.l10[1]-a.l10[0]/a.l10[1]||b.l5[0]/b.l5[1]-a.l5[0]/a.l5[1]||val(b)-val(a)); else if(sort==='value') xs.sort((a,b)=>val(b)-val(a)); else if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
+  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No cold streaks right now</h3>They show up when there are ${LG} games ${LG==='NFL'?'in the next 2 days':'in the next 24 hours'} and a player has been staying under the line. Check back after the next update (every 5 minutes).</div>`;
+}
+$('sort').onchange=e=>{sort=e.target.value;draw();};
+$('game').onchange=e=>{game=e.target.value;draw();};
+$('book').onchange=e=>{book=e.target.value;try{localStorage.setItem('hs-book',book);}catch(_){}draw();};
+fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(d=>{
+  ITEMS=d.cold||[]; VALUE=[]; $('meta').textContent=`${ITEMS.length} cold streak${ITEMS.length===1?"":"s"} · updated ${ago(d.updated)}`; draw();
+}).catch(()=>{ $('meta').textContent=''; $('grid').innerHTML='<div class="hs-empty"><h3>Cold stats are loading soon</h3>The first batch lands with the next odds update.</div>'; });
+</script>
+</body>
+</html>

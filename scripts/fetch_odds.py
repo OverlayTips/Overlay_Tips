@@ -430,6 +430,7 @@ def main():
             hn = hot.build(list(props.values()), stats["nbl"], NOW, TS, sport="basketball_nbl")
             hj["items"] += hn["items"]
             hj["value"] = sorted(hj["value"] + hn["value"], key=lambda x: -x["value"])
+            hj["cold"] += hn["cold"]
             legs += hn.pop("_legs", [])
             print(f"hot stats NBL: {len(hn['items'])} props, {len(hn['value'])} value")
         if (stats.get("nfl") or {}).get("players"):
@@ -437,9 +438,10 @@ def main():
             hf.pop("_legs", None)   # the SGM builder is basketball only
             hj["items"] += hf["items"]
             hj["value"] = sorted(hj["value"] + hf["value"], key=lambda x: -x["value"])
+            hj["cold"] += hf["cold"]
             print(f"hot stats NFL: {len(hf['items'])} props, {len(hf['value'])} value")
         if avail:   # drop Out/Doubtful players, flag Questionable / not starting
-            for lst in ("items", "value"):
+            for lst in ("items", "value", "cold"):
                 keep = []
                 for it in hj.get(lst) or []:
                     if it.get("lg") in ("NBL", "NFL"):   # this injury feed is NBA only (NFL is checked below)

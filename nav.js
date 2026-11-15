@@ -62,7 +62,7 @@
     // grouped menu: links are sorted into sections by page; duplicates are dropped
     var GROUPS = [
       ['', ['index.html']],
-      ['Tools', ['odds.html', 'hot.html', 'lineups.html', 'live.html', 'tracker.html', 'calculator.html']],
+      ['Tools', ['odds.html', 'hot.html', 'cold.html', 'lineups.html', 'live.html', 'tracker.html', 'calculator.html']],
       ['Members', ['membership.html', 'fantasy.html', 'index.html#results', 'record.html', 'giveaway.html']],
       ['More', ['merch.html', 'about.html', 'contact.html']]
     ];

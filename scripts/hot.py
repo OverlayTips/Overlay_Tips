@@ -4,6 +4,7 @@ Published UNENCRYPTED as odds-data/hot.json, so keep it to what the public page 
 For each player + stat we look at every over line the Aussie bookies offer (main over/unders and
 ladders like 25+), keep the lines he's cleared in 80%+ of his last 10 games, and show the one that
 pays the most. Ranked by last-10 hit rate, then last-5, then price.
+"cold" = cold streaks: main-line UNDERS the player has stayed under in 80%+ of his last 10 (cold.html).
 "value" = best value picks: expected return per $1 at the best price (prob x price - 1).
 prob leans mostly on the market, because bookie prices already know about minutes, injuries and
 matchups that a 10-game hit rate can't see:
@@ -117,7 +118,7 @@ def _spreads(games, teams):
 
 def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None, games=(), avail=None):
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
-    cands, vcands, legs = [], [], []
+    cands, vcands, legs, ccands = [], [], [], []
     ST = NFL_STAT if sport == "americanfootball_nfl" else STAT
     absent = _absentees(players, out)
     # role + matchup context (NBA only; see matchups.py)
@@ -144,7 +145,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
         if start <= now:
             continue
         # best over price per (market, player, point)
-        best, allp, allu = {}, {}, {}
+        best, allp, allu, bestu = {}, {}, {}, {}
         for b in ev.get("bookmakers", []):
             if b["key"] in SKIP_BOOKS:
                 continue
@@ -159,6 +160,9 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                     if o.get("name") == "Under":
                         bu = allu.setdefault(k, {})
                         bu[_book(b)] = max(bu.get(_book(b), 0), o["price"])
+                        if (not MY_BOOKS or b["key"] in MY_BOOKS) and not m["key"].endswith("_alternate") \
+                                and (k not in bestu or o["price"] > bestu[k][0]):
+                            bestu[k] = (o["price"], _book(b))
                         continue
                     if o.get("name") != "Over":
                         continue
@@ -303,6 +307,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 vtop[key] = item
         cands += top.values()
         vcands += vtop.values()
+        ccands += _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now)
     cands.sort(key=lambda x: (x["l10"][0] / x["l10"][1], x["l5"][0] / x["l5"][1], x["price"]), reverse=True)
     out, per = [], {}
     for c in cands:
@@ -321,4 +326,72 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
         value.append(c)
         if len(value) >= VALUE_LIMIT:
             break
-    return {"updated": ts, "items": out, "value": value, "_legs": legs}
+    ccands.sort(key=lambda x: (x["l10"][0] / x["l10"][1], x["l5"][0] / x["l5"][1], x["value"]), reverse=True)
+    cold, per = [], {}
+    for c in ccands:
+        if per.get(c["player"], 0) >= PER_PLAYER:
+            continue
+        per[c["player"]] = per.get(c["player"], 0) + 1
+        cold.append(c)
+        if len(cold) >= LIMIT:
+            break
+    return {"updated": ts, "items": out, "value": value, "cold": cold, "_legs": legs}
+
+
+COLD_MAX_PRICE = 3.0
+
+
+def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now):
+    """Cold streaks: main-line unders the player has stayed under in 80%+ of his last 10.
+    Needs a two-sided market (Pinnacle, or 3+ Aussie bookies pricing Over and Under) for a fair price."""
+    h, a = teams.get(ev["home_team"]), teams.get(ev["away_team"])
+    top = {}
+    for (mk, desc, pt), (price, book) in bestu.items():
+        if not (MIN_PRICE <= price <= COLD_MAX_PRICE):
+            continue
+        p = players.get(by.get(desc, ""))
+        if not p:
+            continue
+        gs = [g for g in p.get("g", []) if g[3] > 0]
+        if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
+            continue
+        label, f = ST[mk]
+        l10, l5 = gs[:10], gs[:5]
+        under = lambda xs: sum(1 for g in xs if f(g) < pt)
+        u10, u5, us = under(l10), under(l5), under(gs)
+        if u10 / len(l10) < MIN_HIT:
+            continue
+        k3 = (mk, desc, pt)
+        ov, un = allp.get(k3, {}), allu.get(k3, {})
+        both = [(1 / un[bk]) / (1 / ov[bk] + 1 / un[bk]) for bk in un if bk in ov]
+        if k3 in pin:
+            p_mkt, src = 1 - pin[k3], "pin"
+        elif len(both) >= 3:
+            p_mkt, src = _median(sorted(both)), "two"
+        else:
+            continue   # no honest fair price for the under
+        wh = 3 * u5 + 2 * u10 + us
+        wn = 3 * len(l5) + 2 * len(l10) + len(gs)
+        wn_eff = wn / 6
+        p_form = (wh / wn * wn_eff + SHRINK * p_mkt) / (wn_eff + SHRINK)
+        prob = FORM_W[src] * p_form + (1 - FORM_W[src]) * p_mkt
+        opp = a if p.get("team") == h else h if p.get("team") == a else None
+        vs = [g for g in gs if opp and g[1] == opp]
+        item = {
+            "player": p.get("n") or desc, "team": p.get("team"), "opp": opp, "lg": LEAGUE.get(sport, ""),
+            "game": f"{ev['away_team']} @ {ev['home_team']}", "start": ev["commence_time"],
+            "stat": label, "side": "Under", "line": f"Under {pt:g}", "point": pt, "price": price, "book": book,
+            "l10": [u10, len(l10)], "l5": [u5, len(l5)], "vs": [under(vs), len(vs)], "season": [us, len(gs)],
+            "avg": round(sum(f(g) for g in l10) / len(l10), 1),
+            "prob": round(prob, 3), "mkt": round(p_mkt, 3), "msrc": src, "books": len(un),
+            "value": round((prob * price - 1) * 100, 1),
+            "prices": dict(sorted(un.items(), key=lambda x: -x[1])),
+            "games": [[g[0], g[1], g[2], f(g), None] for g in l10],
+        }
+        meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
+        if meet:
+            item["h2h"] = [[g[0], g[1], g[2], f(g)] for g in meet[:3]]
+        key = (desc, mk)
+        if key not in top or price > top[key]["price"]:
+            top[key] = item
+    return list(top.values())
