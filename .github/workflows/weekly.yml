@@ -1,0 +1,48 @@
+name: Weekly results graphic
+
+# Monday 9am Melbourne (AEDT): draws last week's Tracker record as an Instagram post (1080x1350),
+# saves it on the graphics branch and sends it to Jayden's ntfy channel with a ready-to-paste caption.
+# "Run workflow" can redo any week (week ending = the Sunday, YYYY-MM-DD).
+on:
+  schedule:
+    - cron: "0 22 * * 0"
+  workflow_dispatch:
+    inputs:
+      week_ending:
+        description: "Week ending (Sunday, YYYY-MM-DD). Blank = last week"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  graphic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Draw
+        id: draw
+        run: |
+          pip install -q pillow
+          WE="${{ inputs.week_ending }}"
+          mkdir -p out
+          if python scripts/weekly_graphic.py https://raw.githubusercontent.com/${{ github.repository }}/odds-data/record.json out/week.png ${WE:+--week-ending $WE}; then
+            echo "made=1" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Save + send
+        if: steps.draw.outputs.made == '1'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          name="week-$(date -u +%Y%m%d%H%M).png"
+          git fetch -q --depth=1 origin graphics && git worktree add -q g FETCH_HEAD || { mkdir g && cd g && git init -q && cd ..; }
+          cp out/week.png "g/$name" && cp out/week.txt "g/${name%.png}.txt" && cp out/week.png g/latest.png
+          cd g && git config user.name odds-bot && git config user.email odds-bot@users.noreply.github.com
+          git add -A && git commit -qm "Weekly graphic $name" && git push -q "$REPO_URL" HEAD:refs/heads/graphics
+          cd ..
+          GRAPHIC_URL="https://raw.githubusercontent.com/${{ github.repository }}/graphics/$name" python scripts/weekly_graphic.py --notify out/week.txt
