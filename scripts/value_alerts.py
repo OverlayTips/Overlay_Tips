@@ -34,6 +34,17 @@ MAX_SINGLE = 10**6   # no limit: every new value bet gets its own notification
 BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U to 3U
 
 
+def app_push(cat, title, lines, url, min_tier):
+    """Members' app alerts (web push, scripts/web_push.py), next to the ntfy channels. Never fails the caller."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import web_push
+        return web_push.send(cat, title, lines, url, min_tier)
+    except Exception as e:
+        print(f"::warning::app push failed: {e}")
+        return 0
+
+
 def push(title, lines, click=None, actions=()):
     """Send to Jayden's topic and, if set, the VIP members' topic. True if any send worked."""
     ok = False
@@ -316,6 +327,7 @@ def send_arbs(state, now):
         lg = f" ({a['lg']})" if a.get("lg") else ""
         lines = [f"{a['emoji']} {a['game']}{lg} · {tip(a['start'])} · {a['market']}"] + a["lines"] + \
                 ["Prices move fast: check every leg is still there before betting."]
+        app_push("arbs", a["title"], lines[:4], SITE + "/odds.html", "vip")
         if push(a["title"], lines, click=SITE + "/odds.html",
                 actions=[{"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False}]):
             state[a["key"]] = {"edge": a["margin"], "price": 0, "tag": "", "at": now.isoformat()}
@@ -353,7 +365,9 @@ def race_morning(now, state):
             lines.append(f"{x['venue']} R{x['num']}: {(str(x['no']) + '. ') if x.get('no') else ''}{x['name']} rated ${x['rated']:.2f} "
                          f"(next best {x['next']} ${x['next_rated']:.2f})")
     lines += ["", "Rated prices from Betfair's data scientists' models. Only back them if your bookie pays more than the rated price."]
-    _push(TOPIC, f"🏇 Model's top picks · {syd.strftime('%a %-d %b')}", lines[1:], click=SITE + "/odds.html", priority=3)
+    title = f"🏇 Model's top picks · {syd.strftime('%a %-d %b')}"
+    _push(TOPIC, title, lines[1:], click=SITE + "/odds.html", priority=3)
+    app_push("racing", title, [l for l in lines[1:] if l][:6], SITE + "/odds.html", "founder")   # free for every member
     state["race_am"] = {"at": now.isoformat(), "date": day}
     print(f"racing morning push: {len(tops['items'])} picks")
 
@@ -404,6 +418,14 @@ def main():
             acts.append({"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False})
             if push(title, lines, click=SITE + "/odds.html", actions=acts):
                 sent.append(p)
+            # app alerts: props by league to Daily card + VIP; game bets and racing value to VIP
+            prop = bool((p.get("log") or {}).get("desc"))
+            cat = "racing" if p["emoji"] in ("🏇", "🐕") else (str(p.get("lg") or "").lower() if prop else "games")
+            if cat not in ("nba", "nbl", "nfl", "racing", "games"):
+                cat = "games"
+            why = (p.get("why") or [""])[0].split("\n\n")
+            app_push(cat, title, lines[:2] + [w for w in why if w.startswith(("📈", "✅", "🤖"))][:2] or lines[:3],
+                     (p.get("add") or SITE + "/odds.html"), "core" if prop and cat != "racing" else "vip")
         if len(new) > len(top):   # the rest in one summary
             rest = new[len(top):]
             lines = [f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U" for p in rest[:10]]

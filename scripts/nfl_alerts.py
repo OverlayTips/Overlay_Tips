@@ -165,6 +165,11 @@ def main():
             out.append("")
         n = sum(len(v) for v in news.values())
         base.push(f"🏈 NFL injury news ({n})", out[:-1], tags="football")
+        try:   # members' app alerts (web push): Daily card + VIP
+            import web_push
+            web_push.send("news", f"🏈 NFL injury news ({n})", [l for l in out[:-1] if l][:8], "https://overlay.tips/live.html", "core")
+        except Exception as e:
+            print(f"::warning::app push failed: {e}")
         print(f"pushed {n} updates")
     else:
         print("no changes" if state is not None else f"first run: recorded {len(cur)} designations")

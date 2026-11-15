@@ -38,10 +38,13 @@ jobs:
         env:
           NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           STATE: st/nfl_state.json
           TEST: ${{ inputs.test && '1' || '0' }}
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
         run: |
+          pip install -q pywebpush || true
           mkdir -p st
           git fetch -q --depth=1 origin nfl-alerts-state && git show FETCH_HEAD:nfl_state.json > st/nfl_state.json || echo "no state yet"
           if [ "$TEST" = "1" ]; then python scripts/nfl_alerts.py; exit 0; fi

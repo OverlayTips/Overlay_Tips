@@ -74,7 +74,11 @@ jobs:
           NTFY_MEMBER_TOPIC: ${{ secrets.NTFY_MEMBER_TOPIC }}
           UPDATE_PING: "1"   # status ping to Jayden's own channel after every update
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
-        run: python scripts/value_alerts.py
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}        # members' app alerts (web push)
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          pip install -q pywebpush || true
+          python scripts/value_alerts.py
 
       - name: Odds Fantasy (rounds, multipliers, scoring -> Supabase)
         if: env.RUN == 'true' && env.PW_SET == 'true'

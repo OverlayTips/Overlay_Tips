@@ -246,6 +246,12 @@ def main():
             title = "NBA injury update" if len(inj_lines) > 1 else "NBA injury: " + inj_lines[0][2:]
         body = lineup_lines + ([""] if lineup_lines and inj_lines else []) + inj_lines
         push(title, body[:40])
+        try:   # members' app alerts (web push): Daily card + VIP
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import web_push
+            web_push.send("news", "🏀 " + title, [l for l in body if l][:8], "https://overlay.tips/lineups.html", "core")
+        except Exception as e:
+            print(f"::warning::app push failed: {e}")
 
     write_site(day, games, all_lineups, new)
     try:

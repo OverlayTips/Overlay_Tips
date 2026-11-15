@@ -39,11 +39,14 @@ jobs:
         env:
           NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           STATE: st/state.json
           GH_TOKEN: ${{ github.token }}
           TEST: ${{ inputs.test && '1' || '0' }}
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
         run: |
+          pip install -q pywebpush || true
           publish() {   # $1 = branch, then the files in st/ to put on it
             br="$1"; shift
             rm -rf pub && mkdir pub && for f in "$@"; do [ -f "st/$f" ] && cp "st/$f" pub/; done
