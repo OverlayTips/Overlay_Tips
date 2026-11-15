@@ -86,7 +86,7 @@
   .up{color:var(--mint)} .down{color:var(--red)} .flat{color:var(--muted)}
   .gbtn{background:var(--panel2);border:1px solid var(--mint-dim);color:var(--mint);border-radius:999px;padding:2px 9px;margin-left:8px;cursor:pointer;vertical-align:middle;font:600 11px Archivo,system-ui,sans-serif;white-space:nowrap}
   .gbtn:hover{border-color:var(--mint)}
-  .gcase{color:#d7e3de;font-size:14px;line-height:1.55;margin:4px 0 10px}
+  .gcase{color:#d7e3de;font-size:14px;line-height:1.55;margin:4px 0 10px;white-space:pre-line}
   .gbox{max-height:calc(100vh - 32px);overflow-y:auto}
   .gbox h4{font-size:14px;margin:16px 0 4px;color:var(--text)} .gbox h4 small{color:var(--muted);font-weight:400}
   .gmodal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -99,7 +99,7 @@
   details.why{margin-top:5px} details.why summary{cursor:pointer;color:var(--mint);font-size:12px;font-weight:800;list-style:none;display:inline-block}
   details.why summary::-webkit-details-marker{display:none} details.why summary::before{content:'▸ ';display:inline-block;transition:transform .15s}
   details.why[open] summary::before{transform:rotate(90deg)}
-  details.why p{margin:5px 0 2px;color:#d7e3de;font-size:13px;line-height:1.5;white-space:normal;max-width:560px}
+  details.why p{margin:5px 0 2px;color:#d7e3de;font-size:13px;line-height:1.5;white-space:pre-line;max-width:560px}
   .ps-sum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px} .ps-sum div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted)} .ps-sum b{display:block;color:var(--text);font-size:15px}
   .ps-tbl{width:100%;border-collapse:collapse;font-size:13px} .ps-tbl th,.ps-tbl td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left} .ps-tbl th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
   .ps-tbl td.y{color:var(--mint);font-weight:700} .ps-tbl td.n{color:#ff8a8a;font-weight:700}
@@ -923,10 +923,10 @@ function quickCase(e,mk,r,pt,pk,edge,fair){
     const C=DATA.cases||{}, side=sd[0]?'Over':'Under', base=mk.replace(/_alternate$/,''), p=sd[1];
     let full=p!=null?C[`${e.id}|${base}|${r.s.desc}|${side}|${+p}`]:null, note='';
     if(!full&&p!=null){const k=Object.keys(C).find(k=>k.startsWith(`${e.id}|${base}|${r.s.desc}|${side}|`));
-      if(k){full=C[k];note=`On his main line (${k.split('|').pop()}): `;}}
+      if(k){full=C[k];note=`(Based on his main line, ${k.split('|').pop()})\n\n`;}}
     if(full){
       const src=r.fairSrc==='pin'?"Pinnacle's price":`the consensus of ${r.nfair} bookies`;
-      return note+full+` Price: $${pk.price.toFixed(2)} at ${bkName(pk.book)} is ${edge.toFixed(1)}% above the fair $${fair.toFixed(2)} (${src}, margin off). It needs a ${Math.round(100/pk.price)}% chance and the market rates it about ${Math.round(100/fair)}%.`;
+      return note+full.replace(/\n\n✅/,`\n\n💰 Price: $${pk.price.toFixed(2)} at ${bkName(pk.book)} is ${edge.toFixed(1)}% above the fair $${fair.toFixed(2)} (${src}, margin off). It needs a ${Math.round(100/pk.price)}% chance and the market rates it about ${Math.round(100/fair)}%.\n\n✅`);
     }
     const h=propHits(e,mk,r.s.desc,sd[0],sd[1]);
     if(h&&h.l10[1]){
