@@ -406,6 +406,18 @@ def main():
     except Exception as e:
         print("NBL stats failed:", type(e).__name__, e)
 
+    # ---- NFL player game logs (BALLDONTLIE NFL GOAT: same NBA_STATS_KEY secret) ----
+    try:
+        import nfl_stats
+        nflst, note = nfl_stats.update(stats.get("nfl"), list(props.values()), NOW, TS)
+        stats = {**stats, "nfl": nflst}
+        print("NFL stats:", note)
+        if nflst.get("players"):
+            with open(os.path.join(OUT, "nfl_players.json"), "w") as f:   # public: names + team only
+                json.dump(nfl_stats.player_list(nflst, TS), f, separators=(",", ":"))
+    except Exception as e:
+        print("NFL stats failed:", type(e).__name__, e)
+
     sgms = []
     # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
     try:
@@ -420,11 +432,17 @@ def main():
             hj["value"] = sorted(hj["value"] + hn["value"], key=lambda x: -x["value"])
             legs += hn.pop("_legs", [])
             print(f"hot stats NBL: {len(hn['items'])} props, {len(hn['value'])} value")
+        if (stats.get("nfl") or {}).get("players"):
+            hf = hot.build(list(props.values()), stats["nfl"], NOW, TS, sport="americanfootball_nfl")
+            hf.pop("_legs", None)   # the SGM builder is basketball only
+            hj["items"] += hf["items"]
+            hj["value"] = sorted(hj["value"] + hf["value"], key=lambda x: -x["value"])
+            print(f"hot stats NFL: {len(hf['items'])} props, {len(hf['value'])} value")
         if avail:   # drop Out/Doubtful players, flag Questionable / not starting
             for lst in ("items", "value"):
                 keep = []
                 for it in hj.get(lst) or []:
-                    if it.get("lg") == "NBL":   # injury feed is NBA only
+                    if it.get("lg") in ("NBL", "NFL"):   # this injury feed is NBA only (NFL is checked below)
                         keep.append(it)
                         continue
                     a = avail.check(it.get("player"), it.get("team"))

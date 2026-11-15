@@ -1,0 +1,60 @@
+name: NFL alerts
+
+# NFL injury designations + game-day inactives -> push to Jayden's phone (ntfy app), with a
+# "Share to WhatsApp" button on each alert. Runs ~3am-2pm Sydney time, which covers the US injury
+# reports and inactives (~90 min before every kick-off, Thursday to Monday US time). Each run checks
+# every 10 min for ~50 min. Uses BALLDONTLIE only (NFL GOAT plan, same NBA_STATS_KEY secret).
+# Needs secrets: NBA_STATS_KEY and NTFY_TOPIC (both already set for the NBA alerts).
+# "Run workflow" with test ticked sends a test push.
+on:
+  schedule:
+    - cron: "5 16-23,0-2 * * *"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Just send a test push"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nfl-alerts-${{ inputs.test && 'test' || 'live' }}
+  cancel-in-progress: true
+
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check for news + push (every 10 min for ~50 min)
+        env:
+          NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STATE: st/nfl_state.json
+          TEST: ${{ inputs.test && '1' || '0' }}
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          mkdir -p st
+          git fetch -q --depth=1 origin nfl-alerts-state && git show FETCH_HEAD:nfl_state.json > st/nfl_state.json || echo "no state yet"
+          if [ "$TEST" = "1" ]; then python scripts/nfl_alerts.py; exit 0; fi
+          end=$(( $(date +%s) + 50*60 ))
+          while :; do
+            python scripts/nfl_alerts.py || echo "::warning::check failed, retrying next loop"
+            if [ -f st/nfl_state.json ]; then
+              rm -rf pub && mkdir pub && cp st/nfl_state.json pub/ && cd pub && git init -q -b nfl-alerts-state .
+              git config user.name "odds-bot"; git config user.email "odds-bot@users.noreply.github.com"
+              git add -A && git commit -qm "nfl-alerts-state $(date -u +%FT%TZ)" && git push -qf "$REPO_URL" nfl-alerts-state:nfl-alerts-state
+              cd ..
+            fi
+            H=$(TZ=Australia/Sydney date +%H)
+            if [ $(( $(date +%s) + 600 )) -ge $end ] || [ "$H" -ge 14 ] || [ "$H" -lt 3 ]; then break; fi
+            sleep 600
+          done

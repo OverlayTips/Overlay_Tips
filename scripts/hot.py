@@ -35,6 +35,17 @@ STAT = {  # game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, t
     "player_points_assists": ("Pts + Ast", lambda g: g[4] + g[6]),
     "player_rebounds_assists": ("Reb + Ast", lambda g: g[5] + g[6]),
 }
+# NFL (nfl_stats.py) game row: [date, opp, '@'|'vs', 1, pyd, ptd, cmp, patt, int, ryd, ratt, rec, ryds, tgt]
+NFL_STAT = {
+    "player_pass_yds": ("Passing Yards", lambda g: g[4]),
+    "player_pass_tds": ("Passing TDs", lambda g: g[5]),
+    "player_pass_completions": ("Completions", lambda g: g[6]),
+    "player_pass_attempts": ("Pass Attempts", lambda g: g[7]),
+    "player_rush_yds": ("Rushing Yards", lambda g: g[9]),
+    "player_rush_attempts": ("Rush Attempts", lambda g: g[10]),
+    "player_receptions": ("Receptions", lambda g: g[11]),
+    "player_reception_yds": ("Receiving Yards", lambda g: g[12]),
+}
 ROUND5 = {"player_points_rebounds_assists"}
 PRA_MIN, PRA_MAX = 1.60, 1.90
 SKIP_BOOKS = {"betfair_ex_au", "pinnacle"}
@@ -84,7 +95,7 @@ def _absentees(players, out):
 
 
 NO_DATA = {"basketball_nbl": {"player_blocks", "player_steals"}}   # API-Basketball has no blocks/steals
-LEAGUE = {"basketball_nba": "NBA", "basketball_nbl": "NBL"}
+LEAGUE = {"basketball_nba": "NBA", "basketball_nbl": "NBL", "americanfootball_nfl": "NFL"}
 
 
 def _spreads(games, teams):
@@ -107,6 +118,7 @@ def _spreads(games, teams):
 def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None, games=(), avail=None):
     players, by, teams = stats.get("players", {}), stats.get("by", {}), stats.get("teams", {})
     cands, vcands, legs = [], [], []
+    ST = NFL_STAT if sport == "americanfootball_nfl" else STAT
     absent = _absentees(players, out)
     # role + matchup context (NBA only; see matchups.py)
     mx = None
@@ -138,7 +150,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 continue
             for m in b.get("markets", []):
                 mk = m["key"].replace("_alternate", "")
-                if mk not in STAT or mk in NO_DATA.get(sport, ()):
+                if mk not in ST or mk in NO_DATA.get(sport, ()):
                     continue
                 for o in m.get("outcomes", []):
                     if o.get("point") is None or not o.get("description"):
@@ -161,7 +173,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
         sb = ev.get("sharp") or {}
         for m in sb.get("markets", []):
             mk = m["key"].replace("_alternate", "")
-            if mk not in STAT:
+            if mk not in ST:
                 continue
             pr = {}
             for o in m.get("outcomes", []):
@@ -182,9 +194,9 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
             if not p:
                 continue
             gs = [g for g in p.get("g", []) if g[3] > 0]
-            if len(gs) < MIN_GAMES or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
+            if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
                 continue   # not enough games, or nothing recent (injured / last season)
-            label, f = STAT[mk]
+            label, f = ST[mk]
             l10, l5 = gs[:10], gs[:5]
             hit = lambda xs: sum(1 for g in xs if f(g) > pt)
             h10, h5, hs = hit(l10), hit(l5), hit(gs)
@@ -261,7 +273,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 "avg": round(sum(f(g) for g in l10) / len(l10), 1),
                 "prob": round(prob, 3), "hit": round(p_hit, 3), "mkt": round(p_mkt, 3), "msrc": src, "books": len(ps), "value": round((prob * price - 1) * 100, 1),
                 "prices": dict(sorted(allp[(mk, desc, pt)].items(), key=lambda x: -x[1])),
-                "games": [[g[0], g[1], g[2], f(g), round(g[3])] for g in l10],   # 5th = minutes (write-up workload)
+                "games": [[g[0], g[1], g[2], f(g), round(g[3]) if sport != "americanfootball_nfl" else None] for g in l10],   # 5th = minutes (write-up workload)
             }
             # last meetings with tonight's opponent, this season then last season (newest first)
             meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
