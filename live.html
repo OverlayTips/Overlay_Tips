@@ -171,9 +171,9 @@
 <main>
 <header class="page-head">
   <div class="wrap">
-    <div class="mono">Members · NBA live</div>
+    <div class="mono">Members · NBA, NFL &amp; NBL live</div>
     <h1>Live</h1>
-    <p>Members only. Every NBA and NBL game live, in Sydney time. Pick a game to watch each player's stats against his prop line as it happens, follow the play-by-play, or open the full box score. Refreshes every 30 seconds.</p>
+    <p>Members only. Every NBA, NFL and NBL game live, in Sydney time. Pick a game to watch each player's stats against his prop line as it happens, follow the play-by-play, or open the full box score. Refreshes every 30 seconds.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0" id="gate">
@@ -181,8 +181,8 @@
     <form id="gateForm" class="og-up" autocomplete="on">
       <div class="mono">Members only</div>
       <h2>Live is for Daily card and VIP members</h2>
-      <p>Sign up and grab a membership to watch every NBA game live, track your bets and follow the play-by-play. Members just log in and it unlocks.</p>
-      <div class="og-tiers"><div class="og-t"><b>Daily card <span data-plan="core-month">$19.99/month</span></b><ul><li>Every tip in WhatsApp, with units and reasoning</li><li>Live bet tracking for NBA and NBL: your stat vs the line as it happens</li><li>Live page: every NBA and NBL game, props and box scores</li></ul></div><div class="og-t v"><b>VIP <span data-plan="vip-month"></span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
+      <p>Sign up and grab a membership to watch every NBA and NFL game live, track your bets and follow the play-by-play. Members just log in and it unlocks.</p>
+      <div class="og-tiers"><div class="og-t"><b>Daily card <span data-plan="core-month">$19.99/month</span></b><ul><li>Every tip in WhatsApp, with units and reasoning</li><li>Live bet tracking for NBA, NFL and NBL: your stat vs the line as it happens</li><li>Live page: every NBA, NFL and NBL game, props and box scores</li></ul></div><div class="og-t v"><b>VIP <span data-plan="vip-month"></span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, line moves, arbs and props</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
       <div class="cta"><a class="p" href="membership.html">See memberships</a><a class="s" href="portal.html">Log in</a></div>
       <details><summary>Already a member with a password?</summary>
       <input type="text" name="username" value="overlay-live" autocomplete="username" hidden>
@@ -197,7 +197,7 @@
 <section class="page-sec" style="padding-top:0" id="app" hidden>
   <div class="wrap">
     <div class="lv-meta"><span id="meta">Loading…</span><button type="button" class="lv-lock" id="lockBtn">Lock</button></div>
-    <div class="lv-tabs lv-league" id="league"><button type="button" data-lg="NBA" class="on">NBA</button><button type="button" data-lg="NBL">NBL</button></div>
+    <div class="lv-tabs lv-league" id="league"><button type="button" data-lg="NBA" class="on">NBA</button><button type="button" data-lg="NFL">NFL</button><button type="button" data-lg="NBL">NBL</button></div>
     <div class="lv-games" id="games"></div>
     <div class="lv-panel" id="panel" hidden>
       <div class="lv-head">
@@ -210,7 +210,7 @@
       </div>
       <div id="pBody"></div>
     </div>
-    <p class="lv-note">Lines are the main line at the Aussie bookies from our last odds update (every 15 minutes), so a line may have moved since. Live stats and play-by-play from BALLDONTLIE, refreshed every 30 seconds (play-by-play every 15 while you're on it). "Cashed" means the over has already landed. Tap <b>+ Track</b> to put a prop in your <a href="tracker.html">bet tracker</a>, where it settles itself.</p>
+    <p class="lv-note">Lines are the main line at the Aussie bookies from our last odds update (every 15 minutes), so a line may have moved since. Live NBA and NFL stats and play-by-play from BALLDONTLIE, refreshed every 30 seconds (play-by-play every 15 while you're on it). "Cashed" means the over has already landed. Tap <b>+ Track</b> to put a prop in your <a href="tracker.html">bet tracker</a>, where it settles itself.</p>
   </div>
 </section>
 </main>
@@ -246,13 +246,18 @@ const tip=iso=>new Date(iso).toLocaleTimeString('en-AU',{timeZone:TZ,hour:'numer
 const day=iso=>new Date(iso).toLocaleDateString('en-AU',{timeZone:TZ,weekday:'short'});
 const STATS={'Points':r=>r.pts,'Rebounds':r=>r.reb,'Assists':r=>r.ast,'Threes':r=>r.tpm,'Pts + Reb + Ast':r=>r.pts+r.reb+r.ast,
   'Pts + Reb':r=>r.pts+r.reb,'Pts + Ast':r=>r.pts+r.ast,'Reb + Ast':r=>r.reb+r.ast,'Steals':r=>r.stl,'Blocks':r=>r.blk};
+// NFL prop lines (scripts/lines.py labels) -> stat from an NFL box score row
+const NFLSTATS={'Passing Yards':r=>r.pyd,'Passing TDs':r=>r.ptd,'Completions':r=>r.cmp,'Pass Attempts':r=>r.patt,'Interceptions':r=>r.int,
+  'Rushing Yards':r=>r.ryd,'Rush Attempts':r=>r.ratt,'Receptions':r=>r.rec,'Receiving Yards':r=>r.ryds};
+const statsOf=e=>e&&e.lg==='NFL'?NFLSTATS:STATS;
+const KO=e=>e&&e.lg==='NFL'?'Kicks off':'Tips';
 const num=x=>{const n=parseFloat(x);return isFinite(n)?n:0;};
 const mins=m=>{const n=parseInt(String(m||'0').split(':')[0],10);return isFinite(n)?n:0;};
 const etDate=(d=new Date())=>d.toLocaleDateString('en-CA',{timeZone:'America/New_York'});
 const PER=p=>p>4?`OT${p-4>1?p-4:''}`:`Q${p}`;
 
 let PLAYS={id:null,list:[],err:'',seen:0}, PBPF='all', PBPQ='all', pbpTimer=null;
-let LG=(()=>{try{return localStorage.getItem('ot-live-lg')||'NBA';}catch(e){return 'NBA';}})(), ALL=[], NBLERR='', ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\w+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
+let LG=(()=>{try{return localStorage.getItem('ot-live-lg')||'NBA';}catch(e){return 'NBA';}})(), ALL=[], NBLERR='', NFLERR='', ERR='', EVENTS=[], LINESD={games:[]}, SEL=(location.hash.match(/g=(\w+)/)||[])[1]||null, VIEW=/[#&]v=pbp/.test(location.hash)?'pbp':'props', BOX=null, timer=null, failed=false, BUNDLE=null, PW=null;
 
 async function loadBoard(){
   const now=new Date(), ds=[etDate(new Date(now-864e5)),etDate(now),etDate(new Date(+now+864e5))];
@@ -264,6 +269,12 @@ async function loadBoard(){
     if(!r.ok){let d='';try{const j=await r.json();d=j.error+(j.detail?': '+j.detail:'');}catch(_){}throw new Error(`${r.status}${d?' '+d:''}`);}
     const j=await r.json().catch(()=>{throw new Error('not JSON (is the Worker code deployed?)');});
     all=j.games||[]; ERR='';
+    try{   // NFL (US Eastern dates, same as the NBA), best effort
+      const r3=await fetch(`${API}/nfl?dates=${ds.join(',')}`,{cache:'no-store',headers:{'X-Members-Password':PW}});
+      let j3={}; try{j3=await r3.json();}catch(_){j3={error:'not JSON'};}
+      if(r3.ok){all=all.concat(j3.games||[]);NFLERR='';}
+      else NFLERR=r3.status===404||j3.error==='not found'?'the live server needs the new worker code (cloudflare/live-worker.js)':`${r3.status} ${j3.error||''}${j3.detail?': '+j3.detail:''}`.trim();
+    }catch(e){NFLERR=String(e&&e.message||e);}
     try{   // NBL (Australian dates), best effort
       const au=d=>d.toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});
       const r2=await fetch(`${API}/nbl?dates=${[au(new Date(now-864e5)),au(now),au(new Date(+now+864e5))].join(',')}`,{cache:'no-store',headers:{'X-Members-Password':PW}});
@@ -275,15 +286,16 @@ async function loadBoard(){
   // live games, anything tipping in the next 30h, and finals from the last 8h
   ALL=all.filter(e=>{const t=new Date(e.start);return e.state==='in'||(e.state==='pre'&&t-now<30*3600e3)||(e.state==='post'&&now-t<8*3600e3);})
     .sort((x,y)=>({in:0,pre:1,post:2}[x.state]-{in:0,pre:1,post:2}[y.state])||String(x.start).localeCompare(String(y.start)));
+  {const h=SEL&&ALL.find(e=>String(e.id)===SEL); if(h&&(h.lg||'NBA')!==LG) LG=h.lg||'NBA';}   // a link to a game opens its league
   EVENTS=ALL.filter(e=>(e.lg||'NBA')===LG);
   if(!SEL||!EVENTS.some(e=>String(e.id)===SEL)) SEL=EVENTS[0]?String(EVENTS[0].id):null;
 }
-const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e.status||'Live'):e.state==='post'?(/postpon|cancel|abandon/i.test(e.status||'')?String(e.status).trim():'Final'):`${day(e.start)} ${tip(e.start)}`;
+const clock=e=>e.state==='in'?(e.clock&&e.period?`${PER(e.period)} ${e.clock}`:e.lg==='NFL'&&e.period?PER(e.period):e.status||'Live'):e.state==='post'?(/postpon|cancel|abandon/i.test(e.status||'')?String(e.status).trim():'Final'):`${day(e.start)} ${tip(e.start)}`;
 function drawBoard(){
   drawLeague();
   const live=EVENTS.filter(e=>e.state==='in').length;
-  $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:(live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'')+(NBLERR?` <small style="opacity:.7">(NBL: ${esc(NBLERR)})</small>`:'')+(LG==='NBL'&&!failed?` <small style="opacity:.7">· NBL scores can lag the real game by a few minutes</small>`:'');
-  if(!EVENTS.length){$('games').innerHTML=failed?'':`<div class="lv-empty" style="grid-column:1/-1"><h3>No ${LG} games right now</h3>Games show up here on game days.${LG==='NBL'&&NBLERR?' <small>('+esc(NBLERR)+')</small>':''}</div>`;$('panel').hidden=true;return;}
+  $('meta').innerHTML=failed&&!EVENTS.length?`Live scores unavailable right now, retrying… <small style="opacity:.7">(${esc(ERR)})</small>`:(live?`<i></i>${live} live · ${EVENTS.length} games · updates every 30s`:EVENTS.length?`${EVENTS.length} games · no games live right now`:'')+(LG==='NBL'&&NBLERR?` <small style="opacity:.7">(NBL: ${esc(NBLERR)})</small>`:'')+(LG==='NFL'&&NFLERR?` <small style="opacity:.7">(NFL: ${esc(NFLERR)})</small>`:'')+(LG==='NBL'&&!failed?` <small style="opacity:.7">· NBL scores can lag the real game by a few minutes</small>`:'');
+  if(!EVENTS.length){$('games').innerHTML=failed?'':`<div class="lv-empty" style="grid-column:1/-1"><h3>No ${LG} games right now</h3>Games show up here on game days.${LG==='NBL'&&NBLERR?' <small>('+esc(NBLERR)+')</small>':''}${LG==='NFL'&&NFLERR?' <small>('+esc(NFLERR)+')</small>':''}</div>`;$('panel').hidden=true;return;}
   $('games').innerHTML=EVENTS.map(e=>{
     const pre=e.state==='pre', hs=num(e.home.score), as=num(e.away.score);
     const stat=`<div class="st ${e.state==='in'?'on-air':e.state==='post'?'fin':''}">${e.state==='in'?'● ':''}${esc(clock(e))}</div>`;
@@ -300,13 +312,19 @@ $('league').onclick=ev=>{const b=ev.target.closest('button');if(!b||b.dataset.lg
 $('games').onclick=ev=>{const b=ev.target.closest('.lv-g');if(!b)return;SEL=b.dataset.id;history.replaceState(null,'','#g='+SEL);drawBoard();loadGame();loadPlays();};
 
 function boxOf(e){
+  if(e.lg==='NFL'){
+    const conv=t=>({abbr:t.abbr,name:t.name,rows:(t.players||[]).map(p=>({...p,dnp:false,cmp:num(p.cmp),patt:num(p.patt),pyd:num(p.pyd),ptd:num(p.ptd),int:num(p.int),
+      ratt:num(p.ratt),ryd:num(p.ryd),rtd:num(p.rtd),rec:num(p.rec),tgt:num(p.tgt),ryds:num(p.ryds),rectd:num(p.rectd)}))});
+    const b=[conv(e.away),conv(e.home)];
+    return b.some(t=>t.rows.length)?b:null;
+  }
   const conv=t=>({abbr:t.abbr,name:t.name,rows:(t.players||[]).map(p=>({name:p.name,min:p.min,dnp:mins(p.min)<=0,
     pts:num(p.pts),reb:num(p.reb),ast:num(p.ast),tpm:num(p.fg3m),stl:num(p.stl),blk:num(p.blk),to:num(p.tov),pf:num(p.pf)}))});
   const b=[conv(e.away),conv(e.home)];
   return b.some(t=>t.rows.length)?b:null;
 }
 function linesFor(e){
-  const g=LINESD.games.find(x=>nick(x.home)===nick(e.home.name)&&nick(x.away)===nick(e.away.name));
+  const g=LINESD.games.find(x=>(x.lg||'NBA')===(e.lg||'NBA')&&nick(x.home)===nick(e.home.name)&&nick(x.away)===nick(e.away.name));
   return g?g.players:{};
 }
 function loadGame(){
@@ -318,18 +336,18 @@ function loadGame(){
 }
 function drawGame(){
   const e=EVENTS.find(x=>String(x.id)===SEL); if(!e) return;
-  const nbl=e.lg==='NBL'; if(nbl&&VIEW==='pbp') VIEW='box';
+  const nbl=e.lg==='NBL', ST=statsOf(e); if(nbl&&VIEW==='pbp') VIEW='box';
   $('tabs').querySelector('[data-v=pbp]').hidden=nbl;
   $('tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===VIEW));
-  $('pBar').hidden=VIEW!=='props';
+  $('pBar').hidden=VIEW!=='props'; $('pBar').style.display=VIEW!=='props'?'none':'';
   if(VIEW==='box') return drawBox(e);
   if(VIEW==='pbp') return drawPlays(e);
   const L=linesFor(e), rows={}, s=e.state;
   (BOX||[]).forEach(t=>t.rows.forEach(r=>{rows[key(r.name)]={...r,team:t.abbr};}));
   let items=[];
   for(const [player,stats] of Object.entries(L)) for(const [stat,line] of Object.entries(stats)){
-    if(!STATS[stat]) continue;
-    const r=rows[key(player)], v=r?STATS[stat](r):null;
+    if(!ST[stat]) continue;
+    const r=rows[key(player)], v=r?ST[stat](r):null;
     items.push({player,stat,line,v,r});
   }
   const sel=$('stat').value, opts=['all',...new Set(items.map(i=>i.stat))];
@@ -339,20 +357,29 @@ function drawGame(){
   if(srt==='player') items.sort((x,y)=>x.player.localeCompare(y.player)||x.stat.localeCompare(y.stat));
   else if(srt==='pct') items.sort((x,y)=>pct(y)-pct(x));
   else items.sort((x,y)=>((x.v>x.line)-(y.v>y.line))||pct(y)-pct(x)||x.player.localeCompare(y.player));
-  if(!items.length){$('pBody').innerHTML=s==='post'?`<div class="lv-empty"><h3>No prop lines saved for this game</h3>The <b>Box score</b> tab has the final stats.</div>`:`<div class="lv-empty"><h3>No prop lines for this game yet</h3>Lines come in with the next odds update (every 15 minutes). The <b>Box score</b> tab still works live.</div>`;return;}
+  if(!items.length){$('pBody').innerHTML=s==='post'?`<div class="lv-empty"><h3>No prop lines saved for this game</h3>The <b>Box score</b> tab has the final stats.</div>`:`<div class="lv-empty"><h3>No prop lines for this game yet</h3>Lines come in with the odds update (props are pulled up to 48 hours out). The <b>Box score</b> tab still works live.</div>`;return;}
   $('pBody').innerHTML='<div class="lv-props">'+items.map(i=>{
     const hit=i.v!=null&&i.v>i.line, need=i.v==null?null:Math.floor(i.line)+1-i.v, close=!hit&&need!=null&&need<=Math.max(2,i.line*0.12)&&s==='in';
     const max=Math.max(i.line*1.35,(i.v||0)+1,1);
-    const msg=s==='pre'?`Tips ${tip(e.start)}`:i.v==null?'Not in the box score yet':i.r&&i.r.dnp?(s==='post'?'Did not play':'Hasn\'t played yet'):hit?'✅ Cashed':s==='post'?`Missed by ${+(i.line-i.v).toFixed(1)}`:`Needs ${need} more`;
+    const msg=s==='pre'?`${KO(e)} ${tip(e.start)}`:i.v==null?'Not in the box score yet':i.r&&i.r.dnp?(s==='post'?'Did not play':'Hasn\'t played yet'):hit?'✅ Cashed':s==='post'?`Missed by ${+(i.line-i.v).toFixed(1)}`:`Needs ${need} more`;
     const trk=`tracker.html?add=1&lg=${e.lg||'NBA'}&player=${encodeURIComponent(i.player)}&stat=${encodeURIComponent(i.stat)}&side=Over&line=${i.line}`;
     return `<div class="lv-p ${hit?'hit':close?'close':''}"><div class="r1"><span><b>${esc(i.player)}</b><small>${esc(i.r?i.r.team:'')}</small></span><span class="v">${i.v==null?'–':i.v} <small>/ ${i.line} ${esc(i.stat)}</small></span></div>
       <div class="lv-track"><div class="lv-fill ${hit?'hit':''}" style="width:${i.v==null?0:Math.min(100,i.v/max*100).toFixed(1)}%"></div><div class="lv-line" style="left:${(i.line/max*100).toFixed(1)}%"></div></div>
-      <div class="r2"><span>${esc(msg)}${i.r&&!i.r.dnp&&s!=='pre'?` · ${mins(i.r.min)} min`:''}</span>${s==='post'?'':`<a href="${trk}">+ Track</a>`}</div></div>`;
+      <div class="r2"><span>${esc(msg)}${i.r&&!i.r.dnp&&s!=='pre'&&e.lg!=='NFL'?` · ${mins(i.r.min)} min`:''}</span>${s==='post'?'':`<a href="${trk}">+ Track</a>`}</div></div>`;
   }).join('')+'</div>';
+}
+function drawNflBox(e){
+  const T=[['Passing',r=>r.patt>0,[['C/ATT',r=>`${r.cmp}/${r.patt}`],['YDS','pyd'],['TD','ptd'],['INT','int']],(x,y)=>y.patt-x.patt],
+    ['Rushing',r=>r.ratt>0,[['CAR','ratt'],['YDS','ryd'],['TD','rtd']],(x,y)=>y.ryd-x.ryd],
+    ['Receiving',r=>r.tgt>0||r.rec>0,[['REC','rec'],['TGT','tgt'],['YDS','ryds'],['TD','rectd']],(x,y)=>y.ryds-x.ryds]];
+  const cell=(r,c)=>esc(typeof c[1]==='function'?c[1](r):r[c[1]]);
+  $('pBody').innerHTML=BOX.map(t=>`<div class="lv-box"><h3>${esc(t.name||t.abbr)}</h3>${T.map(([h,f,C,srt])=>{const rs=t.rows.filter(f).sort(srt);if(!rs.length)return '';
+    return `<table style="margin-bottom:10px;min-width:0"><thead><tr><th>${h}</th>${C.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rs.map(r=>`<tr><td>${esc(r.name)}${r.pos?` <small style="opacity:.6">${esc(r.pos)}</small>`:''}</td>${C.map(c=>`<td>${cell(r,c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}).join('')}</div>`).join('');
 }
 function drawBox(e){
   if(!BOX&&/postpon|cancel|abandon/i.test(e.status||'')){$('pBody').innerHTML=`<div class="lv-empty"><h3>${esc(String(e.status).trim())}</h3>No stats for this game.</div>`;return;}
-  if(!BOX){$('pBody').innerHTML=`<div class="lv-empty"><h3>${e.state==='pre'?'Box score starts at tip-off':'Box score unavailable right now'}</h3>${e.state==='pre'?`Tips ${esc(tip(e.start))} Sydney time.`:'Retrying every 30 seconds.'}</div>`;return;}
+  if(!BOX){$('pBody').innerHTML=`<div class="lv-empty"><h3>${e.state==='pre'?`Box score starts at ${e.lg==='NFL'?'kick-off':'tip-off'}`:'Box score unavailable right now'}</h3>${e.state==='pre'?`${KO(e)} ${esc(tip(e.start))} Sydney time.`:'Retrying every 30 seconds.'}</div>`;return;}
+  if(e.lg==='NFL') return drawNflBox(e);
   const C=[['MIN','min'],['PTS','pts'],['REB','reb'],['AST','ast'],['3PM','tpm'],['STL','stl'],['BLK','blk'],['TO','to'],['PF','pf']];
   $('pBody').innerHTML=BOX.map(t=>`<div class="lv-box"><h3>${esc(t.name||t.abbr)}</h3><table><thead><tr><th>Player</th>${C.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${
     t.rows.slice().sort((x,y)=>(x.dnp-y.dnp)||(mins(y.min)-mins(x.min))||(y.pts-x.pts)).map(r=>`<tr class="${r.dnp?'dnp':''}"><td>${esc(r.name)}</td>${r.dnp?`<td colspan="${C.length}" style="text-align:left">DNP</td>`:C.map(c=>`<td>${esc(c[1]==='min'?mins(r.min):r[c[1]])}</td>`).join('')}</tr>`).join('')
@@ -378,7 +405,7 @@ async function loadPlays(force){
   if(e.state==='in'&&VIEW==='pbp') pbpTimer=setTimeout(loadPlays,15000);
 }
 function drawPlays(e){
-  if(e.state==='pre'){$('pBody').innerHTML=`<div class="lv-empty"><h3>Play-by-play starts at tip-off</h3>Tips ${esc(tip(e.start))} Sydney time.</div>`;return;}
+  if(e.state==='pre'){$('pBody').innerHTML=`<div class="lv-empty"><h3>Play-by-play starts at ${e.lg==='NFL'?'kick-off':'tip-off'}</h3>${KO(e)} ${esc(tip(e.start))} Sydney time.</div>`;return;}
   const all=PLAYS.id===String(e.id)?PLAYS.list:[];
   if(!all.length){$('pBody').innerHTML=`<div class="lv-empty"><h3>${PLAYS.err?'Play-by-play unavailable right now':'Loading play-by-play…'}</h3>${PLAYS.err?`Retrying. <small style="opacity:.7">(${esc(PLAYS.err)})</small>`:''}</div>`;return;}
   // names with a prop line on this game get highlighted, and power the "Prop players" filter
@@ -398,6 +425,7 @@ function drawPlays(e){
   list.slice().reverse().forEach(p=>{
     if(p.period!==lastQ){if(lastQ!==null||PBPQ==='all')out+=`<li class="qtr">${esc(PER(p.period))}</li>`;lastQ=p.period;}
     let txt=esc(p.text); if(rx){rx.lastIndex=0;txt=txt.replace(rx,'<mark>$1</mark>');}
+    if(p.down&&p.dist!=null) txt=`<small style="opacity:.65">${['','1st','2nd','3rd','4th'][p.down]||p.down} &amp; ${p.dist} · </small>`+txt;
     const sc=p.scoring&&p.home!=null&&p.away!=null;
     out+=`<li class="${p.scoring?'sc':''} ${seen&&p.n>seen?'new':''}"><span class="t">${esc(p.clock)}</span><span>${p.team?`<span class="tm">${esc(p.team)}</span>`:''}${txt}${p.scoring&&p.value?` <b style="color:var(--mint)">+${p.value}</b>`:''}</span><span class="s">${sc?`${esc(e.away.abbr)} ${p.away}–${p.home} ${esc(e.home.abbr)}`:''}</span></li>`;
   });

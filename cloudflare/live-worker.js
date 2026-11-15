@@ -1,4 +1,4 @@
-// Overlay Tips: live NBA scores for the members' Live page (overlay.tips/live.html).
+// Overlay Tips: live NBA and NFL scores for the members' Live page (overlay.tips/live.html).
 //
 // Runs as a Cloudflare Worker so the BALLDONTLIE key stays secret: the page never sees it.
 // It only answers overlay.tips, and only with the members password, so it isn't an open data feed
@@ -17,12 +17,17 @@
 // GET /nbl?dates=YYYY-MM-DD,...   (Australian dates, up to 3)  header X-Members-Password
 // -> same shape as /nba, with "lg": "NBL" and ids like "nbl501238", from the encrypted feed the
 //    "NBL live" GitHub Action publishes. No steals/blocks/turnovers/play-by-play for the NBL.
-// GET /plays?game_id=N   header X-Members-Password   (play-by-play, BALLDONTLIE GOAT tier)
+// GET /nfl?dates=YYYY-MM-DD,...   (US Eastern dates, up to 3)  header X-Members-Password   (NFL GOAT tier)
+// -> same shape as /nba with "lg": "NFL" and ids like "nfl424051"; NFL players carry {"name", "pos", "cmp", "patt", "pyd", "ptd", "int",
+//    "ratt", "ryd", "rtd", "rec", "tgt", "ryds", "rectd", "fum"} (ryds = receiving yards). period/clock come from
+//    the newest play while a game is live.
+// GET /plays?game_id=N   (or nflN for an NFL game)   header X-Members-Password   (play-by-play, BALLDONTLIE GOAT tier)
 // -> {"updated", "game_id", "plays": [{"n", "period", "clock", "text", "team", "home", "away",
 //                                      "scoring", "value"}]}   oldest first
 // Answers are cached for 20 seconds (plays 10s), so BALLDONTLIE sees at most a few calls a minute.
 
 const BDL = "https://api.balldontlie.io/v1";
+const NFL = "https://api.balldontlie.io/nfl/v1";
 const ORIGINS = ["https://overlay.tips", "https://www.overlay.tips"];
 const CACHE_SECONDS = 20;
 const PLAYS_CACHE_SECONDS = 10;
@@ -45,6 +50,7 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === "/plays") return plays(url, env, ctx, cors);
     if (url.pathname === "/nbl") return nbl(url, env, ctx, cors);
+    if (url.pathname === "/nfl") return nfl(url, env, ctx, cors);
     if (url.pathname !== "/nba") return json({ error: "not found" }, 404, cors);
     const dates = (url.searchParams.get("dates") || "").split(",")
       .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 3);
@@ -69,10 +75,12 @@ export default {
 };
 
 async function plays(url, env, ctx, cors) {
-  const id = url.searchParams.get("game_id") || "";
-  if (!/^\d{1,12}$/.test(id)) return json({ error: "game_id" }, 400, cors);
+  const gm = (url.searchParams.get("game_id") || "").match(/^(nfl)?(\d{1,12})$/);   // NFL games are "nfl<id>"
+  if (!gm) return json({ error: "game_id" }, 400, cors);
+  const id = gm[2];
   const cache = caches.default;
-  const key = new Request("https://overlay-live.cache/plays?g=" + id);
+  const isNfl = !!gm[1] || url.searchParams.get("lg") === "NFL";
+  const key = new Request("https://overlay-live.cache/plays?g=" + id + (isNfl ? "&lg=NFL" : ""));
   const hit = await cache.match(key);
   if (hit) return new Response(hit.body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
   let body;
@@ -81,18 +89,24 @@ async function plays(url, env, ctx, cors) {
     let cursor = null;
     for (let page = 0; page < 10; page++) {   // a full game is a few hundred plays
       const qs = `game_id=${id}&per_page=100${cursor != null ? "&cursor=" + encodeURIComponent(cursor) : ""}`;
-      const r = await fetch(`${BDL}/plays?${qs}`, { headers: { Authorization: env.BDL_KEY } });
+      const r = await fetch(`${isNfl ? NFL : BDL}/plays?${qs}`, { headers: { Authorization: env.BDL_KEY } });
       if (!r.ok) throw new Error(`/plays ${r.status}`);
       const j = await r.json();
       all.push(...(j.data || []));
       cursor = j.meta && j.meta.next_cursor;
       if (cursor == null) break;
     }
-    all.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    if (isNfl) all.forEach((p, i) => { p.order = i + 1; p.clock = p.clock_display; p.score_value = 0; });   // NFL comes in game order
+    else all.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    if (isNfl) {   // points on scoring plays = change in the score
+      let h = 0, a = 0;
+      for (const p of all) { if (p.scoring_play) p.score_value = Math.max(0, (p.home_score ?? h) - h + (p.away_score ?? a) - a); h = p.home_score ?? h; a = p.away_score ?? a; }
+    }
     body = JSON.stringify({
-      updated: new Date().toISOString(), game_id: Number(id),
+      updated: new Date().toISOString(), game_id: isNfl ? "nfl" + id : Number(id),
       plays: all.map((p) => ({
         n: p.order ?? 0, period: p.period ?? 0, clock: p.clock ?? "", text: p.text || "",
+        ...(isNfl ? { down: p.start_down ?? null, dist: p.start_distance ?? null, yds: p.stat_yardage ?? null, type: p.type_text || "" } : {}),
         team: (p.team && p.team.abbreviation) || "", home: p.home_score ?? null, away: p.away_score ?? null,
         scoring: !!p.scoring_play, value: p.score_value ?? 0,
       })),
@@ -215,4 +229,98 @@ async function nbl(url, env, ctx, cors) {
   } catch (e) {
     return json({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) }, 502, cors);
   }
+}
+
+// ---------------- NFL ----------------
+async function nflGet(env, path, params = []) {   // all pages
+  const out = [];
+  let cursor = null;
+  for (let page = 0; page < 15; page++) {
+    const p = params.concat([["per_page", 100]], cursor != null ? [["cursor", cursor]] : []);
+    const qs = p.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
+    const r = await fetch(`${NFL}${path}?${qs}`, { headers: { Authorization: env.BDL_KEY } });
+    if (!r.ok) throw new Error(`nfl${path} ${r.status}`);
+    const j = await r.json();
+    out.push(...(j.data || []));
+    cursor = j.meta && j.meta.next_cursor;
+    if (cursor == null) break;
+  }
+  return out;
+}
+
+function nflState(g) {
+  const s = g.status_state || "";
+  if (s === "final" || s === "postponed" || s === "canceled" || s === "abandoned") return "post";
+  if (s === "in_progress" || s === "delayed" || s === "suspended") return "in";
+  if (s === "scheduled") return "pre";
+  return /^final/i.test(g.status || "") ? "post" : "pre";
+}
+
+function nflTeam(t, score, rows) {
+  return {
+    abbr: (t && t.abbreviation) || "", name: (t && t.full_name) || "", score: score ?? null,
+    players: (rows || []).map((s) => ({
+      name: `${(s.player && s.player.first_name) || ""} ${(s.player && s.player.last_name) || ""}`.trim(),
+      pos: (s.player && s.player.position_abbreviation) || "",
+      cmp: s.passing_completions ?? 0, patt: s.passing_attempts ?? 0, pyd: s.passing_yards ?? 0,
+      ptd: s.passing_touchdowns ?? 0, int: s.passing_interceptions ?? 0,
+      ratt: s.rushing_attempts ?? 0, ryd: s.rushing_yards ?? 0, rtd: s.rushing_touchdowns ?? 0,
+      rec: s.receptions ?? 0, tgt: s.receiving_targets ?? 0, ryds: s.receiving_yards ?? 0, rectd: s.receiving_touchdowns ?? 0,
+      fum: s.fumbles_lost ?? 0, tkl: s.total_tackles ?? 0, sck: s.defensive_sacks ?? 0,
+    })),
+  };
+}
+
+async function nflBuild(env, dates) {
+  const games = await nflGet(env, "/games", dates.map((d) => ["dates[]", d]).concat([["season_types[]", 2], ["season_types[]", 3]]));
+  const played = games.filter((g) => nflState(g) !== "pre");
+  const stats = played.length ? await nflGet(env, "/stats", played.map((g) => ["game_ids[]", g.id])).catch(() => []) : [];
+  const rows = {};   // game id -> team id -> rows
+  for (const s of stats) {
+    const gid = s.game && s.game.id, tid = s.team && s.team.id;
+    if (gid == null || tid == null) continue;
+    ((rows[gid] = rows[gid] || {})[tid] = rows[gid][tid] || []).push(s);
+  }
+  // live games: quarter and clock from the newest play (plays come oldest first, so read the last page)
+  const live = {};
+  // (Cloudflare caps a Worker at 50 calls out per request, so on busy Sunday slots it falls back to the quarter scores)
+  const inPlay = games.filter((g) => nflState(g) === "in");
+  await Promise.all((inPlay.length <= 4 ? inPlay : []).map(async (g) => {
+    try {
+      const ps = await nflGet(env, "/plays", [["game_id", g.id]]);
+      const p = ps[ps.length - 1];
+      if (p) live[g.id] = { period: p.period || 0, clock: p.clock_display || "" };
+    } catch (e) {}
+  }));
+  const qtr = (g) => ["ot", "q4", "q3", "q2", "q1"].map((q, i) => (g[`home_team_${q}`] != null || g[`visitor_team_${q}`] != null) ? 5 - i : 0).find((x) => x) || 0;
+  const out = games.map((g) => {
+    const st = nflState(g), r = rows[g.id] || {}, lv = live[g.id] || {};
+    return {
+      id: "nfl" + g.id, lg: "NFL", start: g.date, state: st, status: String(g.status || ""),
+      period: lv.period || (st === "in" ? qtr(g) : 0), clock: lv.clock || "", week: g.week ?? null,
+      home: nflTeam(g.home_team, st === "pre" ? null : g.home_team_score, r[g.home_team && g.home_team.id]),
+      away: nflTeam(g.visitor_team, st === "pre" ? null : g.visitor_team_score, r[g.visitor_team && g.visitor_team.id]),
+    };
+  });
+  out.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+  return { updated: new Date().toISOString(), games: out };
+}
+
+async function nfl(url, env, ctx, cors) {
+  const dates = (url.searchParams.get("dates") || "").split(",").filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 3);
+  if (!dates.length) return json({ error: "dates" }, 400, cors);
+  const cache = caches.default;
+  const key = new Request("https://overlay-live.cache/nfl?d=" + dates.join(","));
+  const hit = await cache.match(key);
+  if (hit) return new Response(hit.body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  let body;
+  try {
+    body = JSON.stringify(await nflBuild(env, dates));
+  } catch (e) {
+    return json({ error: "upstream", detail: String(e && e.message || e).slice(0, 200) }, 502, cors);
+  }
+  ctx.waitUntil(cache.put(key, new Response(body, {
+    headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_SECONDS}` },
+  })));
+  return new Response(body, { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 }

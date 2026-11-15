@@ -264,10 +264,11 @@ dialog.tr-dlg::backdrop{background:rgba(0,0,0,.65)}
     <div class="tr-seg" id="lgSeg" style="margin-top:8px">
       <button type="button" data-lg="NBA" class="on">NBA</button>
       <button type="button" data-lg="NBL">NBL</button>
+      <button type="button" data-lg="NFL">NFL</button>
     </div>
     <div id="propF">
       <label>Player<input id="fPlayer" list="players" autocomplete="off" placeholder="e.g. Jayson Tatum"></label>
-      <datalist id="players"></datalist><datalist id="playersNBL"></datalist>
+      <datalist id="players"></datalist><datalist id="playersNBL"></datalist><datalist id="playersNFL"></datalist>
       <div class="three" style="margin-top:12px">
         <label>Stat<select id="fStat"></select></label>
         <label>Over / Under<select id="fSide"><option>Over</option><option>Under</option></select></label>
@@ -343,7 +344,14 @@ const STATS={'Points':r=>r.pts,'Rebounds':r=>r.reb,'Assists':r=>r.ast,'Threes':r
   'Steals + Blocks':r=>r.stl+r.blk,'Turnovers':r=>r.to};
 // API-Sports has no steals, blocks or turnovers for NBL players, so NBL bets can't use (or be settled on) those
 const NBL_NO=['Steals','Blocks','Steals + Blocks','Turnovers'];
-const statsFor=lg=>Object.keys(STATS).filter(s=>lg!=='NBL'||!NBL_NO.includes(s));
+// NFL props: stat -> value from an NFL box score row (live worker /nfl)
+const NFLSTATS={'Passing Yards':r=>r.pyd,'Passing TDs':r=>r.ptd,'Completions':r=>r.cmp,'Pass Attempts':r=>r.patt,'Interceptions':r=>r.int,
+  'Rushing Yards':r=>r.ryd,'Rush Attempts':r=>r.ratt,'Rush + Rec Yards':r=>r.ryd+r.ryds,'Receptions':r=>r.rec,'Receiving Yards':r=>r.ryds,
+  'Pass + Rush Yards':r=>r.pyd+r.ryd};
+const statFn=(lg,st)=>lg==='NFL'?NFLSTATS[st]:STATS[st];
+const LGS={NBA:{list:'players',ph:'e.g. Jayson Tatum',def:'Points',line:'24.5'},NBL:{list:'playersNBL',ph:'e.g. Bryce Cotton',def:'Points',line:'24.5'},
+  NFL:{list:'playersNFL',ph:'e.g. Patrick Mahomes',def:'Passing Yards',line:'249.5'}};
+const statsFor=lg=>lg==='NFL'?Object.keys(NFLSTATS):Object.keys(STATS).filter(s=>lg!=='NBL'||!NBL_NO.includes(s));
 const statOpts=lg=>statsFor(lg).map(s=>`<option>${esc(s)}</option>`).join('');
 $('fStat').innerHTML=statOpts('NBA');
 
@@ -415,7 +423,7 @@ function sportOptions(){
   sel.value=SPORT; sel.classList.toggle('on',!!SPORT);
 }
 function typeOptions(){
-  const order=Object.keys(STATS).concat(['SGM','Other bets']), have=new Set(BETS.map(typeOf));
+  const order=Object.keys(STATS).concat(Object.keys(NFLSTATS),['SGM','Other bets']), have=new Set(BETS.map(typeOf));
   const sel=$('typeF'); if(PTYPE&&!have.has(PTYPE)) PTYPE='';
   sel.hidden=have.size<2&&!PTYPE;
   sel.innerHTML='<option value="">All prop types</option>'+order.filter(t=>have.has(t)).map(t=>`<option>${esc(t)}</option>`).join('');
@@ -543,6 +551,12 @@ function boxLine(x){
   if(!x||L_STATE_SKIP(x)) return '';
   const n=v=>v==null||v===''?null:+v, c=[];
   const add=(k,v)=>{if(v!=null&&v!=='')c.push(`<span>${k}<b>${esc(v)}</b></span>`);};
+  if(x.pyd!==undefined){   // NFL
+    if(+x.patt) {add('C/ATT',`${n(x.cmp)}/${n(x.patt)}`);add('PASS YDS',n(x.pyd));add('PASS TD',n(x.ptd));add('INT',n(x.int));}
+    if(+x.ratt) {add('CAR',n(x.ratt));add('RUSH YDS',n(x.ryd));add('RUSH TD',n(x.rtd));}
+    if(+x.tgt||+x.rec) {add('REC',`${n(x.rec)}/${n(x.tgt)}`);add('REC YDS',n(x.ryds));add('REC TD',n(x.rectd));}
+    return c.length?`<div class="tr-box">${c.join('')}</div>`:'';
+  }
   add('MIN',String(x.min||'0').split(':')[0]);
   if(x.fga!=null) add('FG',`${n(x.fgm)}/${n(x.fga)}`);
   if(x.fg3a!=null) add('3PT',`${n(x.fg3m)}/${n(x.fg3a)}`); else add('3PM',n(x.fg3m));
@@ -630,9 +644,10 @@ $('bookF').onchange=e=>{BOOK=e.target.value;try{localStorage.setItem('ot-book-fi
 
 /* ---------- add / edit ---------- */
 let KIND='prop', EDIT=null, LGF='NBA';
-function setLg(lg){LGF=lg==='NBL'?'NBL':'NBA';$('lgSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.lg===LGF));
-  const list=LGF==='NBL'?'playersNBL':'players', ph=LGF==='NBL'?'e.g. Bryce Cotton':'e.g. Jayson Tatum';
-  const fix=(sel,inp)=>{const v=sel.value;sel.innerHTML=statOpts(LGF);sel.value=statsFor(LGF).includes(v)?v:'Points';inp.setAttribute('list',list);inp.placeholder=ph;};
+function setLg(lg){LGF=LGS[lg]?lg:'NBA';$('lgSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.lg===LGF));
+  const {list,ph,def}=LGS[LGF];
+  const fix=(sel,inp)=>{const v=sel.value;sel.innerHTML=statOpts(LGF);sel.value=statsFor(LGF).includes(v)?v:def;inp.setAttribute('list',list);inp.placeholder=ph;
+    const ln=inp.closest('.tr-leg')?inp.closest('.tr-leg').querySelector('.ll'):$('fLine'); if(ln) ln.placeholder=LGS[LGF].line;};
   fix($('fStat'),$('fPlayer')); $('legs').querySelectorAll('.tr-leg').forEach(d=>fix(d.querySelector('.ls'),d.querySelector('.lp')));}
 $('lgSeg').onclick=e=>{const t=e.target.closest('button');if(t)setLg(t.dataset.lg);};
 function setKind(k){KIND=k;$('kind').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.k===k));$('propF').hidden=k!=='prop';$('sgmF').hidden=k!=='sgm';$('otherF').hidden=k!=='other';$('lgSeg').hidden=k==='other';
@@ -647,11 +662,11 @@ function addLegRow(l={}){
     $('legs').appendChild(d); numberLegs(); return d;
   }
   d.innerHTML=`<div class="lh"><span>Leg</span><button type="button" aria-label="Remove leg">×</button></div>
-    <label>Player<input class="lp" list="${LGF==='NBL'?'playersNBL':'players'}" autocomplete="off" placeholder="${LGF==='NBL'?'e.g. Bryce Cotton':'e.g. Jayson Tatum'}"></label>
+    <label>Player<input class="lp" list="${LGS[LGF].list}" autocomplete="off" placeholder="${LGS[LGF].ph}"></label>
     <div class="three" style="margin-top:8px"><label>Stat<select class="ls">${statOpts(LGF)}</select></label>
     <label>Over / Under<select class="lo"><option>Over</option><option>Under</option></select></label>
-    <label>Line<input class="ll" type="number" step="0.5" inputmode="decimal" placeholder="24.5"></label></div>`;
-  d.querySelector('.lp').value=l.player||''; d.querySelector('.ls').value=statsFor(LGF).includes(l.stat)?l.stat:'Points';
+    <label>Line<input class="ll" type="number" step="0.5" inputmode="decimal" placeholder="${LGS[LGF].line}"></label></div>`;
+  d.querySelector('.lp').value=l.player||''; d.querySelector('.ls').value=statsFor(LGF).includes(l.stat)?l.stat:LGS[LGF].def;
   d.querySelector('.lo').value=l.side==='Under'?'Under':'Over'; d.querySelector('.ll').value=l.line??'';
   d.querySelector('.lh button').onclick=()=>{d.remove();numberLegs();};
   $('legs').appendChild(d); numberLegs(); return d;
@@ -666,7 +681,7 @@ function openForm(b,pre){
   $('dlgTitle').textContent=b?'Edit bet':'Add a bet'; $('fSave').textContent=b?'Save changes':'Save bet';
   $('legs').innerHTML=''; setLg(v.lg); (v.legs||[]).forEach(l=>addLegRow(l));
   setKind(v.kind||'prop');
-  $('fPlayer').value=v.player||''; $('fStat').value=statsFor(LGF).includes(v.stat)?v.stat:'Points'; $('fSide').value=v.side==='Under'?'Under':'Over';
+  $('fPlayer').value=v.player||''; $('fStat').value=statsFor(LGF).includes(v.stat)?v.stat:LGS[LGF].def; $('fSide').value=v.side==='Under'?'Under':'Over';
   $('fLine').value=v.line??''; $('fDesc').value=v.desc||''; $('fEvent').value=v.event||'';
   $('fSport').value=v.sport||(()=>{try{return localStorage.getItem('ot-last-sport')||'Racing';}catch(e){return 'Racing';}})();
   $('fBook').value=v.book||(()=>{try{return localStorage.getItem('ot-last-book')||'';}catch(e){return '';}})();
@@ -861,16 +876,24 @@ async function tick(){
     const r=await fetch(`${API}/nbl?dates=${nd.join(',')}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
     if(r.ok){const j=await r.json(); d.games=(d.games||[]).concat(j.games||[]);}
   }catch(e){}
+  try{   // NFL (US Eastern dates, like the NBA), best effort
+    if(bets.some(b=>b.lg==='NFL')){
+      const r=await fetch(`${API}/nfl?dates=${ds.join(',')}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
+      if(r.ok){const j=await r.json(); d.games=(d.games||[]).concat(j.games||[]);}
+    }
+  }catch(e){}
   LIVE_AT=new Date();
-  const rows={}, ALT={};
+  const rows={}, ALT={}, NFLROWS={};
   for(const g of d.games||[]) for(const side of ['away','home']) for(const pl of (g[side]&&g[side].players)||[]){
+    if(g.lg==='NFL'){const r={};for(const k of ['cmp','patt','pyd','ptd','int','ratt','ryd','rtd','rec','tgt','ryds','rectd'])r[k]=+pl[k]||0;
+      NFLROWS[key(pl.name)]={g,pl,r,nfl:true}; continue;}
     const row={g,pl,r:{pts:+pl.pts||0,reb:+pl.reb||0,ast:+pl.ast||0,tpm:+pl.fg3m||0,stl:+pl.stl||0,blk:+pl.blk||0,to:+pl.tov||0},min:pl.min};
     if(g.lg==='NBL') for(const k of altKeys(pl.name)) ALT[k]=ALT[k]?'dup':row; else rows[key(pl.name)]=row;
   }
-  const rowOf=n=>rows[key(n)]||altKeys(n).map(k=>ALT[k]).find(x=>x&&x!=='dup');
+  const rowOf=(n,lg)=>lg==='NFL'?NFLROWS[key(n)]:rows[key(n)]||altKeys(n).map(k=>ALT[k]).find(x=>x&&x!=='dup');
   // on court or bench: replay the play-by-play ("X enters the game for Y"; anyone named in a play is on the floor)
   const COURT={}, need=new Set(), gameOf={};
-  for(const b of bets) for(const l of legsOf(b)){if(isTeamLeg(l)) continue; const m=rowOf(l.player); if(m&&m.g.state==='in'&&m.g.lg!=='NBL'){need.add(m.g.id); gameOf[key(l.player)]=m.g.id;}}
+  for(const b of bets) for(const l of legsOf(b)){if(isTeamLeg(l)||b.lg==='NFL') continue; const m=rowOf(l.player); if(m&&m.g.state==='in'&&m.g.lg!=='NBL'){need.add(m.g.id); gameOf[key(l.player)]=m.g.id;}}
   await Promise.all([...need].map(async id=>{
     try{
       const r=await fetch(`${API}/plays?game_id=${encodeURIComponent(id)}`,{cache:'no-store',headers:{'X-Members-Password':pw}});
@@ -889,7 +912,7 @@ async function tick(){
   let changed=false, anyLive=false;
   const clockOf=g=>g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'';
   const gameTxt=g=>`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' ');
-  const legLive=(b,date)=>{
+  const legLive=(b,date,lg)=>{
     if(isTeamLeg(b)){   // team to win: find their game (the one that starts on the bet's day, if they play twice in the window)
       const gs=(d.games||[]).filter(g=>g.home&&g.away&&(teamHit(b.team,g.home)||teamHit(b.team,g.away)));
       const day=date||b.date, on=x=>{try{return x.start&&sydDate(new Date(x.start))===day;}catch(e){return false;}};
@@ -898,9 +921,10 @@ async function tick(){
       if(g.state==='in') anyLive=true;
       return true;
     }
-    const m=rowOf(b.player); if(!m||!STATS[b.stat]) return false;
+    lg=lg||b.lg||'NBA'; const fn=statFn(lg,b.stat);
+    const m=rowOf(b.player,lg); if(!m||!fn) return false;
     if(m.g.lg==='NBL'&&NBL_NO.includes(b.stat)) return false;
-    const g=m.g, v=STATS[b.stat](m.r), mins=String(m.min||'0').split(':')[0]*1||0;
+    const g=m.g, v=fn(m.r), mins=m.nfl?1:String(m.min||'0').split(':')[0]*1||0;   // NFL: in the box score = played
     const dnp=g.state==='post'&&!mins;
     const cs=COURT[g.id], court=g.state!=='in'?null:cs&&cs[key(b.player)]?cs[key(b.player)]:(cs?(mins>0?'on':'off'):null);
     b.live={court,gid:g.id,box:m.pl,a:{t:g.away.abbr,s:g.away.score},h:{t:g.home.abbr,s:g.home.score},game:`${g.away.abbr} ${g.away.score??''} - ${g.home.score??''} ${g.home.abbr}`.replace(/\s+/g,' '),state:g.state,at:Date.now(),clock:g.state==='in'?(/^(Q|OT|Half|End)/i.test(g.clock||'')?g.clock:`Q${g.period||''} ${g.clock||''}`.trim()):g.state==='post'?'Final':'',v,dnp};
@@ -909,7 +933,7 @@ async function tick(){
   };
   for(const b of bets){
     if(b.kind==='sgm'){
-      let any=false; for(const l of b.legs||[]) if(legLive(l,b.date)) any=true;
+      let any=false; for(const l of b.legs||[]) if(legLive(l,b.date,b.lg)) any=true;
       if(!any) continue;
       const ls=(b.legs||[]).filter(l=>l.live);
       b.live=(ls.find(l=>l.live.state==='in')||ls[0]).live;
@@ -961,13 +985,16 @@ const PSRC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/lineups-d
 Promise.all([
   fetch(HSRC+'?t='+Math.floor(Date.now()/300000)).then(r=>r.ok?r.json():{}).catch(()=>({})),
   fetch(PSRC+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({})),
-  fetch(HSRC.replace('hot.json','nbl_players.json')+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({}))
-]).then(([h,pl,nb])=>{
+  fetch(HSRC.replace('hot.json','nbl_players.json')+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({})),
+  fetch(HSRC.replace('hot.json','nfl_players.json')+'?t='+Math.floor(Date.now()/3600000)).then(r=>r.ok?r.json():{}).catch(()=>({}))
+]).then(([h,pl,nb,nf])=>{
+  const nfl=new Map(); for(const p of nf.players||[]) nfl.set(p.n,p.t||'NFL');
   const names=new Map();
   for(const p of pl.players||[]) names.set(p.n,p.t);
   const nbl=new Map(); for(const p of nb.players||[]) nbl.set(p.n,p.t||'NBL');
   for(const i of (h.items||[]).concat(h.value||[])) if(i.player){   // Hot stats has NBL players too: keep them out of the NBA list
     if(i.lg==='NBL'){ if(!nbl.has(i.player)) nbl.set(i.player,i.team||'NBL'); }
+    else if(i.lg==='NFL'){ if(!nfl.has(i.player)) nfl.set(i.player,i.team||'NFL'); }
     else if(!names.has(i.player)) names.set(i.player,'');
   }
   // open bets whose player has a team code stuck on ("Reed Sheppard HOU", read from a slip): drop it
@@ -986,6 +1013,7 @@ Promise.all([
     if(ps.length&&ps.every(n=>n&&nbl.has(n)&&!names.has(n))){b.lg='NBL';moved=true;}
   }
   if(moved){save();draw();}
+  $('playersNFL').innerHTML=[...nfl].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
   $('playersNBL').innerHTML=[...nbl].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
   $('players').innerHTML=[...names].sort((a,b)=>a[0].localeCompare(b[0])).map(([n,t])=>`<option value="${esc(n)}"${t?` label="${esc(t)}"`:''}>`).join('');
 });

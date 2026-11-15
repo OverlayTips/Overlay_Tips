@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hot Stats | Free NBA + NBL player prop hit rates | Overlay Tips</title>
+<title>Hot Stats | Free NBA, NFL + NBL player prop hit rates | Overlay Tips</title>
 <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
 <link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
@@ -14,18 +14,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Overlay">
 <script src="/pwa.js" defer></script>
-<meta name="description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
+<meta name="description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <link rel="canonical" href="https://overlay.tips/hot.html">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overlay Tips">
-<meta property="og:title" content="Hot Stats | Free NBA + NBL player prop hit rates | Overlay Tips">
-<meta property="og:description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
+<meta property="og:title" content="Hot Stats | Free NBA, NFL + NBL player prop hit rates | Overlay Tips">
+<meta property="og:description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <meta property="og:url" content="https://overlay.tips/hot.html">
 <meta property="og:image" content="https://overlay.tips/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Hot Stats | Free NBA + NBL player prop hit rates | Overlay Tips">
-<meta name="twitter:description" content="Free hot stats: NBA and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
+<meta name="twitter:title" content="Hot Stats | Free NBA, NFL + NBL player prop hit rates | Overlay Tips">
+<meta name="twitter:description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
 <meta name="theme-color" content="#060807">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,7 +141,7 @@
 <main>
 <header class="page-head">
   <div class="wrap">
-    <div class="mono">Free · NBA + NBL player props</div>
+    <div class="mono">Free · NBA, NFL + NBL player props</div>
     <h1>Hot stats</h1>
     <p>Props the player keeps clearing. Each card shows the player's last 10 games against the line, the hit rate, and the best price at the Aussie bookies. Updated every 5 minutes.</p>
   </div>
@@ -239,7 +239,7 @@ function ctxRow(it){   // projected minutes, usage, how tonight's opponent defen
 function card(it,val){
   const ls=status(it);
   return `<article class="hs-card ${ls.cls}">
-    <div class="hs-top"><div><div class="hs-name">${esc(it.player)}<small>${it.lg==='NBL'?'<span class="hs-lg">NBL</span> ':''}${esc(it.team||'')}</small>${it.inj==='Q'||it.inj==='GTD'?`<span class="hs-inj" title="${it.inj==='Q'?'Questionable':'Game-time decision'}: check team news">⚠️ ${it.inj}</span>`:it.starting?'<span class="hs-inj ok" title="Confirmed starter">✅ Starting</span>':''}</div>
+    <div class="hs-top"><div><div class="hs-name">${esc(it.player)}<small>${it.lg==='NBL'||it.lg==='NFL'?`<span class="hs-lg">${it.lg}</span> `:''}${esc(it.team||'')}</small>${it.inj==='Q'||it.inj==='GTD'?`<span class="hs-inj" title="${it.inj==='Q'?'Questionable':'Game-time decision'}: check team news">⚠️ ${it.inj}</span>`:it.starting?'<span class="hs-inj ok" title="Confirmed starter">✅ Starting</span>':''}</div>
       <div class="hs-line">🔥 ${esc(it.line)} ${esc(it.stat)}</div></div>
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
@@ -249,16 +249,16 @@ function card(it,val){
     ${ctxRow(it)}
     ${it.wo?`<div class="hs-wo">🚑 <b>${esc(it.wo.n)}</b> is out: ${esc(it.stat).toLowerCase()} avg <b>${it.wo.avg}</b> without him vs ${it.wo.with} with (${it.wo.hit[0]}/${it.wo.hit[1]} games cleared this line)</div>`:''}
     ${it.why?`<details class="hs-take"${val?' open':''}><summary>The case</summary><p>${esc(it.why)}</p></details>`:''}
-    <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
+    <div class="hs-game">${esc(it.game)} · ${when(it.start)} · <a class="hs-track" href="tracker.html?add=1&lg=${lgOf(it)}&player=${encodeURIComponent(it.player)}&stat=${encodeURIComponent(it.stat)}&side=Over&line=${it.point}&odds=${it.price}&book=${encodeURIComponent(it.book)}">+ Track bet</a></div>
   </article>`;
 }
 let game='all';
 let LG=(()=>{try{return localStorage.getItem('hs-lg')||'NBA';}catch(_){return 'NBA';}})();
-const lgOf=i=>i.lg==='NBL'?'NBL':'NBA';
+const lgOf=i=>i.lg==='NBL'||i.lg==='NFL'?i.lg:'NBA';
 function draw(){
   const ALLI=ITEMS, ALLV=VALUE, live=i=>new Date(i.start)>new Date();
   const cnt=l=>new Set(ALLI.concat(ALLV).filter(i=>lgOf(i)===l&&live(i)).map(i=>i.player+'|'+i.stat)).size;
-  $('lgs').innerHTML=['NBA','NBL'].map(l=>`<button type="button" role="tab" aria-selected="${l===LG}" class="${l===LG?'on':''}" data-l="${l}">${l}<small>${cnt(l)}</small></button>`).join('');
+  $('lgs').innerHTML=['NBA','NFL','NBL'].map(l=>`<button type="button" role="tab" aria-selected="${l===LG}" class="${l===LG?'on':''}" data-l="${l}">${l}<small>${cnt(l)}</small></button>`).join('');
   $('lgs').querySelectorAll('button').forEach(b=>b.onclick=()=>{LG=b.dataset.l;stat='All';game='all';try{localStorage.setItem('hs-lg',LG);}catch(_){}draw();});
   ITEMS=ALLI.filter(i=>lgOf(i)===LG); VALUE=ALLV.filter(i=>lgOf(i)===LG);
   try{ drawLg(); } finally { ITEMS=ALLI; VALUE=ALLV; }
@@ -282,7 +282,7 @@ function drawLg(){
   const shown=new Set(vs.map(i=>i.player+'|'+i.stat));   // already in Best value picks: don't show the same prop twice
   let xs=ITEMS.map(atBook).filter(i=>i&&(stat==='All'||i.stat===stat)&&new Date(i.start)>new Date()&&!shown.has(i.player+'|'+i.stat));
   if(sort==='value') xs.sort((a,b)=>val(b)-val(a)); else if(sort==='price') xs.sort((a,b)=>b.price-a.price); else if(sort==='time') xs.sort((a,b)=>a.start.localeCompare(b.start));
-  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are ${LG} games in the next 24 hours and a player has been clearing the line. Check back after the next update (every 5 minutes).</div>`;
+  $('grid').innerHTML=xs.length?xs.map(i=>card(i,false)).join(''):book!=='all'&&ITEMS.length?`<div class="hs-empty"><h3>Nothing at ${esc(book)} for this stat</h3>${esc(book)} isn't pricing any of these lines right now. Try another bookie or All bookies.</div>`:`<div class="hs-empty"><h3>No hot props right now</h3>They show up when there are ${LG} games ${LG==='NFL'?'in the next 2 days':'in the next 24 hours'} and a player has been clearing the line. Check back after the next update (every 5 minutes).</div>`;
 }
 $('sort').onchange=e=>{sort=e.target.value;draw();};
 $('game').onchange=e=>{game=e.target.value;draw();};
