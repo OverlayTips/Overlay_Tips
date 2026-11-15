@@ -248,6 +248,14 @@ def collect(now):
                         "log": {"ev": o.get("ev"), "mk": o.get("mk"), "desc": o.get("desc") or "", "side": o.get("side"),
                                 "point": o.get("point"), "sport_key": o.get("sport_key"), "fair": o.get("fair"),
                                 "src": o.get("fair_src")}})
+        for o in summ.get("racing_value") or []:   # Betfair back price over the Hub model's rated price
+            if started(o.get("start", ""), now):
+                continue
+            out.append({"tag": "", "key": f"race|{o['game']}|{o['pick']}", "edge": o["edge_pct"], "price": o["price"],
+                        "start": o.get("start", ""), "text": f"{o['pick']} (Win) @ {o['price']:.2f} Betfair",
+                        "sel": f"{o['pick']} (Win)", "book": "Betfair", "game": o["game"], "lg": o.get("sport", ""),
+                        "emoji": "🏇" if o.get("sport") == "Racing" else "🐕", "sub": f"rated {o['fair']:.2f}",
+                        "why": [o["why"]], "add": None, "log": None})
     return out
 
 

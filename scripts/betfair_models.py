@@ -116,3 +116,93 @@ def check(o, model):
         return None
     return {"score": score, "agree": agree,
             "why": f"Betfair's model predicts {score} ({tot:g} total), " + ("on the right side of the line." if agree else "on the wrong side of the line.")}
+
+
+# ---------------- racing: Betfair Hub ratings (thoroughbreds "kash", greyhounds "iggy-joey") ----------------
+RACE_WIDGETS = {"Horse": "kash-ratings-model", "Greyhound": "iggy-joey"}
+RACE_URL = "https://betfair-data-supplier-prod.herokuapp.com/api/widgets/{}/datasets?date={}&presenter=RatingsPresenter&json=true"
+VALUE_MIN, VALUE_MAX_RATED = 10.0, 21.0   # % over the rated price to call it value; skip rated roughies
+
+
+def racing_update(prev, now):
+    """Rated price for every runner at today's / tomorrow's rated meetings, keyed by Betfair market id."""
+    prev = prev or {}
+    try:
+        if prev.get("updated") and now - datetime.fromisoformat(prev["updated"]) < EVERY:
+            return prev, "racing ratings: cached"
+    except ValueError:
+        pass
+    races, calls, errs = {}, 0, 0
+    day = now.astimezone(SYD).date()
+    for kind, w in RACE_WIDGETS.items():
+        for d in (day, day + timedelta(days=1)):
+            try:
+                calls += 1
+                j = _get(RACE_URL.format(w, d.isoformat()))
+            except Exception:
+                errs += 1
+                continue
+            for m in (j or {}).get("meetings") or []:
+                for r in m.get("races") or []:
+                    mid = r.get("bfExchangeMarketId")
+                    if not mid:
+                        continue
+                    rs = []
+                    for x in r.get("runners") or []:
+                        rp = _n(x.get("ratedPrice"))
+                        nm = str(x.get("name") or "")
+                        no = x.get("number") or (int(nm.split(".")[0]) if nm.split(".")[0].isdigit() else None)
+                        if rp and rp > 1:
+                            rs.append({"id": x.get("bfExchangeSelectionId"), "name": nm.split(". ", 1)[-1], "no": no, "rated": round(rp, 2)})
+                    if rs:
+                        rs.sort(key=lambda x: x["rated"])
+                        races[mid] = {"id": mid, "kind": kind, "venue": str(m.get("name") or "").title(), "num": r.get("number"),
+                                      "name": r.get("name") or "", "date": d.isoformat(), "runners": rs}
+    if not races and prev.get("races") and errs:
+        return prev, f"racing ratings: kept previous ({errs} errors)"
+    return ({"updated": now.isoformat(), "races": races},
+            f"racing ratings: {len(races)} races from {calls} calls" + (f", {errs} errors" if errs else ""))
+
+
+def racing_value(ratings, racing, now, fresh_min=20, window_min=90):
+    """Runners whose Betfair back price beats the Hub's rated price, in races jumping soon. Needs a fresh
+    exchange pull (racing upload); returns [] without one."""
+    out = []
+    if not ratings or not racing or not racing.get("races"):
+        return out
+    try:
+        age = (now - datetime.fromisoformat(str(racing.get("updated")).replace("Z", "+00:00"))).total_seconds() / 60
+    except ValueError:
+        return out
+    if age > fresh_min:
+        return out
+    R = ratings.get("races") or {}
+    for race in racing["races"]:
+        rr = R.get(race["id"])
+        if not rr:
+            continue
+        try:
+            mins = (datetime.fromisoformat(str(race["start"]).replace("Z", "+00:00")) - now).total_seconds() / 60
+        except ValueError:
+            continue
+        if not (0 < mins <= window_min):
+            continue
+        rated = {x["id"]: x for x in rr["runners"]}
+        for x in race.get("runners") or []:
+            m = rated.get(x["id"])
+            if not m or not x.get("back") or m["rated"] > VALUE_MAX_RATED:
+                continue
+            edge = (x["back"] / m["rated"] - 1) * 100
+            if edge < VALUE_MIN:
+                continue
+            fav = rr["runners"][0]
+            out.append({"sport": rr["kind"] == "Horse" and "Racing" or "Greyhounds", "sport_key": "racing_" + rr["kind"].lower(),
+                        "game": f"{race['venue']} {race['name'].split(' ')[0]}", "start": race["start"], "market": "Win",
+                        "pick": f"{(str(x.get('no')) + '. ') if x.get('no') else ''}{m['name']}", "price": x["back"], "book": "Betfair",
+                        "fair": m["rated"], "edge_pct": round(edge, 1), "fair_src": "betfair-model",
+                        "why": (f"Betfair's {'thoroughbred' if rr['kind'] == 'Horse' else 'greyhound'} model rates {m['name']} at "
+                                f"${m['rated']:.2f}; the exchange is offering ${x['back']:.2f} to back ({edge:.0f}% over). "
+                                + (f"The model's top pick is {fav['name']} (${fav['rated']:.2f})." if fav["id"] != x["id"] else "It's the model's top pick in the race.")
+                                + " Check your bookie's price is at least the rated price before betting.")})
+    out.sort(key=lambda o: -o["edge_pct"])
+    return out[:10]

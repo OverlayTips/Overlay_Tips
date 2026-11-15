@@ -429,6 +429,12 @@ def main():
         print(note)
     except Exception as e:
         print("betfair models failed:", type(e).__name__, e)
+    rratings = prev.get("rratings")
+    try:   # racing: Betfair Hub rated prices for horses + greyhounds
+        rratings, note = betfair_models.racing_update(rratings, NOW)
+        print(note)
+    except Exception as e:
+        print("betfair models failed:", type(e).__name__, e)
 
     sgms = []
     # ---- hot stats for the free public page (unencrypted on purpose: odds-data/hot.json) ----
@@ -520,6 +526,7 @@ def main():
 
     bundle = {
         "bfmodel": bfm,
+        "rratings": rratings,
         "cases": cases,
         "stats": stats,
         "sgm": {"updated": TS, "items": sgms},
@@ -575,6 +582,11 @@ def main():
                     o["why"] += "\n\n🤖 Model: " + m["why"]
         except Exception as e:
             print("overlay write-ups failed:", type(e).__name__, e)
+        try:   # racing value: Betfair back price over the Hub's rated price (needs a fresh racing upload)
+            summary["racing_value"] = betfair_models.racing_value(rratings, racing, NOW)
+            print(f"racing value: {len(summary['racing_value'])}")
+        except Exception as e:
+            print("racing value failed:", type(e).__name__, e)
         summary.update({"generated": TS, "credits_remaining": api.remaining, "errors": api.errors})
         with open(os.path.join(OUT, "picks.json"), "w") as f:
             json.dump(picks.encrypt_with_key(summary, alerts_key), f)
