@@ -18,21 +18,26 @@ import nba_alerts as base
 base.API = "https://api.balldontlie.io/nfl/v1"
 OUT = os.environ.get("OUT", "st/nfl_lineups.json")
 
-QB, RB, FB, TE = {"QB"}, {"RB", "HB"}, {"FB"}, {"TE"}
-WR = {"WR", "WR1", "WR2", "WR3", "LWR", "RWR", "SWR", "SLOT", "X", "Y", "Z"}
-LT, LG, C, RG, RT = {"LT", "OT", "T"}, {"LG", "OG", "G"}, {"C"}, {"RG", "OG", "G"}, {"RT", "OT", "T"}
-DE = {"DE", "LDE", "RDE", "EDGE", "LEDG", "REDG"}
-DT = {"DT", "LDT", "RDT", "NT", "DL"}
-LB = {"LB", "MLB", "ILB", "WLB", "SLB", "LILB", "RILB", "OLB", "LOLB", "ROLB", "WILL", "MIKE", "SAM"}
-CB = {"CB", "LCB", "RCB"}
-S = {"S", "SS", "FS"}
-# (slot, positions to fill it from, fallback positions when none of those are left)
-OFF = [("WR", WR, ()), ("LT", LT, ()), ("LG", LG, ()), ("C", C, ()), ("RG", RG, ()), ("RT", RT, ()), ("TE", TE, FB),
-       ("WR", WR, ()), ("WR", WR, TE), ("QB", QB, ()), ("RB", RB, FB)]
-DEF = [("DE", DE, ()), ("DT", DT, ()), ("DT", DT, DE), ("DE", DE, LB), ("LB", LB, ()), ("LB", LB, ()),
-       ("CB", CB, ()), ("CB", CB, ()), ("S", S, ()), ("S", S, CB), ("LB", LB, CB | S)]   # last: 3rd LB or the nickel back
-ST = [("K", {"PK", "K"}, ()), ("P", {"P"}, ())]
+# Each team's depth chart lists its own base formation (one row per position, depth 1 = starter), e.g.
+# offence QB RB WR WR-2 WR-3 TE LT LG C RG RT, defence LDE LDT RDT RDE WLB MLB SLB LCB RCB FS SS (4-3) or
+# LDE NT RDE LILB RILB WLB SLB ... (3-4). We fill every one of those rows and place it on the field.
+OFF_KEYS = ["WR", "WR-3", "LT", "LG", "C", "RG", "RT", "TE", "WR-2", "QB", "FB", "RB"]
+DL = ["LDE", "LDT", "DT", "NT", "RDT", "RDE", "DE"]
+LBS = ["WLB", "LOLB", "LILB", "MLB", "ILB", "RILB", "ROLB", "SLB", "OLB", "LB"]
+DBS = ["LCB", "NB", "FS", "SS", "S", "RCB", "CB"]
+ST = ["PK", "P"]
+OFF_XY = {"WR": (8, 25), "WR-2": (92, 25), "WR-3": (19, 41), "LT": (32, 25), "LG": (41, 25), "C": (50, 25),
+          "RG": (59, 25), "RT": (68, 25), "TE": (78, 27), "QB": (50, 55), "FB": (50, 67), "RB": (50, 79)}
+DB_XY = {"LCB": (8, 70), "RCB": (92, 70), "CB": (92, 70), "NB": (19, 60), "FS": (33, 20), "SS": (67, 20), "S": (67, 20)}
+LABEL = {"LDE": "DE", "RDE": "DE", "LDT": "DT", "RDT": "DT", "LILB": "LB", "RILB": "LB", "MLB": "LB", "ILB": "LB",
+         "WLB": "LB", "SLB": "LB", "OLB": "LB", "LOLB": "LB", "ROLB": "LB", "LCB": "CB", "RCB": "CB", "FS": "S",
+         "SS": "S", "WR-2": "WR", "WR-3": "WR", "PK": "K"}
 TAG = {"questionable": "Q", "doubtful": "D"}
+
+
+def _spread(keys, y, lo=24, hi=76):
+    n = len(keys)
+    return {k: (round(lo + (hi - lo) * i / (n - 1)) if n > 1 else 50, y) for i, k in enumerate(keys)}
 
 
 def pname(p):
@@ -40,33 +45,45 @@ def pname(p):
 
 
 def build(roster, des_by_pid, gone):
-    """Starters by slot from one team's depth chart. roster: [(pos, depth, order, pid, name)]."""
-    used, starter_flags = set(), any(d.get("starter") for d in des_by_pid.values())
+    """Starters for every row of one team's depth chart, with field spots. roster: [(pos, depth, order, pid, name)]."""
+    starter_flags = any(d.get("starter") for d in des_by_pid.values())
+    rows = {}
+    for r in roster:
+        rows.setdefault(r[0], []).append(r)
+    used = set()
 
-    def pick(keys, fb=()):
-        cands = [r for r in roster if r[0] in keys and r[3] not in used and r[3] not in gone]
-        if not cands and fb:
-            return pick(fb)
-        # game-day starter flag first (when BALLDONTLIE has it), then depth, then depth-chart order
+    def pick(key):
+        cands = [r for r in rows.get(key, []) if r[3] not in used and r[3] not in gone]
+        # BALLDONTLIE's game-day starter flag first (when it has one), then depth chart order
         cands.sort(key=lambda r: (not (des_by_pid.get(r[3]) or {}).get("starter") if starter_flags else 0, r[1], r[2]))
         if not cands:
             return None
         r = cands[0]
         used.add(r[3])
         d = des_by_pid.get(r[3]) or {}
-        out = {"n": r[4], "pos": r[0]}
+        p = {"slot": LABEL.get(key, key), "n": r[4], "pos": key}
         if TAG.get(d.get("game_status")) and d.get("active") is not True:
-            out["inj"] = TAG[d["game_status"]]
+            p["inj"] = TAG[d["game_status"]]
+        return p
+
+    def place(keys, xy):
+        out = []
+        for k in keys:
+            p = pick(k)
+            if p:
+                p["x"], p["y"] = xy[k]
+                out.append(p)
         return out
 
-    def side(slots):
-        out = [dict(slot=s, **p) for s, ks, fb in slots for p in [pick(ks, fb)] if p]
-        for p in out:
-            if p["slot"] == "LB" and p["pos"] in CB | S:
-                p["slot"] = "NB"   # nickel defence: a fifth defensive back instead of a third linebacker
-        return out
-
-    return {"off": side(OFF), "def": side(DEF), "st": side(ST)}
+    ok = [k for k in OFF_KEYS if k in rows and not (k == "FB" and "WR-3" in rows)]   # 3-WR sets: no fullback
+    off = place(ok, OFF_XY)
+    dl, lb = [k for k in DL if k in rows], [k for k in LBS if k in rows]
+    db = [k for k in DBS if k in rows]
+    if len(dl) + len(lb) + len(db) > 11 and "NB" in db:
+        db.remove("NB")   # base defence when the chart lists a nickel back as well as 3 linebackers
+    dxy = {**_spread(dl, 76), **_spread(lb, 50, 20, 80), **DB_XY}
+    de = place(dl, dxy) + place(lb, dxy) + place(db, dxy)
+    return {"off": off, "def": de, "st": [p for k in ST for p in [pick(k)] if p]}
 
 
 def main():

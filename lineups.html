@@ -231,8 +231,8 @@ function nfield(ps,side){
   const seen={};
   return `<div class="nf-field"><div class="nf-los" style="top:${NLOS[side]}%"></div>`+ps.map(p=>{
     const k=seen[p.slot]=(seen[p.slot]||0); seen[p.slot]++;
-    const xy=(NSPOT[side][p.slot]||[])[k]; if(!xy) return '';
-    const lo=side==='off'&&/^(LG|RG|TE)$/.test(p.slot)||side==='def'&&p.slot==='DT';
+    const xy=p.x!=null?[p.x,p.y]:(NSPOT[side][p.slot]||[])[k]; if(!xy) return '';
+    const lo=side==='off'&&/^(LG|RG|TE)$/.test(p.pos||p.slot)||side==='def'&&/^(LDT|RDT|DT|NT)$/.test(p.pos||'');
     return `<div class="nf-p${side==='def'?' d':''}${lo?' lo':''}" style="left:${xy[0]}%;top:${xy[1]}%"><b>${esc(p.slot)}</b>${p.inj?`<i class="${p.inj}">${p.inj}</i>`:''}<span>${esc(lastN(p.n))}</span></div>`;}).join('')+'</div>';
 }
 function nteam(t,side){
