@@ -456,6 +456,16 @@ def main():
     except Exception as e:
         print("hot stats failed:", type(e).__name__, e)
 
+    # ---- Odds Fantasy: today's/tomorrow's player pools + multipliers (scripts/fantasy.py syncs them to Supabase) ----
+    try:
+        import fantasy
+        fj = fantasy.build_pool(list(props.values()), events, stats.get("nba") or {}, NOW, TS, avail=avail)
+        with open(fantasy.POOL_FILE, "w") as f:
+            json.dump(fj, f, separators=(",", ":"))
+        print("fantasy pools:", ", ".join(f"{r['id']} {len(r['pool'])}" for r in fj["rounds"]) or "none")
+    except Exception as e:
+        print("fantasy pool failed:", type(e).__name__, e)
+
     # ---- main prop lines for the members' Live page (lines only, encrypted with the page password) ----
     try:
         import lines

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odds Fantasy | Free for members | Overlay Tips</title>
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Overlay">
+<script src="/pwa.js" defer></script>
+<meta name="description" content="Overlay Tips Odds Fantasy: pick 5 players, roughies score more. Free to play for members, no salary cap, no trades.">
+<link rel="canonical" href="https://overlay.tips/fantasy.html">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overlay Tips">
+<meta property="og:title" content="Odds Fantasy | Free for members | Overlay Tips">
+<meta property="og:description" content="Pick 5 players, roughies score more. Free to play for members, no salary cap, no trades.">
+<meta property="og:url" content="https://overlay.tips/fantasy.html">
+<meta property="og:image" content="https://overlay.tips/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#060807">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,800;1,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=20261111a">
+<link rel="stylesheet" href="plain.css?v=6">
+<style>
+.ff-tabs{display:flex;gap:6px;margin:0 0 16px;padding:4px;background:#0e1312;border:1px solid #1b2523;border-radius:14px;width:max-content;max-width:100%}
+.ff-tabs button{border:0;background:none;color:#c9d6d0;font:800 15px Archivo,system-ui,sans-serif;padding:9px 20px;border-radius:10px;cursor:pointer}
+.ff-tabs button.on{background:var(--mint);color:#04130b}
+.ff-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.ff-chips button{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:7px 13px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
+.ff-chips button.on{background:var(--mint);border-color:var(--mint);color:#04130b}
+.ff-chips button small{opacity:.7;margin-left:5px;font-weight:600}
+.ff-meta{color:#87978f;font-size:14px;margin:0 0 14px}
+.ff-meta b{color:#ecf5f1}
+.ff-tools{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px}
+.ff-tools input,.ff-tools select{background:#0e1312;color:#ecf5f1;border:1px solid #1b2523;border-radius:10px;padding:9px 12px;font:inherit;font-size:15px}
+.ff-tools input{flex:1;min-width:180px}
+.ff-game{margin:0 0 18px}
+.ff-game h3{font-size:14px;color:#87978f;font-weight:700;margin:0 0 8px;letter-spacing:.02em}
+.ff-game h3 b{color:#ecf5f1}
+.ff-row{display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:14px;padding:11px 12px;margin-bottom:8px}
+.ff-row.pk{border-color:var(--mint);box-shadow:inset 0 0 0 1px var(--mint-dim)}
+.ff-row.ov{border-color:var(--gold)}
+.ff-who{flex:1;min-width:0}
+.ff-who b{display:block;font-size:16px;color:#ecf5f1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ff-who span{font-size:13px;color:#87978f}
+.ff-odds{text-align:right;font-size:13px;color:#87978f;white-space:nowrap}
+.ff-odds b{display:block;color:#ecf5f1;font-size:16px}
+.ff-x{min-width:46px;text-align:center;font:900 16px Archivo,system-ui,sans-serif;border-radius:10px;padding:6px 8px;background:#121a18;color:#c9d6d0}
+.ff-x.m15{color:var(--mint2)}.ff-x.m2{background:#13281f;color:var(--mint)}.ff-x.m3{background:linear-gradient(180deg,#ffe28a,#efbe3b);color:#1a1204}
+.ff-add{border:1px solid #1d5a3f;background:none;color:#a8f7cf;border-radius:999px;padding:8px 14px;font:800 14px Archivo,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.ff-row.pk .ff-add{background:var(--mint);border-color:var(--mint);color:#04130b}
+.ff-star{border:0;background:none;font-size:20px;cursor:pointer;color:#3a4a44;padding:2px 4px;line-height:1}
+.ff-star.on{color:var(--gold)}
+.ff-bar{position:sticky;bottom:10px;z-index:30;margin-top:18px;background:rgba(10,14,13,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid #1d5a3f;border-radius:18px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.ff-slots{display:flex;flex-wrap:wrap;gap:6px;font-size:13px}
+.ff-slots span{background:#121a18;border:1px solid #1b2523;border-radius:999px;padding:5px 10px;color:#c9d6d0}
+.ff-slots span.ov{border-color:var(--gold);color:var(--gold)}
+.ff-slots span.empty{color:#5f6f68;border-style:dashed}
+.ff-save{background:var(--mint);color:#04130b;border:0;border-radius:999px;padding:11px 20px;font:900 15px Archivo,system-ui,sans-serif;cursor:pointer}
+.ff-save:disabled{opacity:.45;cursor:default}
+.ff-msg{width:100%;font-size:13px;color:#87978f}
+.ff-msg.ok{color:var(--mint)}.ff-msg.err{color:var(--red)}
+.ff-card{background:linear-gradient(160deg,#0f2a1e,#0b1210 60%);border:1px solid #1d5a3f;border-radius:18px;padding:16px;margin:0 0 18px}
+.ff-card h3{font-size:18px;font-weight:900;margin:0 0 10px;color:#ecf5f1}
+.ff-tot{font-size:30px;font-weight:900;font-style:italic;color:var(--gold);float:right;line-height:1}
+.ff-mine{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #1b2523;font-size:14px}
+.ff-mine:first-of-type{border-top:0}
+.ff-mine b{color:#ecf5f1}
+.ff-mine .st{color:#87978f;font-size:13px}
+.ff-mine .pt{font-weight:900;color:#ecf5f1;font-size:17px;white-space:nowrap;text-align:right}
+.ff-mine .pt small{display:block;font-weight:600;color:#87978f;font-size:12px}
+.ff-tbl{width:100%;border-collapse:collapse;font-size:15px}
+.ff-tbl th{text-align:left;color:#87978f;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:8px 6px;border-bottom:1px solid #1b2523}
+.ff-tbl td{padding:10px 6px;border-bottom:1px solid #121a18}
+.ff-tbl td.n{text-align:right;font-variant-numeric:tabular-nums}
+.ff-tbl tr.me td{background:#13281f;color:var(--mint2);font-weight:800}
+.ff-tbl tr.gap td{color:#5f6f68;text-align:center;padding:4px}
+.ff-empty{color:#87978f;padding:26px 0;text-align:center}
+.ff-rules h3{font-size:19px;font-weight:900;margin:22px 0 8px;color:#ecf5f1}
+.ff-rules p,.ff-rules li{color:#c9d6d0;font-size:15px;line-height:1.55}
+.ff-rules ul{margin:0 0 0 20px}
+.ff-rules table{border-collapse:collapse;margin:6px 0;font-size:15px}
+.ff-rules td,.ff-rules th{border:1px solid #1b2523;padding:6px 12px;text-align:left}
+.ff-rules th{color:#87978f;font-size:13px}
+@media(max-width:520px){.ff-row{gap:8px;padding:10px}.ff-odds{display:none}.ff-who b{font-size:15px}}
+</style>
+<script src="nav.js?v=6"></script>
+<script src="gate.js?v=2" data-need="member" data-label="Odds Fantasy"></script>
+</head>
+<body class="no-js">
+
+<nav>
+  <div class="wrap navrow">
+    <a href="index.html" class="brand" aria-label="Overlay Tips home">
+      <img src="logo-nav.png?v=1" alt="Overlay Tips" class="brand-logo">
+    </a>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="lineups.html">Overlay Wire</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+    <a href="fantasy.html" class="on" aria-current="page">Fantasy</a>
+      <a href="membership.html">Membership</a>
+      <a href="index.html#results">Results</a>
+      <a href="record.html">Tracker record</a>
+      <a href="calculator.html">Bonus bet calc</a>
+      <a href="giveaway.html">Giveaway</a>
+      <a href="merch.html">Merch</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a class="btn btn-mint" href="portal.html?signup">Sign up</a>
+    </div>
+  </div>
+  <div class="tabbar" aria-label="Site sections">
+    <a href="index.html">Home</a>
+    <a href="odds.html" class="hot">Odds</a>
+    <a href="hot.html">Hot stats</a>
+    <a href="lineups.html">Overlay Wire</a>
+    <a href="live.html">Live</a>
+    <a href="tracker.html">Bet tracker</a>
+    <a href="fantasy.html" class="on" aria-current="page">Fantasy</a>
+    <a href="membership.html">Membership</a>
+    <a href="index.html#results">Results</a>
+    <a href="record.html">Tracker record</a>
+    <a href="calculator.html">Bonus bet calc</a>
+    <a href="giveaway.html">Giveaway</a>
+    <a href="merch.html">Merch</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+  </div>
+</nav>
+
+<main>
+<header class="page-head">
+  <div class="wrap">
+    <div class="mono">Free for members · NBA now · AFL from March</div>
+    <h1>Odds Fantasy</h1>
+    <p>Pick 5 players. Roughies score more: every player's points are multiplied by his odds. No salary cap, no trades. Free to play.</p>
+  </div>
+</header>
+<section class="page-sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="ff-tabs" role="tablist">
+      <button data-v="play" class="on">Play</button><button data-v="ladder">Ladder</button><button data-v="rules">Rules</button>
+    </div>
+
+    <div id="vPlay">
+      <div class="ff-chips" id="rounds"></div>
+      <div class="ff-meta" id="meta">Loading…</div>
+      <div id="mine"></div>
+      <div id="pickArea" hidden>
+        <div class="ff-tools">
+          <input id="q" type="search" placeholder="Search players" autocomplete="off">
+          <select id="sort"><option value="game">By game</option><option value="mult">Biggest multiplier</option><option value="fav">Favourites first</option></select>
+        </div>
+        <div id="list"></div>
+        <div class="ff-bar" id="bar">
+          <div class="ff-slots" id="slots"></div>
+          <button class="ff-save" id="save" disabled>Save picks</button>
+          <div class="ff-msg" id="msg">Pick 5, then tap ★ on one to make it your Overlay Pick (scores double).</div>
+        </div>
+      </div>
+      <div id="board"></div>
+    </div>
+
+    <div id="vLadder" hidden>
+      <div class="ff-chips" id="ranges">
+        <button data-r="week" class="on">This week</button><button data-r="last">Last week</button><button data-r="season">Season</button>
+      </div>
+      <div class="ff-meta" id="lmeta"></div>
+      <div id="ladder"></div>
+    </div>
+
+    <div id="vRules" class="ff-rules" hidden>
+      <h3>How a round works</h3>
+      <ul>
+        <li>Every NBA day (Melbourne time) is a round. Pick 5 players from that day's games.</li>
+        <li>Make one of them your <b>Overlay Pick</b> (★). It scores double.</li>
+        <li>Picks lock when the first game starts. Change them as often as you like before then.</li>
+        <li>Multipliers are locked at lock too, so late price moves don't change anything.</li>
+      </ul>
+      <h3>Base points (NBA)</h3>
+      <table><tr><th>Stat</th><th>Points</th></tr><tr><td>Point</td><td>1</td></tr><tr><td>Rebound</td><td>1.5</td></tr><tr><td>Assist</td><td>1.5</td></tr><tr><td>Steal</td><td>3</td></tr><tr><td>Block</td><td>3</td></tr></table>
+      <h3>Odds multiplier</h3>
+      <p>From the player's price to score 20+ points at the Aussie bookies (the middle price across them).</p>
+      <table><tr><th>20+ points price</th><th>Multiplier</th></tr><tr><td>Under $2.00</td><td>1x</td></tr><tr><td>$2.00 to $3.99</td><td>1.5x</td></tr><tr><td>$4.00 to $7.99</td><td>2x</td></tr><tr><td>$8.00 and over</td><td>3x</td></tr></table>
+      <p>"est." means no bookie priced 20+ for that player, so it's worked out from his main points line.</p>
+      <h3>Scoring</h3>
+      <p>Player score = base points × multiplier. Overlay Pick = base points × multiplier × 2. Your round score is your 5 players added up.</p>
+      <p>Example: 18 points, 6 rebounds, 4 assists, 1 steal = 18 + 9 + 6 + 3 = 36 base. 20+ points paying $4.50 = 2x, so 72. As your Overlay Pick, 144.</p>
+      <h3>Ladders and prizes</h3>
+      <ul>
+        <li>Round ladder for every NBA day, a weekly ladder (Monday to Sunday) and a season ladder.</li>
+        <li>Prizes are non-cash only: merch, free membership months, shoutouts. Winners get posted on Instagram @overlay_tips.</li>
+        <li>Free to enter for every member. No payment is needed to play or to win.</li>
+      </ul>
+      <h3>Fair play</h3>
+      <ul>
+        <li>One entry per member per round.</li>
+        <li>A player who doesn't play scores 0. No swaps after lock.</li>
+        <li>Ties go to the highest single-player score, then the earliest entry.</li>
+        <li>Overlay Tips can update these rules between rounds, with notice to members.</li>
+      </ul>
+      <h3>AFL</h3>
+      <p>AFL rounds start with the 2027 season: disposals 1, tackles 2, goals 6, behinds 1, multiplier from the 25+ disposals price.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="rg">
+      <b>18+ only. Gamble responsibly.</b> Odds Fantasy is a free game for members: no money is wagered and prizes are non-cash.
+      Need help? Call Gambling Help Online on <b>1800 858 858</b> or visit <a href="https://www.gamblinghelponline.org.au" target="_blank" rel="noopener">gamblinghelponline.org.au</a>.
+      You can self-exclude from all Australian bookmakers at <a href="https://www.betstop.gov.au" target="_blank" rel="noopener">betstop.gov.au</a>.
+    </div>
+    <div class="foot">
+      <span>© 2026 Overlay Tips</span>
+      <span><a href="membership-terms.html">Terms</a> · <a href="privacy.html">Privacy</a></span>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+document.body.classList.remove('no-js');
+const SUPABASE_URL = 'https://enldqvdxygppxwrauqlw.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Zznc-4Nv6Ibb_SyE55jn6A_IqSxnYW8';
+const SEASON_START = '2026-10-01';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TZ = {timeZone:'Australia/Melbourne'};
+const melDate = (d=new Date()) => d.toLocaleDateString('en-CA', TZ);
+const when = iso => new Date(iso).toLocaleString('en-AU', {...TZ, weekday:'short', hour:'numeric', minute:'2-digit'});
+const tm = iso => new Date(iso).toLocaleTimeString('en-AU', {...TZ, hour:'numeric', minute:'2-digit'});
+const fmt = n => (Math.round(n*10)/10).toLocaleString('en-AU');
+const xcls = m => m>=3?'m3':m>=2?'m2':m>=1.5?'m15':'';
+
+const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let ROUNDS = [], cur = null, entry = null, picks = [], overlay = null, dirty = false, user = null;
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.ff-tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.ff-tabs button').forEach(x => x.classList.toggle('on', x === b));
+  $('vPlay').hidden = b.dataset.v !== 'play'; $('vLadder').hidden = b.dataset.v !== 'ladder'; $('vRules').hidden = b.dataset.v !== 'rules';
+  if (b.dataset.v === 'ladder') loadLadder();
+});
+
+/* ---------- rounds ---------- */
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  user = session?.user || null;
+  if (!user) { $('meta').textContent = 'Log in to the members portal to play.'; return; }
+  const since = new Date(Date.now() - 8*864e5).toLocaleDateString('en-CA', TZ);
+  const { data, error } = await sb.from('fantasy_rounds')
+    .select('id,sport,label,round_date,lock_at,status,games,pool,results,updated_at')
+    .gte('round_date', since).order('round_date');
+  if (error) { $('meta').textContent = 'Couldn\'t load rounds. Try again soon.'; return; }
+  ROUNDS = data || [];
+  if (!ROUNDS.length) { $('meta').textContent = 'No round is open yet. The next NBA round opens once the bookies price player points (usually the day before).'; return; }
+  const open = ROUNDS.filter(r => new Date(r.lock_at) > new Date());
+  const live = ROUNDS.filter(r => new Date(r.lock_at) <= new Date() && r.status !== 'final');
+  const want = new URLSearchParams(location.search).get('round');
+  pick((ROUNDS.find(r => r.id === want) || live[live.length-1] || open[0] || ROUNDS[ROUNDS.length-1]).id);
+}
+
+function roundChips() {
+  const shown = ROUNDS.slice(-6);
+  $('rounds').innerHTML = shown.map(r => {
+    const st = new Date(r.lock_at) > new Date() ? 'open' : r.status === 'final' ? 'final' : 'live';
+    return `<button data-id="${esc(r.id)}" class="${r.id===cur?.id?'on':''}">${esc(r.label || r.id)}<small>${st}</small></button>`;
+  }).join('');
+  $('rounds').querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (dirty && !confirm('You have unsaved picks. Switch round anyway?')) return;
+    pick(b.dataset.id);
+  });
+}
+
+async function pick(id) {
+  cur = ROUNDS.find(r => r.id === id); dirty = false;
+  history.replaceState(null, '', '?round=' + encodeURIComponent(id));
+  roundChips();
+  const { data } = await sb.from('fantasy_entries').select('*').eq('round_id', id).maybeSingle();
+  entry = data || null;
+  picks = entry ? [...entry.picks] : []; overlay = entry ? entry.overlay : null;
+  render();
+}
+
+const isOpen = () => cur && new Date(cur.lock_at) > new Date();
+const P = k => (cur.pool || []).find(p => p.k === k);
+
+function render() {
+  const open = isOpen();
+  $('pickArea').hidden = !open;
+  $('mine').innerHTML = ''; $('board').innerHTML = '';
+  if (open) {
+    meta();
+    renderList(); renderBar();
+  } else {
+    $('meta').innerHTML = cur.status === 'final' ? `<b>Final.</b> ${esc(cur.label)}` :
+      `<b>Locked.</b> Games under way, scores update every few minutes. Last update ${tm(cur.updated_at)}.`;
+    renderMine(); loadBoard();
+  }
+}
+
+async function meta() {
+  const ms = new Date(cur.lock_at) - Date.now();
+  const h = Math.floor(ms/36e5), m = Math.floor(ms%36e5/6e4);
+  const left = h >= 24 ? `${Math.floor(h/24)}d ${h%24}h` : `${h}h ${m}m`;
+  const { data: n } = await sb.rpc('fantasy_count', { p_round: cur.id });
+  $('meta').innerHTML = `Locks <b>${when(cur.lock_at)}</b> (in ${left}) · ${(cur.games||[]).length} games · ${n||0} member${n===1?'':'s'} in` +
+    (entry ? ' · <span style="color:var(--mint)">your picks are saved</span>' : '');
+}
+
+/* ---------- picking ---------- */
+$('q').oninput = renderList; $('sort').onchange = renderList;
+
+function row(p) {
+  const on = picks.includes(p.k), ov = overlay === p.k;
+  const opp = p.t ? `${esc(p.t)} ${p.home?'v':'@'} ${esc(p.opp)}` : '';
+  return `<div class="ff-row${on?' pk':''}${ov?' ov':''}" data-k="${esc(p.k)}">
+    ${on ? `<button class="ff-star${ov?' on':''}" data-star aria-label="Make Overlay Pick">★</button>` : ''}
+    <div class="ff-who"><b>${esc(p.n)}</b><span>${opp}${p.line!=null?` · ${p.line} pts line`:''}</span></div>
+    <div class="ff-odds">20+ pts<b>$${Number(p.o).toFixed(2)}${p.e?' <small style="color:#87978f;font-weight:600">est.</small>':''}</b></div>
+    <div class="ff-x ${xcls(p.m)}">${p.m}x</div>
+    <button class="ff-add" data-add>${on?'✓':'+ Pick'}</button></div>`;
+}
+
+function renderList() {
+  const q = $('q').value.trim().toLowerCase(), sort = $('sort').value;
+  let pool = (cur.pool || []).filter(p => !q || p.n.toLowerCase().includes(q) || (p.t||'').toLowerCase().includes(q));
+  if (!pool.length) { $('list').innerHTML = `<div class="ff-empty">${(cur.pool||[]).length ? 'No players match.' : 'No players priced yet. Check back soon.'}</div>`; return; }
+  if (sort === 'game') {
+    const games = cur.games || [];
+    $('list').innerHTML = games.map(g => {
+      const ps = pool.filter(p => p.ev === g.id).sort((a,b) => a.o - b.o);
+      if (!ps.length) return '';
+      return `<div class="ff-game"><h3><b>${esc(g.away)} @ ${esc(g.home)}</b> · ${when(g.start)}</h3>${ps.map(row).join('')}</div>`;
+    }).join('');
+  } else {
+    pool = [...pool].sort((a,b) => sort === 'mult' ? b.o - a.o : a.o - b.o);
+    $('list').innerHTML = pool.map(row).join('');
+  }
+}
+
+$('list').onclick = e => {
+  const r = e.target.closest('.ff-row'); if (!r || !isOpen()) return;
+  const k = r.dataset.k;
+  if (e.target.closest('[data-star]')) { overlay = overlay === k ? null : k; }
+  else if (e.target.closest('[data-add]') || e.target.closest('.ff-who')) {
+    if (picks.includes(k)) { picks = picks.filter(x => x !== k); if (overlay === k) overlay = null; }
+    else if (picks.length >= 5) { msg('You\'ve got 5. Remove one first.', 'err'); return; }
+    else { picks.push(k); if (picks.length === 1 && !overlay) overlay = k; }
+  } else return;
+  dirty = true; renderList(); renderBar();
+};
+
+function renderBar() {
+  const slots = picks.map(k => `<span class="${k===overlay?'ov':''}">${k===overlay?'★ ':''}${esc(P(k)?.n || k)} · ${P(k)?.m ?? '?'}x</span>`);
+  while (slots.length < 5) slots.push('<span class="empty">empty</span>');
+  $('slots').innerHTML = slots.join('');
+  const ready = picks.length === 5 && overlay && picks.includes(overlay);
+  $('save').disabled = !ready || !dirty;
+  if (dirty) msg(picks.length < 5 ? `Pick ${5-picks.length} more.` : !overlay ? 'Tap ★ on one player for your Overlay Pick.' : 'Ready. Save your picks.');
+}
+function msg(t, cls='') { $('msg').textContent = t; $('msg').className = 'ff-msg ' + cls; }
+
+$('save').onclick = async () => {
+  if (!isOpen()) { msg('Too late, this round has locked.', 'err'); return; }
+  $('save').disabled = true; msg('Saving…');
+  const row = { round_id: cur.id, picks, overlay, user_id: user.id };
+  const { data, error } = await sb.from('fantasy_entries').upsert(row, { onConflict: 'user_id,round_id' }).select().maybeSingle();
+  if (error) { msg(/row-level|locked/i.test(error.message) ? 'This round has locked.' : (error.message || 'Couldn\'t save. Try again.'), 'err'); $('save').disabled = false; return; }
+  entry = data; dirty = false; msg('Saved. You can change them until lock.', 'ok'); renderBar(); meta();
+};
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- after lock ---------- */
+function renderMine() {
+  if (!entry) { $('mine').innerHTML = `<div class="ff-card"><h3>You didn't enter this round</h3><p style="color:#c9d6d0;font-size:14px">The next round opens the day before. Ladder below.</p></div>`; return; }
+  let total = 0;
+  const rows = entry.picks.map(k => {
+    const p = P(k) || {n:k, m:1}, s = (cur.results || {})[k];
+    const x = p.m * (k === entry.overlay ? 2 : 1), pts = s ? s.b * x : 0; total += pts;
+    const line = s ? `${s.pts} pts · ${s.reb} reb · ${s.ast} ast · ${s.stl} stl · ${s.blk} blk${s.f ? '' : ' · live'}` : 'not started';
+    return `<div class="ff-mine"><div><b>${k===entry.overlay?'★ ':''}${esc(p.n)}</b> <span class="st">${p.t?esc(p.t):''}</span><div class="st">${line}</div></div>
+      <div class="pt">${fmt(pts)}<small>${s?fmt(s.b):0} × ${p.m}x${k===entry.overlay?' × 2':''}</small></div></div>`;
+  }).join('');
+  $('mine').innerHTML = `<div class="ff-card"><span class="ff-tot">${fmt(total)}</span><h3>Your picks</h3>${rows}</div>`;
+}
+
+function table(rows, cols) {
+  if (!rows || !rows.length) return '<div class="ff-empty">No scores yet.</div>';
+  let out = '', last = 0;
+  for (const r of rows) {
+    if (r.pos > last + 1 && last) out += `<tr class="gap"><td colspan="${cols.length+2}">⋯</td></tr>`;
+    last = r.pos;
+    out += `<tr class="${r.is_me?'me':''}"><td>${r.pos}</td><td>${esc(r.name)}${r.is_me?' (you)':''}</td>${cols.map(c => `<td class="n">${c.f(r)}</td>`).join('')}</tr>`;
+  }
+  return `<table class="ff-tbl"><tr><th>#</th><th>Member</th>${cols.map(c => `<th style="text-align:right">${c.h}</th>`).join('')}</tr>${out}</table>`;
+}
+
+async function loadBoard() {
+  $('board').innerHTML = '<div class="ff-empty">Loading ladder…</div>';
+  const { data, error } = await sb.rpc('fantasy_board', { p_sport: cur.sport, p_from: cur.round_date, p_to: cur.round_date });
+  if (error) { $('board').innerHTML = '<div class="ff-empty">Couldn\'t load the ladder.</div>'; return; }
+  $('board').innerHTML = `<h3 class="hs-h" style="font-size:22px;margin:8px 0 10px">Round ladder</h3>` +
+    table(data, [{h:'Best', f:r => fmt(r.best)}, {h:'Points', f:r => `<b>${fmt(r.total)}</b>`}]);
+}
+
+/* ---------- ladders ---------- */
+let range = 'week';
+$('ranges').querySelectorAll('button').forEach(b => b.onclick = () => {
+  range = b.dataset.r; $('ranges').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); loadLadder();
+});
+function addDays(s, n) { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
+async function loadLadder() {
+  if (!user) { $('ladder').innerHTML = '<div class="ff-empty">Log in to see the ladder.</div>'; return; }
+  const today = melDate(), dow = (new Date(today + 'T12:00:00Z').getUTCDay() + 6) % 7;
+  let from = addDays(today, -dow), to = addDays(from, 6);
+  if (range === 'last') { from = addDays(from, -7); to = addDays(from, 6); }
+  if (range === 'season') { from = SEASON_START; to = today; }
+  const nice = s => new Date(s + 'T12:00:00Z').toLocaleDateString('en-AU', {day:'numeric', month:'short', timeZone:'UTC'});
+  $('lmeta').textContent = range === 'season' ? 'NBA season ladder: every round added up.' : `NBA rounds ${nice(from)} to ${nice(to)}, added up.`;
+  $('ladder').innerHTML = '<div class="ff-empty">Loading…</div>';
+  const { data, error } = await sb.rpc('fantasy_board', { p_sport: 'nba', p_from: from, p_to: to });
+  if (error) { $('ladder').innerHTML = '<div class="ff-empty">Couldn\'t load the ladder.</div>'; return; }
+  $('ladder').innerHTML = table(data, [{h:'Rounds', f:r => r.rounds}, {h:'Points', f:r => `<b>${fmt(r.total)}</b>`}]);
+}
+
+/* refresh: countdown while open, scores while live */
+setInterval(() => {
+  if (!cur || dirty || document.hidden) return;
+  if (isOpen()) meta();
+  else if (cur.status !== 'final') sb.from('fantasy_rounds').select('*').eq('id', cur.id).single().then(({data}) => {
+    if (data) { Object.assign(cur, data); render(); }
+  });
+}, 120000);
+
+init();
+</script>
+</body>
+</html>

@@ -76,6 +76,14 @@ jobs:
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
         run: python scripts/value_alerts.py
 
+      - name: Odds Fantasy (rounds, multipliers, scoring -> Supabase)
+        if: env.RUN == 'true' && env.PW_SET == 'true'
+        continue-on-error: true
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
+        run: python scripts/fantasy.py
+
       - name: Bet log (closing-price CLV, results, daily report)
         if: env.RUN == 'true' && env.PW_SET == 'true'
         continue-on-error: true
