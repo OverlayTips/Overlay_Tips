@@ -1,7 +1,7 @@
 """Instant value-bet alerts: push each NEW value pick to Jayden's phone (ntfy) right after an odds update.
 
 Reads, from the odds-data folder the odds workflow just wrote:
-  hot.json    -> "value" list (NBA player props priced above the market-led fair price)
+  hot.json    -> "value" list (NBA, NBL and NFL player props priced above the market-led fair price)
   picks.json  -> overlays (encrypted with ODDS_ALERTS_KEY)
 Remembers what it already sent in alerted.json (kept on the odds-data branch), so each pick alerts once.
 A pick alerts again only if its edge has grown by 3+ points or the price got better.
@@ -195,13 +195,13 @@ def collect(now):
             continue
         side = "Under" if str(v.get("line", "")).lower().startswith("u") else "Over"
         add = SITE + "/tracker.html?" + urllib.parse.urlencode({
-            "add": 1, "player": v["player"], "stat": v["stat"], "side": side,
+            "add": 1, "lg": v.get("lg") or "NBA", "player": v["player"], "stat": v["stat"], "side": side,
             "line": v.get("point", ""), "odds": v["price"], "book": v["book"]})
         out.append({"tag": tag(v), "key": f"hot|{v['player']}|{v['stat']}|{v.get('point')}|{side}",
                     "edge": v["value"], "price": v["price"], "start": v.get("start", ""),
                     "text": f"{with_team(v['player'], teams)}{tag(v)} {v['line']} {v['stat']} @ {v['price']:.2f} {v['book']}",
                     "sel": f"{with_team(v['player'], teams)}{tag(v)} {v['line']} {v['stat']}", "book": v["book"],
-                    "game": v.get("game", ""), "lg": v.get("lg", ""), "emoji": "🏀",
+                    "game": v.get("game", ""), "lg": v.get("lg", ""), "emoji": emoji(v.get("sk"), v.get("lg")),
                     "sub": f"fair {100*v.get('prob',0):.0f}%",
                     "why": analysis(v, side),
                     "add": add,
