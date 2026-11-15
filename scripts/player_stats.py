@@ -192,7 +192,9 @@ def update(prev, prop_events, now, ts, extra=()):
         if key in seen or not old.get("id"):
             continue
         last_seen = datetime.fromisoformat(old.get("s", old["f"]).replace("Z", "+00:00"))
-        if now - last_seen < AFTER and now - datetime.fromisoformat(old["f"].replace("Z", "+00:00")) >= REFRESH:
+        age = now - datetime.fromisoformat(old["f"].replace("Z", "+00:00"))
+        # first 6h after tip-off: every 20 min so the result lands soon after the final siren; then every 3h
+        if now - last_seen < AFTER and age >= (timedelta(minutes=20) if now - last_seen < timedelta(hours=6) else REFRESH):
             todo[old["id"]] = (key, {"id": old["id"], "team": old.get("team"), "n": old.get("n")})
 
     # game logs, BATCH players per request
