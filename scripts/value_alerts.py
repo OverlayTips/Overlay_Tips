@@ -60,8 +60,8 @@ def _push(topic, title, lines, click=None, actions=(), priority=4):
     wa = f"{title}\n\n{body}\n\n{FOOT}"
     acts = list(actions)[:2] + [{"action": "view", "label": "Share to WhatsApp",
                                  "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]
-    msg = {"topic": topic, "title": title, "message": f"{title}\n{body}",   # title repeated so "Copy notification" includes it
-           "tags": ["moneybag"], "priority": priority, "actions": acts}
+    msg = {"topic": topic, "title": title, "message": body,   # titles carry their own emoji, so no ntfy tag (it doubled up)
+           "priority": priority, "actions": acts}
     if click:
         msg["click"] = click
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(msg).encode(),
@@ -534,7 +534,7 @@ def main():
         if allv:
             lines.append("Top value:")
             for p in allv[:3]:
-                lines += ["", f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U"] + (p.get("why") or [p["sub"].capitalize()])
+                lines.append(f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U")   # one line each: the write-ups went out in the bet's own alert
         try:
             _push(TOPIC, f"📊 Odds updated {when}", lines, click=SITE + "/odds.html", priority=3)
         except Exception as e:
