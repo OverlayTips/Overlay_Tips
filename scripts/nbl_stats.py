@@ -159,7 +159,16 @@ def update(prev, prop_events, now, ts):
             key = f"nbl:{c['id']}"
             out["by"][d] = key
             out["players"][key] = {"n": d, "id": c["id"], "team": c["team"], "g": c["rows"]}
-    note = (f"{len(games)} NBL games, {len(fin)} new box scores, {len(out['players'])} prop players matched, "
+    # keep players matched on earlier runs: once a game tips its props drop out of the feed, and the bet log
+    # still needs those names to settle the props (same as player_stats.py does for the NBA)
+    by_id = {c["id"]: c for c in cands}
+    for d, key in ((prev or {}).get("by") or {}).items():
+        c = by_id.get(key.partition(":")[2])
+        if d in out["by"] or not c:
+            continue
+        out["by"][d] = key
+        out["players"].setdefault(key, {"n": d, "id": c["id"], "team": c["team"], "g": c["rows"]})
+    note =(f"{len(games)} NBL games, {len(fin)} new box scores, {len(out['players'])} prop players matched, "
             f"{api.calls} API-Sports calls")
     if unmatched:
         note += f", unmatched: {', '.join(unmatched[:10])}"

@@ -142,6 +142,13 @@ def grade_prop(b, stats):
         return None
     st = stats.get(lg) or {}
     p = (st.get("players") or {}).get((st.get("by") or {}).get(b["desc"], ""))
+    if not p and lg == "nbl" and st.get("raw"):
+        # player's props already left the feed: match the bookie name straight against the box-score names
+        import nbl_stats
+        cands = [{"id": k, "n": v.get("n", ""), "rows": sorted(v.get("g", {}).values(), key=lambda r: r[0], reverse=True)}
+                 for k, v in st["raw"].items()]
+        c = nbl_stats._match(b["desc"], cands)
+        p = {"g": c["rows"]} if c else None
     if not p:
         return None
     day = _parse(b["start"]).date()
