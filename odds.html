@@ -96,6 +96,10 @@
   .gbox svg.gchart{width:100%;height:auto;display:block}
   .hr{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;font-size:11.5px;font-weight:700;white-space:nowrap;background:#16201d;color:var(--muted);vertical-align:1px}
   .hr.good{background:#123a28;color:var(--mint)} .hr.bad{background:#3a1616;color:#ff8a8a}
+  details.why{margin-top:5px} details.why summary{cursor:pointer;color:var(--mint);font-size:12px;font-weight:800;list-style:none;display:inline-block}
+  details.why summary::-webkit-details-marker{display:none} details.why summary::before{content:'▸ ';display:inline-block;transition:transform .15s}
+  details.why[open] summary::before{transform:rotate(90deg)}
+  details.why p{margin:5px 0 2px;color:#d7e3de;font-size:13px;line-height:1.5;white-space:normal;max-width:560px}
   .ps-sum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px} .ps-sum div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted)} .ps-sum b{display:block;color:var(--text);font-size:15px}
   .ps-tbl{width:100%;border-collapse:collapse;font-size:13px} .ps-tbl th,.ps-tbl td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left} .ps-tbl th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
   .ps-tbl td.y{color:var(--mint);font-weight:700} .ps-tbl td.n{color:#ff8a8a;font-weight:700}
@@ -330,9 +334,12 @@ const PROP_LABEL={player_points_alternate:'Points ladder',player_rebounds_altern
 // game row: [date, opp, '@'|'vs', min, pts, reb, ast, 3pm, blk, stl, tov]
 const STATF={player_points:g=>g[4],player_rebounds:g=>g[5],player_assists:g=>g[6],player_threes:g=>g[7],player_blocks:g=>g[8],player_steals:g=>g[9],player_turnovers:g=>g[10],
   player_points_rebounds_assists:g=>g[4]+g[5]+g[6],player_points_rebounds:g=>g[4]+g[5],player_points_assists:g=>g[4]+g[6],player_rebounds_assists:g=>g[5]+g[6],
-  player_double_double:g=>[g[4],g[5],g[6],g[8],g[9]].filter(v=>v>=10).length>=2?1:0};
+  player_double_double:g=>[g[4],g[5],g[6],g[8],g[9]].filter(v=>v>=10).length>=2?1:0,
+  // NFL rows (scripts/nfl_stats.py): [date, opp, @/vs, 1, pyd, ptd, cmp, patt, int, ryd, ratt, rec, ryds, tgt]
+  player_pass_yds:g=>g[4],player_pass_tds:g=>g[5],player_pass_completions:g=>g[6],player_pass_attempts:g=>g[7],player_pass_interceptions:g=>g[8],
+  player_rush_yds:g=>g[9],player_rush_attempts:g=>g[10],player_receptions:g=>g[11],player_reception_yds:g=>g[12],player_rush_reception_yds:g=>g[9]+g[12]};
 function pStats(e,desc){
-  const lg={basketball_nba:'nba',basketball_nbl:'nbl'}[e&&e.sport_key]; if(!lg||!desc) return null;
+  const lg={basketball_nba:'nba',basketball_nbl:'nbl',americanfootball_nfl:'nfl'}[e&&e.sport_key]; if(!lg||!desc) return null;
   const S=DATA.stats&&DATA.stats[lg]; if(!S||!S.players) return null;
   if(lg==='nbl'&&/blocks|steals|turnovers|double_double/.test(arguments[2]||'')) return null;
   const k=(S.by||{})[desc]; const p=k&&S.players[k]; if(!p||!p.g||!p.g.length) return null;
@@ -373,9 +380,10 @@ function statsPanel(e,mk,player,rows){
   const box=(t,c,sub)=>`<div>${t}<b>${pc(c)}</b>${sub||''}</div>`;
   const fm=v=>v==null?'–':v.toFixed(1);
   const sum=`<div class="ps-sum">${box('Last 5',h.l5,sd[1]!=null?`avg ${fm(h.a5)}`:'')}${box('Last 10',h.l10,sd[1]!=null?`avg ${fm(h.a10)}`:'')}${box(h.old?'Last season':'Season',h.all,sd[1]!=null?`avg ${fm(h.aAll)}`:'')}${h.vs[1]?box('vs '+h.p.opp,h.vs):''}</div>`;
-  const tr=h.gs.slice(0,10).map(g=>{const v=h.f(g), y=h.ok(g); return `<tr><td>${new Date(g[0]+'T12:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</td><td>${g[2]==='@'?'@':'v'} ${esc(g[1])}</td><td>${g[3]}</td><td>${g[4]}</td><td>${g[5]}</td><td>${g[6]}</td><td>${g[7]}</td><td class="${y?'y':'n'}">${mk.includes('double_double')?(v?'Yes':'No'):v} ${y?'✓':'✗'}</td></tr>`;}).join('');
+  const nfl=e.sport_key==='americanfootball_nfl';
+  const tr=h.gs.slice(0,10).map(g=>{const v=h.f(g), y=h.ok(g); return `<tr><td>${new Date(g[0]+'T12:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</td><td>${g[2]==='@'?'@':'v'} ${esc(g[1])}</td>${nfl?`<td>${g[6]}/${g[7]} · ${g[4]}</td><td>${g[10]} · ${g[9]}</td><td>${g[11]}/${g[13]} · ${g[12]}</td>`:`<td>${g[3]}</td><td>${g[4]}</td><td>${g[5]}</td><td>${g[6]}</td><td>${g[7]}</td>`}<td class="${y?'y':'n'}">${mk.includes('double_double')?(v?'Yes':'No'):v} ${y?'✓':'✗'}</td></tr>`;}).join('');
   return `<h4>Player stats <small>· ${esc(h.p.team||'')} · hit rate for ${esc(line)}${h.old?' · no games yet this season, showing last season':''}</small></h4>${sum}
-    <div class="tbl-wrap"><table class="ps-tbl"><tr><th>Date</th><th>Opp</th><th>Min</th><th>Pts</th><th>Reb</th><th>Ast</th><th>3PM</th><th>${esc((PROP_LABEL[mk]||'Stat').replace(' ladder',''))}</th></tr>${tr}</table></div>`;
+    <div class="tbl-wrap"><table class="ps-tbl"><tr><th>Date</th><th>Opp</th>${nfl?'<th>Pass C/A · yds</th><th>Car · yds</th><th>Rec/Tgt · yds</th>':'<th>Min</th><th>Pts</th><th>Reb</th><th>Ast</th><th>3PM</th>'}<th>${esc((PROP_LABEL[mk]||'Stat').replace(' ladder',''))}</th></tr>${tr}</table></div>`;
 }
 const bkName=b=>SHORT[b.key]||b.title.replace(/\s*\(AU\)$/,'');
 const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<1?'just now':m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
@@ -776,6 +784,8 @@ function showGraph(evId,mk,player){
 }
 // the write-up for this prop from the public Hot stats feed (built from the same numbers: scripts/writeup.py)
 let HOT=null;
+fetch('https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json?t='+Math.floor(Date.now()/300000))
+  .then(r=>r.ok?r.json():null).then(h=>{if(h){HOT=h;try{if(DATA)render();}catch(_){}}}).catch(()=>{});
 function showCase(evId,mk,player){
   const put=h=>{const its=(h&&(h.value||[]).concat(h.items||[]))||[], it=its.find(i=>i.ev===evId&&i.mk===mk&&i.desc===player&&i.why);
     const el=$('gcase'); if(el&&it) el.innerHTML=`<h4>The case <small>· ${esc(it.line)} ${esc(it.stat)} @ $${it.price.toFixed(2)} ${esc(it.book)}</small></h4><p class="gcase">${esc(it.why)}</p>`;};
@@ -898,6 +908,36 @@ function availOf(e,r){
   return (A.starters||[]).includes(pkey(r.s.desc))?'start':'';
 }
 const availChip=a=>a==='Q'||a==='GTD'?` <span class="inj" title="${a==='Q'?'Questionable':'Game-time decision'}: check team news">⚠️ ${a}</span>`:a==='start'?' <span class="inj ok" title="Confirmed starter">✅ starting</span>':'';
+/* "Why": the case for a bet. Props on Hot/Cold stats use that write-up (scripts/writeup.py: form, matchup,
+   role, game script, price). Everything else gets a short one built here from the same page data. */
+function hotCase(e,mk,desc,over){
+  const H=HOT; if(!H||!desc) return null; const base=mk.replace(/_alternate$/,'');
+  const it=[...(H.value||[]),...(H.items||[]),...(H.cold||[])].find(i=>i.ev===e.id&&i.mk===base&&(i.desc||i.player)===desc&&(i.side==='Under')===!over&&i.why);
+  return it?it.why:null;
+}
+function quickCase(e,mk,r,pt,pk,edge,fair){
+  const out=[], sd=r.s.desc&&sideOf2(r,pt), lbl=(PROP_LABEL[mk]||MKT_LABEL[mk]||'').replace(' ladder','').toLowerCase();
+  if(sd){
+    const hc=hotCase(e,mk,r.s.desc,sd[0]); if(hc) return hc;
+    const h=propHits(e,mk,r.s.desc,sd[0],sd[1]);
+    if(h&&h.l10[1]){
+      const did=sd[1]==null?(sd[0]?'landed it':'missed it'):sd[0]?`gone over ${sd[1]} ${lbl}`:`stayed under ${sd[1]} ${lbl}`;
+      out.push(`${r.s.desc} has ${did} in ${h.l10[0]} of his last ${h.l10[1]}${h.l5[1]&&h.l10[1]>h.l5[1]?` (${h.l5[0]} of the last ${h.l5[1]})`:''}${h.a10!=null&&sd[1]!=null?`, averaging ${h.a10.toFixed(1)}`:''}${h.old?' (last season: no games yet this season)':''}.`);
+      if(h.vs[1]) out.push(`Against ${h.p.opp} this season: ${h.vs[0]} of ${h.vs[1]}.`);
+      const rate=h.l10[0]/h.l10[1];
+      if(h.l10[1]>=5&&rate<0.4) out.push(`His form doesn't back it, so this one is about the price only.`);
+    }
+  }
+  const src=r.fairSrc==='pin'?"Pinnacle's price":`the consensus of ${r.nfair} bookies`;
+  out.push(`$${pk.price.toFixed(2)} at ${bkName(pk.book)} is ${edge.toFixed(1)}% above the fair $${fair.toFixed(2)} (${src} with the margin taken off), so it needs a ${Math.round(100/pk.price)}% chance and the market rates it about ${Math.round(100/fair)}%.`);
+  if(r.nfair<5&&r.fairSrc!=='pin') out.push('Only a few bookies price it, so treat the fair price with some caution.');
+  if(pk.price>=3) out.push("It's still an outsider at heart, so keep the stake small.");
+  return out.join(' ');
+}
+function whyCell(e,mk,r,pt,pk,edge,fair){
+  let t=''; try{t=quickCase(e,mk,r,pt,pk,edge,fair);}catch(_){}
+  return t?`<details class="why"><summary>Why</summary><p>${esc(t)}</p></details>`:'';
+}
 function topEV(evs,q,o={}){
   const limit=o.limit||25;
   const now=new Date(), out=[];
@@ -921,7 +961,7 @@ function topEV(evs,q,o={}){
   if(!out.length) return o.empty||'';
   const rows=out.slice(0,limit).map(x=>{const {e,mk,r,pk,edge}=x, pt=ptOf(x); return `<tr>
     <td class="c-edge"><span class="evp">+${edge.toFixed(1)}%</span></td>
-    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>'+availChip(x.av)+hitChip(e,mk,r,pt):esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span></td>
+    <td class="c-bet">${r.s.desc?esc(r.s.desc)+' <span class="pt">'+esc(r.s.name)+(pt!=null?' '+pt:'')+'</span>'+availChip(x.av)+hitChip(e,mk,r,pt):esc(r.s.name)+(pt!=null?' <span class="pt">'+fmtPt(mk,pt)+'</span>':'')}<br><span class="bk">${esc(MKT_LABEL[mk]||PROP_LABEL[mk]||mk)}</span>${whyCell(e,mk,r,pt,pk,edge,x.fair||r.fair)}</td>
     <td class="c-price"><b>${pk.price.toFixed(2)}</b> <span class="bk">${esc(bkName(pk.book))}</span></td>
     <td class="c-fair">${(x.fair||r.fair).toFixed(2)}${r.fairSrc==='pin'?' <span class="pin">PIN</span>':''}</td>
     <td class="c-game">${esc(e.home_team)} v ${esc(e.away_team)}<br><span class="bk">${esc(e.sport_title)} · ${when(e.commence_time)}</span></td></tr>`;}).join('');
