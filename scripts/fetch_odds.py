@@ -25,7 +25,7 @@ KEY = os.environ.get("ODDS_API_KEY", "").strip()
 PASSWORD = os.environ.get("ODDS_PAGE_PASSWORD", "")
 SPORTS = [s.strip() for s in os.environ.get("SPORTS",
           "basketball_nba,basketball_nbl,aussierules_afl,rugbyleague_nrl,soccer_epl,americanfootball_nfl,mma_mixed_martial_arts,"
-          "tennis_*,soccer_*").split(",") if s.strip()]
+          "tennis_*,soccer_*,rugbyleague_*,rugbyunion_*").split(",") if s.strip()]   # rugby: every active comp (World Cups etc.)
 MARKETS = os.environ.get("MARKETS", "h2h,spreads,totals")
 # Soccer leagues The Odds API carries player props for (others just come back empty, so they're harmless to ask for)
 _SOCCER_PROP_LEAGUES = ("soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a", "soccer_germany_bundesliga",
@@ -292,6 +292,9 @@ def main():
     prop_calls = 0
     for ev in events:
         sk = ev["sport_key"]
+        if sk.startswith("rugbyleague_") and sk not in PROP_MARKETS:   # league comps beyond the NRL (e.g. the World Cup): try scorers
+            PROP_MARKETS[sk] = PROP_MARKETS["rugbyleague_nrl"]
+            PROP_SPORTS.append(sk)
         if sk not in PROP_SPORTS or sk not in PROP_MARKETS:
             continue
         start = parse(ev["commence_time"])
