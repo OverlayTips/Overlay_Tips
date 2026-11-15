@@ -20,6 +20,15 @@ SYD = ZoneInfo("Australia/Sydney")
 SITE = "https://overlay.tips"
 FOOT = "Overlay Tips | 18+ Gamble responsibly"
 MIN_VALUE = 4.0      # % edge needed to alert
+MIN_FORM = float(os.environ.get("MIN_FORM", "0.6"))   # player props: he must have landed this side in 60%+ of his last 10
+MIN_FORM_GAMES = 3
+
+
+def backed(form):
+    """False when the player's own numbers go against the bet (price value alone isn't enough to alert)."""
+    if not form or len(form) < 2 or (form[1] or 0) < MIN_FORM_GAMES:
+        return True   # no stats to judge it on (game markets, players we don't have logs for)
+    return form[0] / form[1] >= MIN_FORM
 MAX_PER_PUSH = 6
 MAX_SINGLE = 10**6   # no limit: every new value bet gets its own notification
 BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U to 3U
@@ -191,7 +200,7 @@ def collect(now):
     hot = load(os.path.join(OUT, "hot.json"), {})
     teams = team_map(hot)
     for v in hot.get("value") or []:
-        if (v.get("value") or 0) < MIN_VALUE or started(v.get("start", ""), now):
+        if (v.get("value") or 0) < MIN_VALUE or started(v.get("start", ""), now) or not backed(v.get("l10")):
             continue
         side = "Under" if str(v.get("line", "")).lower().startswith("u") else "Over"
         add = SITE + "/tracker.html?" + urllib.parse.urlencode({
@@ -220,6 +229,9 @@ def collect(now):
             summ = {}
         for o in summ.get("overlays") or []:
             if o["edge_pct"] < MIN_VALUE or started(o.get("start", ""), now):
+                continue
+            if not backed(o.get("form")):
+                print(f"skipped (stats don't back it, {o['form'][0]}/{o['form'][1]}): {o['pick']}")
                 continue
             out.append({"tag": tag(o), "key": f"ov|{o['game']}|{o['market']}|{o['pick']}",
                         "edge": o["edge_pct"], "price": o["price"], "start": o.get("start", ""),

@@ -396,6 +396,7 @@ def overlay_writeup(o, stats_by_sport):
         try:
             it = prop_item(o, stats_by_sport[sk] or {}, sk)
             if it:
+                o["form"] = it["l10"]   # [games he landed this side, games] - value alerts skip bets his stats don't back
                 return writeup(it)
         except Exception:
             pass
