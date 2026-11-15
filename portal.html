@@ -203,8 +203,9 @@
         <a class="pt-btn" id="waBtn" style="display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener">Join the group</a>
       </div>
       <div class="pt-card pt-sec" id="alertCard">
-        <h3 class="pt-h3">Value bet alerts <span class="pt-tier vip" style="font-size:11px;vertical-align:middle">VIP</span></h3>
-        <div id="alertBody"><p class="pt-sub" style="margin:0">Loading…</p></div>
+        <h3 class="pt-h3">Overlay alerts 🔔</h3>
+        <div id="pushBody"><p class="pt-sub" style="margin:0">Loading…</p></div>
+        <details id="ntfyBox" style="margin-top:12px" hidden><summary class="pt-sub" style="cursor:pointer;margin:0">Prefer the ntfy app?</summary><div id="alertBody" style="margin-top:10px"></div></details>
       </div>
       <div class="pt-card pt-sec">
         <h3 class="pt-h3">Refer a mate</h3>
@@ -358,7 +359,7 @@ async function boot(){
   $('tierBadge').className = 'pt-tier' + (tier==='vip' ? ' vip' : tier==='founder' ? ' founder' : '');
   try { localStorage.setItem('ot-tier-' + prof.id, tier); } catch(e) {}
   $('pendEmail').textContent = prof.email; show('vPending', !member);
-  const tabs = member ? [['tTips',"Today's tips"],['tStats','Results & stats'],['tGroup','Group']] : [['tGroup','Refer a mate']];
+  const tabs = member ? [['tTips',"Today's tips"],['tStats','Results & stats'],['tGroup','Group & alerts']] : [['tGroup','Refer a mate']];
   if (prof.is_admin) tabs.push(['tAdmin','Admin']);
   $('tabs').innerHTML = tabs.map(([id,l]) => `<button type="button" data-t="${id}">${l}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => openTab(b.dataset.t));
@@ -369,10 +370,69 @@ async function boot(){
   if (prof.is_admin) initAdmin();
   openTab(tabs[0][0]);
 }
+/* ---------- app alerts (web push): this device subscribes, its row lives in push_subs (supabase/push.sql) ---------- */
+const VAPID_PUBLIC = 'BIv8Db0M_l0obE7dnyrsfrYpN_mzdUxWbtLPkCALd-EulRcmGk51O5OwWxDmbJasNa7TtmizhrxqQBDuz4BvAgE';
+// what each tier gets; the member switches categories on/off per device
+const ALERT_CATS = [
+  ['nba','🏀 NBA props',2], ['nfl','🏈 NFL props',2], ['nbl','🏀 NBL props',2], ['news','🚑 Injury + lineup news',2],
+  ['racing','🏇 Racing (morning picks free, value runners VIP)',1], ['games','📈 Game bets (H2H, line, total)',3], ['arbs','🔁 Arbs',3]];
+const RANKN = {pending:0, founder:1, core:2, vip:3};
+const b64u = s => { const p = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+async function loadPush(tier, admin){
+  const box = $('pushBody'), rank = admin ? 3 : RANKN[tier] || 0;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const can = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  if (!rank) { box.innerHTML = '<p class="pt-sub" style="margin:0">Alerts switch on once your account is active.</p>'; return; }
+  if (!can) {
+    box.innerHTML = ios && !standalone
+      ? `<p class="pt-sub" style="margin:0 0 8px">On iPhone, alerts work from the Overlay app on your home screen:</p><ol class="pt-sub" style="margin:0;padding-left:18px;line-height:1.6"><li>Tap <b>Share</b> (the square with the arrow) in Safari.</li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open Overlay from your home screen, log in, and come back here to turn alerts on.</li></ol>`
+      : '<p class="pt-sub" style="margin:0">This browser can\'t do alerts. Try Chrome or Safari, or add Overlay to your home screen.</p>';
+    return;
+  }
+  const reg = await navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready);
+  let sub = await reg.pushManager.getSubscription(), row = null;
+  if (sub) { const { data } = await sb.from('push_subs').select('prefs').eq('endpoint', sub.endpoint).maybeSingle(); row = data; }
+  const draw = () => {
+    const on = !!(sub && row);
+    const prefs = (row && row.prefs) || {};
+    box.innerHTML = `<p class="pt-sub" style="margin:0 0 10px">${on ? 'Alerts are <b style="color:var(--mint,#24c17b)">on</b> for this device. Pick what you want:' : 'Get value bets, injury news and racing picks as notifications on this device, straight from Overlay (no extra app).'}</p>
+      ${on ? `<div style="display:grid;gap:6px;margin-bottom:12px">${ALERT_CATS.map(([k,l,need]) => need > rank
+          ? `<label class="pt-sub" style="margin:0;opacity:.5">🔒 ${l} <small>(${need===3?'VIP':'Daily card'})</small></label>`
+          : `<label class="pt-sub" style="margin:0;display:flex;gap:8px;align-items:center"><input type="checkbox" data-cat="${k}" ${prefs[k]!==false?'checked':''}> ${l}</label>`).join('')}</div>` : ''}
+      <button class="pt-btn ${on?'ghost sm':''}" id="pushBtn" type="button">${on ? 'Turn off on this device' : 'Turn on alerts'}</button>
+      ${on ? '<button class="pt-btn ghost sm" id="pushTest" type="button" style="margin-left:6px">Send a test</button>' : ''}
+      <div class="pt-msg" id="pushMsg"></div>
+      <p class="pt-sub" style="margin:10px 0 0;font-size:12px">Alerts are price signals, not sure things. 18+, gamble responsibly.</p>`;
+    box.querySelectorAll('[data-cat]').forEach(c => c.onchange = async () => {
+      const p = {...(row.prefs||{})}; box.querySelectorAll('[data-cat]').forEach(x => p[x.dataset.cat] = x.checked);
+      const { error } = await sb.from('push_subs').update({ prefs: p }).eq('endpoint', sub.endpoint);
+      if (!error) row.prefs = p; else { $('pushMsg').className='pt-msg err'; $('pushMsg').textContent = error.message; }
+    });
+    if ($('pushTest')) $('pushTest').onclick = () => reg.showNotification('Overlay alerts are on ✅', { body: "This is how value bets and news will show up.", icon: '/icon-192.png', data: { url: '/portal.html' } });
+    $('pushBtn').onclick = async () => {
+      const msg = $('pushMsg'); msg.className = 'pt-msg'; msg.textContent = '';
+      try {
+        if (on) {
+          await sb.from('push_subs').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); sub = null; row = null; return draw();
+        }
+        if (await Notification.requestPermission() !== 'granted') { msg.className='pt-msg err'; msg.textContent = 'Notifications are blocked. Allow them for overlay.tips in your settings, then try again.'; return; }
+        sub = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUBLIC) });
+        const j = sub.toJSON();
+        const rec = { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, ua: navigator.userAgent.slice(0,200) };
+        const { data, error } = await sb.from('push_subs').upsert(rec, { onConflict: 'endpoint' }).select('prefs').single();
+        if (error) throw error;
+        row = data; draw();
+      } catch (e) { msg.className = 'pt-msg err'; msg.textContent = "Couldn't turn alerts on: " + (e.message || e); }
+    };
+  };
+  draw();
+}
 // VIP value bet alerts: a private ntfy topic (kept in member_keys, readable by VIP only)
 async function loadAlerts(tier, admin){
+  loadPush(tier, admin).catch(e => { $('pushBody').innerHTML = '<p class="pt-sub" style="margin:0">Alerts are being set up. Check back soon.</p>'; console.warn(e); });
+  if (tier==='vip'||admin) $('ntfyBox').hidden = false;
   const box=$('alertBody');
-  if (!(tier==='vip'||admin)) {
+  if (!(tier==='vip'||admin)) { return;
     box.innerHTML='<p class="pt-sub" style="margin:0 0 10px">VIP members get a phone notification the moment the odds tracker finds a new value bet: the player, line, price, bookie and a suggested stake, before the price moves.</p><a class="pt-btn" href="#vPlans" style="display:block;text-align:center;text-decoration:none">Go VIP</a>';
     return;
   }
