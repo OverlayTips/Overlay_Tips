@@ -247,23 +247,20 @@ def write_public(log, now):
     for b in done:
         groups.setdefault(bucket(b), []).append(b)
         srcs.setdefault("Pinnacle" if b.get("src") in ("pin", "hot-pin") else "Bookie consensus", []).append(b)
+    # running profit in units at the suggested stakes, one point per graded bet: [start, units, sel, result]
     units, days = 0.0, []
-    for b in done:   # running profit in units at the suggested stakes, one point per day
+    for b in done:
         if b.get("result") in ("win", "loss"):
+            if not days:
+                days.append([b["start"], 0, "Start", ""])
             units += ((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1)
-        d = _parse(b["start"]).astimezone(MEL).date().isoformat()
-        if days and days[-1][0] == d:
-            days[-1][1] = round(units, 2)
-        else:
-            days.append([d, round(units, 2)])
-    by_day = {}   # CLV over time: [day, running avg CLV %, that day's avg CLV %, bets with a close so far]
+            days.append([b["start"], round(units, 2), b.get("sel", ""), b["result"]])
+    # CLV over time, one point per bet with a close: [start, running avg CLV %, this bet's CLV %, bets so far]
+    clv_days, tot, cnt = [], 0.0, 0
     for b in done:
         if b.get("clv") is not None:
-            by_day.setdefault(_parse(b["start"]).astimezone(MEL).date().isoformat(), []).append(b["clv"])
-    clv_days, tot, cnt = [], 0.0, 0
-    for d, v in by_day.items():   # insertion order follows `done`, which is sorted by start
-        tot, cnt = tot + sum(v), cnt + len(v)
-        clv_days.append([d, round(tot / cnt, 2), round(sum(v) / len(v), 2), cnt])
+            tot, cnt = tot + b["clv"], cnt + 1
+            clv_days.append([b["start"], round(tot / cnt, 2), round(b["clv"], 2), cnt])
     keep =("sel", "game", "lg", "book", "price", "close", "clv", "result", "start", "stake", "edge")
     out = {"updated": now.isoformat().replace("+00:00", "Z"),
            "since": done[0]["start"] if done else None,
