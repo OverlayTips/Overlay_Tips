@@ -374,7 +374,7 @@ async function boot(){
 const VAPID_PUBLIC = 'BIv8Db0M_l0obE7dnyrsfrYpN_mzdUxWbtLPkCALd-EulRcmGk51O5OwWxDmbJasNa7TtmizhrxqQBDuz4BvAgE';
 // what each tier gets; the member switches categories on/off per device
 const ALERT_CATS = [
-  ['nba','🏀 NBA props',2], ['nfl','🏈 NFL props',2], ['nbl','🏀 NBL props',2], ['news','🚑 Injury + lineup news',2],
+  ['botd','⭐ Bet of the day',1], ['nba','🏀 NBA props',2], ['nfl','🏈 NFL props',2], ['nbl','🏀 NBL props',2], ['news','🚑 Injury + lineup news',2],
   ['racing','🏇 Racing (morning picks free, value runners VIP)',1], ['games','📈 Game bets (H2H, line, total)',3], ['arbs','🔁 Arbs',3]];
 const RANKN = {pending:0, founder:1, core:2, vip:3};
 const b64u = s => { const p = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
