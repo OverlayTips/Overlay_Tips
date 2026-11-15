@@ -4,6 +4,8 @@ name: NFL alerts
 # "Share to WhatsApp" button on each alert. Runs ~3am-2pm Sydney time, which covers the US injury
 # reports and inactives (~90 min before every kick-off, Thursday to Monday US time). Each run checks
 # every 10 min for ~50 min. Uses BALLDONTLIE only (NFL GOAT plan, same NBA_STATS_KEY secret).
+# Also builds the NFL starting lineups + position map for the Overlay Wire page (scripts/nfl_lineups.py ->
+# nfl_lineups.json on the nfl-lineups-data branch).
 # Needs secrets: NBA_STATS_KEY and NTFY_TOPIC (both already set for the NBA alerts).
 # "Run workflow" with test ticked sends a test push.
 on:
@@ -47,10 +49,18 @@ jobs:
           pip install -q pywebpush || true
           mkdir -p st
           git fetch -q --depth=1 origin nfl-alerts-state && git show FETCH_HEAD:nfl_state.json > st/nfl_state.json || echo "no state yet"
-          if [ "$TEST" = "1" ]; then python scripts/nfl_alerts.py; exit 0; fi
+          lineups() {   # NFL starting lineups for the site, on their own branch (the NBA job force-pushes lineups-data)
+            OUT=st/nfl_lineups.json python scripts/nfl_lineups.py || { echo "::warning::NFL lineups failed"; return 0; }
+            rm -rf lu && mkdir lu && cp st/nfl_lineups.json lu/ && cd lu && git init -q -b nfl-lineups-data .
+            git config user.name "odds-bot"; git config user.email "odds-bot@users.noreply.github.com"
+            git add -A && git commit -qm "nfl-lineups-data $(date -u +%FT%TZ)" && git push -qf "$REPO_URL" nfl-lineups-data:nfl-lineups-data
+            cd ..
+          }
+          if [ "$TEST" = "1" ]; then python scripts/nfl_alerts.py; lineups; exit 0; fi
           end=$(( $(date +%s) + 50*60 ))
           while :; do
             python scripts/nfl_alerts.py || echo "::warning::check failed, retrying next loop"
+            lineups
             if [ -f st/nfl_state.json ]; then
               rm -rf pub && mkdir pub && cp st/nfl_state.json pub/ && cd pub && git init -q -b nfl-alerts-state .
               git config user.name "odds-bot"; git config user.email "odds-bot@users.noreply.github.com"
