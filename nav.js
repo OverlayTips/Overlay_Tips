@@ -10,8 +10,9 @@
     '.sbx-side .brand img{height:30px;width:auto}',
     '.sbx-side .brand img.brand-logo{height:64px}',
     '.sbx-side .brand .wm-o{color:#a8f7cf}.sbx-side .brand .wm-t{color:#efd38f}',
-    '.sbx-links{display:flex;flex-direction:column;gap:3px}',
-    '.sbx-links a{display:block;padding:10px 12px;border-radius:11px;color:#87978f;font-size:15px;font-weight:600;text-decoration:none;transition:background .15s,color .15s}',
+    '.sbx-links{display:flex;flex-direction:column;gap:2px}',
+    '.sbx-h{padding:14px 12px 5px;color:#4f5f58;font:700 11px "Space Mono",monospace;letter-spacing:.14em;text-transform:uppercase}',
+    '.sbx-links a{display:block;padding:9px 12px;border-radius:11px;color:#87978f;font-size:15px;font-weight:600;text-decoration:none;transition:background .15s,color .15s}',
     '.sbx-links a:hover{background:#121a18;color:#ecf5f1}',
     '.sbx-links a.hot:not(.on){color:#a8f7cf;box-shadow:inset 0 0 0 1px #1d5a3f}',
     '.sbx-links a.on{background:#a8f7cf;color:#04140c;font-weight:800;font-style:italic}',
@@ -54,9 +55,28 @@
     if (brand) side.appendChild(brand.cloneNode(true));
     var list = d.createElement('div'); list.className = 'sbx-links';
     var join = null;
+    // grouped menu: links are sorted into sections by page; duplicates are dropped
+    var GROUPS = [
+      ['', ['index.html']],
+      ['Tools', ['odds.html', 'hot.html', 'lineups.html', 'live.html', 'tracker.html', 'calculator.html']],
+      ['Members', ['membership.html', 'fantasy.html', 'index.html#results', 'record.html', 'giveaway.html']],
+      ['More', ['merch.html', 'about.html', 'contact.html']]
+    ];
+    var page = function (a) { return (a.getAttribute('href') || '').replace(/^.*\//, ''); };
+    var buckets = GROUPS.map(function () { return []; }), extra = [], seen = {};
     Array.prototype.forEach.call(links.querySelectorAll('a'), function (a) {
       if (a.classList.contains('btn')) { join = a; return; }
-      list.appendChild(a.cloneNode(true));
+      var h = page(a);
+      if (seen[h]) { if (a.classList.contains('on')) seen[h].className = a.className; return; }
+      var c = a.cloneNode(true); seen[h] = c;
+      for (var g = 0; g < GROUPS.length; g++) if (GROUPS[g][1].indexOf(h) > -1) { buckets[g][GROUPS[g][1].indexOf(h)] = c; return; }
+      extra.push(c);
+    });
+    buckets[GROUPS.length - 1] = buckets[GROUPS.length - 1].concat(extra);
+    buckets.forEach(function (b, g) {
+      b = b.filter(Boolean); if (!b.length) return;
+      if (GROUPS[g][0]) { var hd = d.createElement('div'); hd.className = 'sbx-h'; hd.textContent = GROUPS[g][0]; list.appendChild(hd); }
+      b.forEach(function (c) { list.appendChild(c); });
     });
     side.appendChild(list);
     if (join) { var j = join.cloneNode(true); j.className = 'sbx-join'; side.appendChild(j); }
