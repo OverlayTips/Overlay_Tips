@@ -92,9 +92,23 @@
 .ff-rules td,.ff-rules th{border:1px solid #1b2523;padding:6px 12px;text-align:left}
 .ff-rules th{color:#87978f;font-size:13px}
 @media(max-width:520px){.ff-row{gap:8px;padding:10px}.ff-odds{display:none}.ff-who b{font-size:15px}}
+.ff-soon-box{display:none}
+html.ff-soon .ff-soon-box{display:block}
+html.ff-soon main .page-sec{display:none}
+.ff-soon-box .og{max-width:520px;margin:6px auto 40px;background:linear-gradient(160deg,#0f2a1e,#0b1210 60%);border:1px solid #1d5a3f;border-radius:20px;padding:26px 22px;text-align:center}
+.ff-soon-box .og b{display:inline-block;font:900 13px Archivo,system-ui,sans-serif;letter-spacing:.12em;color:#1a1204;background:linear-gradient(180deg,#ffe28a,#efbe3b);border-radius:999px;padding:5px 12px;margin-bottom:12px}
+.ff-soon-box h2{font-size:26px;margin:0 0 8px;color:#ecf5f1}
+.ff-soon-box p{color:#c9d6d0;font-size:15px;line-height:1.5;margin:0 0 16px}
+.ff-soon-box a{display:inline-block;padding:11px 20px;border-radius:999px;font-weight:800;font-size:15px;text-decoration:none;background:#62f0a8;color:#04140c}
 </style>
 <script src="nav.js?v=6"></script>
-<script src="gate.js?v=2" data-need="member" data-label="Odds Fantasy"></script>
+<script>
+/* Coming soon: the game only shows with ?preview in the address (for testing). Delete this block and put the
+   gate.js tag back to launch. */
+window.FF_SOON = !/[?&]preview\b/.test(location.search);
+if (window.FF_SOON) document.documentElement.classList.add('ff-soon');
+else document.write('<script src="gate.js?v=2" data-need="member" data-label="Odds Fantasy"><\/script>');
+</script>
 </head>
 <body class="no-js">
 
@@ -110,7 +124,7 @@
     <a href="lineups.html">Overlay Wire</a>
     <a href="live.html">Live</a>
     <a href="tracker.html">Bet tracker</a>
-    <a href="fantasy.html" class="on" aria-current="page">Fantasy</a>
+    <a href="fantasy.html" class="on" aria-current="page">Fantasy <small style="font-size:.68em;font-weight:800;letter-spacing:.04em;color:#efbe3b;margin-left:4px">SOON</small></a>
       <a href="membership.html">Membership</a>
       <a href="index.html#results">Results</a>
       <a href="record.html">Tracker record</a>
@@ -129,7 +143,7 @@
     <a href="lineups.html">Overlay Wire</a>
     <a href="live.html">Live</a>
     <a href="tracker.html">Bet tracker</a>
-    <a href="fantasy.html" class="on" aria-current="page">Fantasy</a>
+    <a href="fantasy.html" class="on" aria-current="page">Fantasy <small style="font-size:.68em;font-weight:800;letter-spacing:.04em;color:#efbe3b;margin-left:4px">SOON</small></a>
     <a href="membership.html">Membership</a>
     <a href="index.html#results">Results</a>
     <a href="record.html">Tracker record</a>
@@ -144,11 +158,19 @@
 <main>
 <header class="page-head">
   <div class="wrap">
-    <div class="mono">Free for members · NBA now · AFL from March</div>
+    <div class="mono">Free for members · NBA first · AFL from March</div>
     <h1>Odds Fantasy</h1>
     <p>Pick 5 players. Roughies score more: every player's points are multiplied by his odds. No salary cap, no trades. Free to play.</p>
   </div>
 </header>
+<div class="wrap ff-soon-box">
+  <div class="og">
+    <b>COMING SOON</b>
+    <h2>Odds Fantasy is nearly here</h2>
+    <p>Pick 5 players, roughies score more. Free for members, with weekly and season ladders. Sign up now so you're ready for round 1.</p>
+    <a href="portal.html?signup">Sign up free</a>
+  </div>
+</div>
 <section class="page-sec" style="padding-top:0">
   <div class="wrap">
     <div class="ff-tabs" role="tablist">
@@ -235,6 +257,7 @@
 
 <script type="module">
 document.body.classList.remove('no-js');
+if (window.FF_SOON) await new Promise(() => {}); // coming soon: don't load the game
 const SUPABASE_URL = 'https://enldqvdxygppxwrauqlw.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Zznc-4Nv6Ibb_SyE55jn6A_IqSxnYW8';
 const SEASON_START = '2026-10-01';
