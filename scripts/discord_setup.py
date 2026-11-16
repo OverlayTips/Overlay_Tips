@@ -39,6 +39,7 @@ LAYOUT = [
         ("nbl-props", True, []),
         ("nfl-props", True, []),
         ("other-props", True, []),
+        ("live-tracker", True, []),
     ]),
     ("VIP", ["VIP"], [
         ("game-bets", True, []),
@@ -106,7 +107,7 @@ def membership_post():
 **🃏 Daily Card · {line("core-month", "core-week")}**
 Everything in Founding, plus:
 • Every player prop alert (NBA, NBL, NFL) in the Daily Card channels
-• Live bet + SGM tracking for NBA and NBL
+• Live bet + SGM tracking for NBA and NBL, and the #live-tracker channel
 • Unit sizes and the reasoning for each play
 
 **💎 VIP · {line("vip-month", "vip-week")}**

@@ -27,6 +27,12 @@ jobs:
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: python scripts/discord_setup.py
 
+      - name: Register slash commands (/stats)
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: python scripts/discord_commands.py
+
       - name: "Post yesterday's results to #results now"
         if: inputs.post_results
         env:
