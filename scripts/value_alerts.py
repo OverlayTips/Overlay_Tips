@@ -512,7 +512,10 @@ def main():
         # hand every sent bet to the bet log (bet_log.py scores it on closing price + result)
         rows = [{**p["log"], "id": p["key"] + "|" + p.get("start", ""), "price": p["price"], "book": p["book"],
                  "edge": p["edge"], "stake": stake(p["edge"], p["price"]), "sel": p["sel"], "game": p.get("game", ""),
-                 "lg": p.get("lg", ""), "start": p.get("start", "")} for p in sent if p.get("log") and p.get("start")]
+                 "lg": p.get("lg", ""), "start": p.get("start", ""),
+                 # who got it in the app: props go to Daily card + VIP, game bets and racing to VIP only
+                 "tier": "core" if (p.get("log") or {}).get("desc") and p.get("emoji") not in ("🏇", "🐕") else "vip"}
+                for p in sent if p.get("log") and p.get("start")]
         try:
             old = load(os.path.join(OUT, "new_alerts.json"), [])
             with open(os.path.join(OUT, "new_alerts.json"), "w") as f:

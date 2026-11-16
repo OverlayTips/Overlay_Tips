@@ -268,6 +268,30 @@ def write_public(log, now):
         if b.get("clv") is not None:
             tot, cnt = tot + b["clv"], cnt + 1
             clv_days.append([b["start"], round(tot / cnt, 2), round(b["clv"], 2), cnt])
+    # Founding members + Daily card: the alerts those tiers get in the app (every prop alert goes to Daily card,
+    # the bet of the day to every member incl. founders). Older bets have no "tier": props = Daily card.
+    try:
+        with open(os.path.join(OUT, "botd.json")) as f:
+            bj = json.load(f)
+        botd = {(h.get("sel"), str(h.get("start"))[:16]) for h in ([bj.get("today")] if bj.get("today") else []) + (bj.get("hist") or [])}
+    except Exception:
+        botd = set()
+    def _member(b):
+        tier = b.get("tier") or ("core" if b.get("desc") else "vip")
+        return tier in ("founder", "core") or (b.get("sel"), str(b.get("start"))[:16]) in botd
+    mem = [b for b in done if _member(b)]
+    mu, mpts = 0.0, []
+    for b in mem:
+        if b.get("result") in ("win", "loss"):
+            if not mpts:
+                mpts.append([b["start"], 0, "Start", ""])
+            mu += ((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1)
+            mpts.append([b["start"], round(mu, 2), b.get("sel", ""), b["result"]])
+    members = {"since": mem[0]["start"] if mem else None,
+               "periods": {"7d": summarise([b for b in mem if _parse(b["start"]) > now - timedelta(days=7)]),
+                           "30d": summarise([b for b in mem if _parse(b["start"]) > now - timedelta(days=30)]),
+                           "all": summarise(mem)},
+               "units": mpts}
     keep =("sel", "game", "lg", "book", "price", "close", "clv", "result", "start", "stake", "edge")
     out = {"updated": now.isoformat().replace("+00:00", "Z"),
            "since": done[0]["start"] if done else None,
@@ -278,6 +302,7 @@ def write_public(log, now):
            "sources": [{"name": k, **summarise(v)} for k, v in srcs.items()],
            "units": days,
            "clv_days": clv_days,
+           "members": members,
            "recent": [{k: b.get(k) for k in keep} for b in reversed(done[-60:])]}
     with open(os.path.join(OUT, "record.json"), "w") as f:
         json.dump(out, f, separators=(",", ":"))
