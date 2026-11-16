@@ -3,7 +3,7 @@ name: NFL alerts
 # NFL injury designations + game-day inactives -> push to Jayden's phone (ntfy app), with a
 # "Open Discord" button on each alert. Runs ~3am-2pm Sydney time, which covers the US injury
 # reports and inactives (~90 min before every kick-off, Thursday to Monday US time). Each run checks
-# every 10 min for ~50 min. Uses BALLDONTLIE only (NFL GOAT plan, same NBA_STATS_KEY secret).
+# every 10 min for up to ~170 min; the next (often late) cron run cancels it and takes over, so no gaps. Uses BALLDONTLIE only (NFL GOAT plan, same NBA_STATS_KEY secret).
 # Also builds the NFL starting lineups + position map for the Overlay Wire page (scripts/nfl_lineups.py ->
 # nfl_lineups.json on the nfl-lineups-data branch).
 # Needs secrets: NBA_STATS_KEY and NTFY_TOPIC (both already set for the NBA alerts).
@@ -28,7 +28,7 @@ concurrency:
 jobs:
   alerts:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +59,7 @@ jobs:
             cd ..
           }
           if [ "$TEST" = "1" ]; then python scripts/nfl_alerts.py; lineups; exit 0; fi
-          end=$(( $(date +%s) + 50*60 ))
+          end=$(( $(date +%s) + 170*60 ))
           while :; do
             python scripts/nfl_alerts.py || echo "::warning::check failed, retrying next loop"
             lineups
