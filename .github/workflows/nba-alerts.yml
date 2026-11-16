@@ -39,6 +39,8 @@ jobs:
         env:
           NBA_STATS_KEY: ${{ secrets.NBA_STATS_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}   # confirmed starters + injuries -> #nba-lineups
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           STATE: st/state.json

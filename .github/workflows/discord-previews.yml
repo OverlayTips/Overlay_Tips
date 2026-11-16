@@ -1,0 +1,37 @@
+name: Discord previews
+
+# A new Overlay Wire preview pushed to main -> posted to #previews in the Discord (title, summary,
+# today's games + best prices, link). Skips any preview that's already in the channel.
+# "Run workflow" re-posts the newest preview (or the slug you type) if it isn't there yet.
+# Needs the DISCORD_BOT_TOKEN and DISCORD_GUILD_ID secrets (already set for the other Discord jobs).
+on:
+  push:
+    branches: [main]
+    paths: ["previews/posts/**"]
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "Post this preview (e.g. 2026-11-16-sports). Blank = newest"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-previews
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Post to #previews"
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: python scripts/discord_previews.py "${{ inputs.slug }}"
