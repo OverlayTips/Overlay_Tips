@@ -190,7 +190,6 @@
   .sharebar{display:inline-flex;gap:6px}
   .sharebtn{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-weight:800;font-size:14px;color:var(--text);white-space:nowrap}
   .sharebtn{display:inline-flex;align-items:center;gap:6px}
-  .sharebtn.wa{background:#25d366;border-color:#25d366;color:#04140c}
   .swipe{display:none}
   @media(max-width:640px){
     .ev table:not(.bb) th:first-child,.ev table:not(.bb) td:first-child{white-space:normal;max-width:none;min-width:132px;width:42%;overflow:visible;line-height:1.3;box-shadow:6px 0 8px -6px rgba(0,0,0,.6)}
@@ -287,7 +286,7 @@
       <input class="search" id="q" type="search" placeholder="Search team">
       <label class="toggle" id="moversBox"><input type="checkbox" id="movers"> Movers first</label>
       <label class="stakebox" id="stakeBox" hidden><span id="stakeLbl">Bonus bet $</span><input id="bstake" type="number" inputmode="decimal" min="1" step="any" value="50"></label>
-      <span class="sharebar" id="shareBar" hidden><button class="sharebtn wa" id="waBtn" type="button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:18px;height:18px"><path d="M4 19l1.4-3.6A7.5 7.5 0 1 1 8 18.2z"/></svg>Post to WhatsApp</button><button class="sharebtn" id="copyBtn" type="button">Copy</button></span>
+      <span class="sharebar" id="shareBar" hidden><button class="sharebtn" id="copyBtn" type="button">Copy for Discord</button></span>
       <label class="stakebox" id="evtBox" hidden>Show<select id="evtSel"><option value="all">Everything</option><option value="props">Player overs/unders</option><option value="games">Game markets</option></select></label>
       <label class="stakebox" id="mvBox" hidden>Show<select id="mvSel"><option value="all">Steamers + drifters</option><option value="steam">Steamers (shortening)</option><option value="drift">Drifters (lengthening)</option></select></label>
       <label class="stakebox" id="bookBox" hidden>Bookie<select id="bookSel"></select></label>
@@ -858,7 +857,7 @@ function renderEV(){
 }
 
 /* "my bookie": price a row at one chosen bookie instead of the best price */
-/* ---------- WhatsApp post: top picks from whatever tab is showing ---------- */
+/* ---------- Discord post: top picks from whatever tab is showing ---------- */
 let SHARE=[];
 const shortTeam=t=>String(t).split(' ').slice(-1)[0];
 function shareLine(e,mk,o,price,book){
@@ -871,12 +870,10 @@ function shareText(){
   if(!SHARE.length) return '';
   const d=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
   const lines=SHARE.slice(0,6).map((l,i)=>`${i+1}. ${l}`).join('\n\n');
-  return `🔥 *Overlay Tips: Best bets* (${d})\n\n${lines}\n\nPrices at time of posting and can move.\n18+ | Gamble responsibly | overlay.tips`;
+  return `🔥 **Overlay Tips: Best bets** (${d})\n\n${lines}\n\nPrices at time of posting and can move.\n18+ | Gamble responsibly | overlay.tips`;
 }
-$('waBtn').onclick=()=>{const t=shareText(); if(!t){alert('No bets to post on this tab right now.');return;}
-  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');};
 $('copyBtn').onclick=async()=>{const t=shareText(); if(!t){alert('No bets to copy on this tab right now.');return;}
-  try{await navigator.clipboard.writeText(t);$('copyBtn').textContent='Copied ✓';setTimeout(()=>$('copyBtn').textContent='Copy',1500);}
+  try{await navigator.clipboard.writeText(t);$('copyBtn').textContent='Copied ✓';setTimeout(()=>$('copyBtn').textContent='Copy for Discord',1500);}
   catch(e){prompt('Copy this:',t);}};
 
 let evType=store.get('evType','all');

@@ -197,11 +197,6 @@
     </section>
 
     <section id="tGroup" hidden>
-      <div class="pt-card pt-sec">
-        <h3 class="pt-h3">WhatsApp group</h3>
-        <p class="pt-sub" id="waTxt">Every play lands in the group first.</p>
-        <a class="pt-btn" id="waBtn" style="display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener">Join the group</a>
-      </div>
       <div class="pt-card pt-sec" id="discordCard">
         <h3 class="pt-h3">Overlay Discord 💬</h3>
         <div id="discordBody"><p class="pt-sub" style="margin:0">Loading…</p></div>
@@ -251,9 +246,8 @@
         <div class="pt-filter"><input id="memQ" placeholder="Search name or email" style="background:#060807;border:1px solid var(--line,#1b2523);color:var(--text,#ecf5f1);border-radius:999px;padding:8px 14px;font:14px Archivo,system-ui,sans-serif;flex:1;min-width:180px"></div>
         <div class="pt-scroll"><table class="pt-t" id="memTbl"></table></div>
       </div>
-      <div class="pt-card pt-sec">
+      <div class="pt-card pt-sec" hidden>
         <h3 class="pt-h3">Group settings</h3>
-        <label class="pt-field">WhatsApp invite link<input id="sWa" placeholder="https://chat.whatsapp.com/..."></label>
         <label class="pt-field" hidden>Giveaway note<textarea id="sGive"></textarea></label>
         <button class="pt-btn" id="saveSet" type="button">Save</button>
         <div class="pt-msg" id="setMsg"></div>
@@ -567,17 +561,15 @@ async function loadGroup(member, tier){
   $('refCopy').onclick = async () => { try { await navigator.clipboard.writeText(link); $('refCopy').textContent='Copied'; } catch(e) { $('refLink').select(); } };
   const { data:rc } = await sb.rpc('my_referrals');
   const c = rc && rc[0]; $('refCount').textContent = c ? `${c.total} mate${c.total===1?'':'s'} signed up with your link, ${c.active} active.` : '';
-  $('waBtn').parentElement.hidden = !member;
   if (!member) return;
   const { data:s } = await sb.from('settings').select('*');
   const S = Object.fromEntries((s||[]).map(r => [r.key, r.value]));
-  if (S.whatsapp) { $('waBtn').href = S.whatsapp; $('waBtn').hidden = false; } else { $('waBtn').hidden = true; $('waTxt').textContent = 'The group link is coming. DM @overlay_tips if you need it now.'; }
-  $('sWa').value = S.whatsapp || ''; $('sGive').value = S.giveaway || '';
+  $('sGive').value = S.giveaway || '';
 }
 
 /* ---------- paid plans ---------- */
 const LIVE_SUB = ['active','trialing','past_due'];
-const PLAN_INFO = {core:['Daily card','WhatsApp tips, Overlay Wire, Hot Stats and live bet tracking'], vip:['VIP','Everything in the Daily card plus the odds tracker']};
+const PLAN_INFO = {core:['Daily card','Discord tips, Overlay Wire, Hot Stats and live bet tracking'], vip:['VIP','Everything in the Daily card plus the odds tracker']};
 const money = n => '$' + (n % 1 ? n.toFixed(2) : n);
 async function billing(path, body){
   const { data:{ session } } = await sb.auth.getSession();
@@ -644,7 +636,7 @@ function initAdmin(){
     if (!error) { ['fSel','fEvent','fOdds','fWhy'].forEach(i => $(i).value=''); await loadTips(); renderSettle(); }
   };
   $('saveSet').onclick = async () => {
-    const { error } = await sb.from('settings').upsert([{key:'whatsapp', value:$('sWa').value.trim()}, {key:'giveaway', value:$('sGive').value.trim()}]);
+    const { error } = await sb.from('settings').upsert([{key:'giveaway', value:$('sGive').value.trim()}]);
     $('setMsg').className = 'pt-msg ' + (error?'err':'ok'); $('setMsg').textContent = error ? error.message : 'Saved.';
   };
   $('memQ').oninput = renderMembers;
