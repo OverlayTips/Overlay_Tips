@@ -1,0 +1,23 @@
+name: Discord setup
+
+# Builds the Overlay Tips Discord layout (roles, categories, channels, welcome post) through the bot.
+# Safe to re-run. Needs the DISCORD_BOT_TOKEN and DISCORD_GUILD_ID secrets.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the server
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: python scripts/discord_setup.py
