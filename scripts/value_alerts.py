@@ -35,7 +35,14 @@ BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U
 
 
 def app_push(cat, title, lines, url, min_tier):
-    """Members' app alerts (web push, scripts/web_push.py), next to the ntfy channels. Never fails the caller."""
+    """Members' app alerts (web push, scripts/web_push.py), next to the ntfy channels, plus the matching
+    Discord channel (scripts/discord_post.py). Never fails the caller."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import discord_post
+        discord_post.alert(cat, title, lines, url, min_tier)
+    except Exception as e:
+        print(f"::warning::discord post failed: {e}")
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import web_push

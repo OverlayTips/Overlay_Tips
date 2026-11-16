@@ -33,6 +33,7 @@ LAYOUT = [
         ("nba-props", True, []),
         ("nbl-props", True, []),
         ("nfl-props", True, []),
+        ("other-props", True, []),
     ]),
     ("VIP", ["VIP"], [
         ("game-bets", True, []),

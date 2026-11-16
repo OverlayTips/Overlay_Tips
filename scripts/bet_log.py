@@ -384,7 +384,7 @@ def main():
     for k in set(mutes) - set(log.get("muted") or []):
         print(f"bet log: muting {k} (avg CLV {sum(groups[k]) / len(groups[k]):.2f}% over {len(groups[k])})")
 
-    log = {"bets": bets, "muted": mutes, "report_day": log.get("report_day")}
+    log = {"bets": bets, "muted": mutes, "report_day": log.get("report_day"), "discord_day": log.get("discord_day")}
 
     # 5. daily report
     local = now.astimezone(MEL)
@@ -403,6 +403,16 @@ def main():
         write_public(log, now)
     except Exception as e:
         print("bet log: public record failed:", type(e).__name__, e)
+    try:   # once a day from 9am Melbourne: yesterday's results for both systems into Discord #results
+        import discord_post
+        if discord_post.enabled() and local.hour >= 9 and log.get("discord_day") != today:
+            with open(os.path.join(OUT, "record.json")) as f:
+                rec = json.load(f)
+            discord_post.daily_results(rec, now)
+            log["discord_day"] = today
+            save_log(log)
+    except Exception as e:
+        print("bet log: discord results failed:", type(e).__name__, e)
     print(f"bet log: {len(bets)} bets ({len(new)} new alerts), {updated} closing prices updated, {graded} graded, "
           f"{len(mutes)} muted")
 

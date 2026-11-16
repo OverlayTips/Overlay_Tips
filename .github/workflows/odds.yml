@@ -76,6 +76,8 @@ jobs:
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}        # members' app alerts (web push)
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}   # alerts into the Discord channels
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: |
           pip install -q pywebpush || true
           python scripts/value_alerts.py
@@ -96,6 +98,8 @@ jobs:
           ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
           ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}   # daily results into Discord #results
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: python scripts/bet_log.py
 
       - name: Racing record (racing picks graded at Betfair SP)
