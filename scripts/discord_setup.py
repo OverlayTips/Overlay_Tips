@@ -240,11 +240,13 @@ def main():
                 chans.append(ch)
             print("  #" + name + (" (read-only)" if ro else ""))
 
-    try:   # the bot shows as "Overlay Tips" in the server (its account name stays "Overlay Tips Bot")
+    try:   # the bot's account name and its name in the server both = "Overlay Tips"
+        if (call("GET", "/users/@me") or {}).get("username") != BOT_NICK:
+            call("PATCH", "/users/@me", {"username": BOT_NICK})
         call("PATCH", f"/guilds/{GUILD}/members/@me", {"nick": BOT_NICK})
         print("bot name:", BOT_NICK)
     except Exception as e:
-        print(f"::warning::couldn't set the bot's name: {e}")
+        print(f"::warning::couldn't set the bot's name: {e} {e.read()[:200] if hasattr(e, 'read') else ''}")
     start = find(TEXT, ["start-here"])
     if start:
         print("welcome:", post_or_update(start["id"], WELCOME))
