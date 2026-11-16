@@ -63,6 +63,20 @@ Price signals, not sure things. 18+ only. Only bet what you can afford to lose.
 Gambling Help Online 1800 858 858 · <https://www.betstop.gov.au>"""
 
 
+RULES = """**📜 Server rules**
+1. **18+ only.** Under 18 = removed.
+2. **Respect everyone.** No racism, sexism, homophobia, slurs or hate of any kind, including jokes.
+3. **No offensive profiles.** Names, nicknames, pronouns, bios and avatars count. Removed without warning.
+4. **No spam or self-promo.** No other tipping services, referral links, ads or DMing members to sell stuff.
+5. **Don't share paid tips.** What's posted in the Daily Card and VIP channels stays in the server.
+6. **No harassment.** No abuse over losing bets, no pile-ons, no unwanted DMs.
+7. **Bet responsibly.** Don't pressure anyone to bet, chase losses or bet more than they can afford.
+8. **Mods have the final say.** Breaking the rules = warning, timeout, kick or ban, depending on how bad.
+
+AutoMod blocks offensive messages automatically. See something? Tag a mod or DM @overlay_tips.
+-# Gambling Help Online 1800 858 858 · <https://www.betstop.gov.au>"""
+
+
 GIVEAWAY = """**🎁 Refer a mate. You both get $50.**
 Every mate you refer = 1 entry. If you're drawn, you and your mate get **$50 cash each** via PayID.
 1. Follow @overlay_tips on Instagram
@@ -218,6 +232,7 @@ def main():
     start = find(TEXT, ["start-here"])
     if start:
         print("welcome:", post_or_update(start["id"], WELCOME))
+        print("rules:", post_or_update(start["id"], RULES))
     gw = find(TEXT, ["giveaways"])
     if gw:
         print("giveaway post:", post_or_update(gw["id"], GIVEAWAY))
