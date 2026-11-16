@@ -21,3 +21,11 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: python scripts/discord_setup.py
+
+      - name: Post yesterday's results to #results now
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: |
+          git fetch -q --depth=1 origin odds-data && git show FETCH_HEAD:record.json > /tmp/record.json
+          python scripts/discord_post.py /tmp/record.json

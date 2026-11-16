@@ -103,7 +103,19 @@ def daily_results(record, now):
         if tot and tot.get("w", 0) + tot.get("l", 0):
             lines.append(f"Total so far: **{fmt(tot['units'])}** ({tot['w']}-{tot['l']})")
     if not any_:
+        print(f"discord results: no graded bets on {day}, nothing to post")
         return False
     d = datetime.fromisoformat(day)
-    return send("results", f"📊 Results · {d.strftime('%a')} {d.day} {d.strftime('%b')}", lines,
+    ok = send("results", f"📊 Results · {d.strftime('%a')} {d.day} {d.strftime('%b')}", lines,
                 "https://overlay.tips/record.html")
+    print(f"discord results: {day} {'posted to #results' if ok else 'NOT posted'}")
+    return ok
+
+
+if __name__ == "__main__":   # post yesterday's results now:  python scripts/discord_post.py record.json
+    import sys
+    from datetime import timezone
+    with open(sys.argv[1]) as f:
+        rec = json.load(f)
+    print("channels:", sorted(_channel and (lambda: (_channel("results"), _chans)[1])() or []))
+    daily_results(rec, datetime.now(timezone.utc))

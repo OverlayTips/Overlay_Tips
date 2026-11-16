@@ -408,9 +408,9 @@ def main():
         if discord_post.enabled() and local.hour >= 9 and log.get("discord_day") != today:
             with open(os.path.join(OUT, "record.json")) as f:
                 rec = json.load(f)
-            discord_post.daily_results(rec, now)
-            log["discord_day"] = today
-            save_log(log)
+            if discord_post.daily_results(rec, now):
+                log["discord_day"] = today
+                save_log(log)
     except Exception as e:
         print("bet log: discord results failed:", type(e).__name__, e)
     print(f"bet log: {len(bets)} bets ({len(new)} new alerts), {updated} closing prices updated, {graded} graded, "
