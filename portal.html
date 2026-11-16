@@ -202,6 +202,10 @@
         <p class="pt-sub" id="waTxt">Every play lands in the group first.</p>
         <a class="pt-btn" id="waBtn" style="display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener">Join the group</a>
       </div>
+      <div class="pt-card pt-sec" id="discordCard">
+        <h3 class="pt-h3">Overlay Discord 💬</h3>
+        <div id="discordBody"><p class="pt-sub" style="margin:0">Loading…</p></div>
+      </div>
       <div class="pt-card pt-sec" id="alertCard">
         <h3 class="pt-h3">Overlay alerts 🔔</h3>
         <div id="pushBody"><p class="pt-sub" style="margin:0">Loading…</p></div>
@@ -366,6 +370,7 @@ async function boot(){
   if (member) { await loadTips(); await loadMyBets(); }
   await loadGroup(member, tier);
   loadAlerts(tier, prof.is_admin);
+  loadDiscord(tier, prof.is_admin).catch(e => { $('discordBody').innerHTML = '<p class="pt-sub" style="margin:0">Discord is being set up. Check back soon.</p>'; console.warn(e); });
   loadPlans(prof);
   if (prof.is_admin) initAdmin();
   openTab(tabs[0][0]);
@@ -426,6 +431,44 @@ async function loadPush(tier, admin){
     };
   };
   draw();
+}
+/* Discord: "Connect Discord" signs them in with Discord (discord.html catches the reply). The token is saved to
+   discord_links; scripts/discord_roles.py adds them to the server and keeps their role in step with their plan. */
+const DISCORD_CLIENT_ID = '1571793179911389264';
+const DISCORD_ROLE = {vip:'VIP', core:'Daily Card', founder:'Founder'};
+async function loadDiscord(tier, admin){
+  const box = $('discordBody'), role = DISCORD_ROLE[admin ? 'vip' : tier];
+  const q = new URLSearchParams(location.search), back = q.get('discord');
+  let note = '';
+  if (back) {
+    let tok = null; try { tok = sessionStorage.getItem('ot_dc_token'); sessionStorage.removeItem('ot_dc_token'); } catch (e) {}
+    if (back === 'ok' && tok) {
+      const { error } = await sb.from('discord_links').upsert({ user_id: ME.id, access_token: tok }, { onConflict: 'user_id' });
+      note = error ? "Couldn't save your Discord connection: " + error.message : 'Connected ✓ You\'ll be added to the server' + (role ? ' with the <b>' + role + '</b> role' : '') + ' within about 5 minutes.';
+    } else note = back === 'cancelled' ? 'Discord connection cancelled.' : 'That didn\'t work. Try connecting again.';
+    q.delete('discord'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+  }
+  const { data: link } = await sb.from('discord_links').select('discord_id,discord_name,access_token,error').eq('user_id', ME.id).maybeSingle();
+  const connect = () => {
+    const st = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { sessionStorage.setItem('ot_dc_state', st); } catch (e) {}
+    location.href = 'https://discord.com/oauth2/authorize?' + new URLSearchParams({ client_id: DISCORD_CLIENT_ID, response_type: 'token',
+      redirect_uri: location.origin + '/discord.html', scope: 'identify guilds.join', state: st });
+  };
+  const perks = role ? 'You get the <b>' + role + '</b> role, so you see ' + (role === 'VIP' ? 'every channel: all alerts, game bets, racing value and arbs.' : role === 'Daily Card' ? 'every player prop alert plus the free channels.' : 'the bet of the day, racing top picks and chat.') : 'Pick a plan above to unlock the alert channels.';
+  if (link && link.discord_id) {
+    box.innerHTML = `<p class="pt-sub" style="margin:0 0 10px">Connected as <b>${(link.discord_name||'your Discord').replace(/[<>&]/g,'')}</b> ✓ ${perks} Your role changes automatically if your plan does.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="pt-btn" href="https://discord.com/channels/@me" target="_blank" rel="noopener" style="text-decoration:none">Open Discord</a><button class="pt-btn ghost sm" id="dcRe" type="button">Reconnect</button><button class="pt-btn ghost sm" id="dcOff" type="button">Disconnect</button></div>
+      ${link.error ? `<p class="pt-msg err" style="margin-top:8px">${link.error.replace(/[<>&]/g,'')}</p>` : ''}${note ? `<p class="pt-msg ok" style="margin-top:8px">${note}</p>` : ''}`;
+    $('dcRe').onclick = connect;
+    $('dcOff').onclick = async () => { await sb.from('discord_links').delete().eq('user_id', ME.id); loadDiscord(tier, admin); };
+  } else {
+    const waiting = link && link.access_token;
+    box.innerHTML = `<p class="pt-sub" style="margin:0 0 10px">Get every alert in the Overlay Discord, sorted into channels, plus daily results and chat. ${perks}</p>
+      <button class="pt-btn" id="dcGo" type="button" style="width:100%">${waiting ? 'Connecting… (reconnect)' : 'Connect Discord'}</button>
+      ${note || (link && link.error) ? `<p class="pt-msg${(link && link.error && !note) ? ' err' : ' ok'}" style="margin-top:8px">${note || link.error.replace(/[<>&]/g,'')}</p>` : ''}`;
+    $('dcGo').onclick = connect;
+  }
 }
 // VIP value bet alerts: a private ntfy topic (kept in member_keys, readable by VIP only)
 async function loadAlerts(tier, admin){
