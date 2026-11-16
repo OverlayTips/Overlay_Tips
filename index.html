@@ -52,6 +52,8 @@
 .wire-row b{color:#ecf5f1}
 .wire-row .k{display:inline-block;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:3px 8px;border-radius:6px;margin-right:8px;background:var(--gold);color:#1a1305}
 .wire-row .k.m{background:var(--mint);color:#04130b}
+.vip-line{display:block;margin:4px 0 18px;padding:12px 16px;border:1px solid #1f3a2e;border-radius:14px;background:linear-gradient(180deg,#0f1a16,#0b110f);color:#ecf5f1;font-weight:700;font-size:17px;line-height:1.4;text-decoration:none;max-width:560px}
+.vip-line b{color:#62f0a8;font-weight:900}.vip-line b.neg{color:#ff6b6b}.vip-line small{display:block;color:#87978f;font-weight:500;font-size:13px;margin-top:2px}
 </style>
 <script src="nav.js?v=9"></script>
 </head>
@@ -109,6 +111,7 @@
       <a href="giveaway.html" class="live" style="margin-bottom:14px;display:inline-flex">Giveaway: refer a mate, you both get $50 →</a>
       <div class="mono">Sports analysis team · Australia</div>
       <h1>Find the <span class="g">overlay.</span><br>Back the value.</h1>
+      <a class="vip-line" id="vipLine" href="record.html" hidden></a>
       <p class="lead">Free daily tips across racing, NBA, AFL, NRL, NFL and EPL. <b>Every bet posted. Every result tracked.</b> Losses included.</p>
       <div class="cta-row">
         <a class="btn btn-mint" href="portal.html?signup">Sign up →</a>
@@ -404,6 +407,12 @@ function countUp(target){
 
 function hero(D){
   const a=D.periods.all;
+  if(D.since && a.w+a.l){
+    const d0=new Date(melDay(D.since)+'T00:00:00Z'), d1=new Date(melDay(new Date().toISOString())+'T00:00:00Z');
+    const nd=Math.max(1,Math.round((d1-d0)/864e5)+1), v=$id('vipLine');
+    v.innerHTML=`Our VIP system has generated <b class="${a.units<0?'neg':''}">${fmt(a.units)}</b> through <b>${nd} day${nd>1?'s':''}</b><small>${a.w}-${a.l} graded · ${pct(a.clv)} avg CLV · every alert tracked →</small>`;
+    v.hidden=false;
+  }
   if(a.clv!=null) countUp(a.clv);
   $id('heroSub').innerHTML=a.beat!=null?`<b>Beat the close on ${a.beat}%</b> of ${a.clv_n} alerts`:'Average closing line value (CLV)';
   $id('stN').textContent=a.n; $id('stBeat').textContent=a.beat==null?'–':a.beat+'%';
