@@ -4,6 +4,11 @@ name: Discord setup
 # Safe to re-run. Needs the DISCORD_BOT_TOKEN and DISCORD_GUILD_ID secrets.
 on:
   workflow_dispatch:
+    inputs:
+      post_results:
+        description: "Also post yesterday's results to #results now (the bet log does this every morning anyway)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,6 +28,7 @@ jobs:
         run: python scripts/discord_setup.py
 
       - name: "Post yesterday's results to #results now"
+        if: inputs.post_results
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
