@@ -33,6 +33,12 @@ jobs:
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: python scripts/discord_commands.py
 
+      - name: AutoMod (block slurs, sexual content, spam)
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: python scripts/discord_automod.py
+
       - name: "Post yesterday's results to #results now"
         if: inputs.post_results
         env:
