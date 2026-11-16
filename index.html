@@ -112,7 +112,7 @@
       <p class="lead">Free daily tips across racing, NBA, AFL, NRL, NFL and EPL. <b>Every bet posted. Every result tracked.</b> Losses included.</p>
       <div class="cta-row">
         <a class="btn btn-mint" href="portal.html?signup">Sign up →</a>
-        <a class="btn btn-ghost" href="#results">See results</a>
+        <a class="btn btn-ghost" href="#results">See the record</a>
         <a class="btn btn-ghost" href="calculator.html">Bonus bet calculator</a>
       </div>
     </div>
@@ -120,13 +120,13 @@
     <div class="chart-card reveal">
       <div class="chart-top">
         <div>
-          <div class="mono">November · month to date</div>
-          <div class="big" id="bigNum">+68.54U</div>
-          <div class="sub"><b>$685 profit</b> for a $10 unit punter</div>
+          <div class="mono">Odds tracker · every alert scored</div>
+          <div class="big" id="bigNum">–</div>
+          <div class="sub" id="heroSub">Average closing line value (CLV)</div>
         </div>
-        <span class="live"><span class="dot"></span>TRACKED</span>
+        <span class="live"><span class="dot"></span>LIVE</span>
       </div>
-      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Cumulative profit in units across November: from 0 to plus 68.54 units over eleven days">
+      <svg id="curve" viewBox="0 0 520 220" role="img" aria-label="Running average closing line value of every tracker alert">
         <defs>
           <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#62f0a8" stop-opacity=".28"/>
@@ -143,10 +143,10 @@
 
   <div class="wrap">
     <div class="stats reveal">
-      <div class="stat"><b>8/11</b><span>Winning days</span></div>
-      <div class="stat"><b>+35.80U</b><span>Best day · Cup Day</span></div>
-      <div class="stat"><b>+24.27U</b><span>Stakes Day · 8/16</span></div>
-      <div class="stat"><b>100%</b><span>Of bets posted</span></div>
+      <div class="stat"><b id="stN">–</b><span>Alerts scored</span></div>
+      <div class="stat"><b id="stBeat">–</b><span>Beat the closing price</span></div>
+      <div class="stat"><b id="stRec">–</b><span>Graded record</span></div>
+      <div class="stat"><b id="stU">–</b><span>Profit at suggested stakes</span></div>
     </div>
   </div>
 </header>
@@ -181,11 +181,11 @@
 
 <section id="tracker">
   <div class="wrap">
-    <div class="mono reveal">By sport</div>
-    <h2 class="reveal">Profit <span class="g">tracker</span></h2>
-    <p class="intro reveal">Every sport we tip, tracked in units. Green is up, red is down.</p>
+    <div class="mono reveal">By sport · live</div>
+    <h2 class="reveal">Where it's <span class="g">working</span></h2>
+    <p class="intro reveal">Every league and bet type the tracker alerts, scored against the closing price and the result.</p>
     <div class="sports-grid reveal" id="sportsGrid"></div>
-    <p class="note"><a href="#results">Day-by-day results →</a></p>
+    <p class="note"><a href="record.html">Full tracker record →</a></p>
   </div>
 </section>
 
@@ -206,16 +206,14 @@
     </div>
     <div class="yday reveal" id="yday" aria-live="polite">
       <div class="yday-top">
-        <div class="mono" id="ydayLabel">Yesterday's results</div>
+        <div class="mono" id="ydayLabel">Yesterday's tracker results</div>
         <span class="yday-date" id="ydayDate"></span>
       </div>
       <div class="yday-u" id="ydayU"></div>
       <div class="yday-what" id="ydayWhat"></div>
       <ul class="yday-legs" id="ydayLegs"></ul>
-      <details class="yday-review" id="ydayReview" hidden><summary></summary><div></div></details>
       <div class="yday-foot">
-        <a href="#results">All results →</a>
-        <button type="button" id="ydayCard" hidden>View results card</button>
+        <a href="record.html">Full record →</a>
       </div>
     </div>
   </div>
@@ -252,34 +250,12 @@
 
 <section id="results">
   <div class="wrap">
-    <div class="mono reveal">Tracked results</div>
-    <h2 class="reveal">November, <span class="g">day by day</span></h2>
-    <p class="intro reveal">Every bet goes up before the game, and every result goes up after it. Here's the month so far.</p>
+    <div class="mono reveal">Tracker record · updated every 5 minutes</div>
+    <h2 class="reveal">Every alert, <span class="g">scored</span></h2>
+    <p class="intro reveal">Every value bet the odds tracker sends is logged at the price it went out at, then checked against the closing price (CLV) and the result. Nothing deleted, nothing cherry-picked.</p>
     <div class="kpis reveal" id="kpis"></div>
     <div class="results reveal" id="resultsTable"></div>
-    <p class="note">1 unit (1U) = your standard stake. Full slips for every day are on our Instagram.</p>
-
-    <div class="gal-head reveal">
-      <div>
-        <div class="mono">The receipts</div>
-        <h3>Every day, posted</h3>
-      </div>
-      <div class="gal-nav">
-        <button aria-label="Previous" data-dir="-1">←</button>
-        <button aria-label="Next" data-dir="1">→</button>
-      </div>
-    </div>
-    <div class="gallery reveal" id="gallery">
-      <button class="shot" data-src="res-tue.jpg"><img src="res-tue.jpg" alt="Tue 3 Nov Cup Day results: +35.8U on the day"><span>Tue · Cup Day · +35.80U</span></button>
-      <button class="shot" data-src="res-thu.jpg"><img src="res-thu.jpg" alt="Thu 5 Nov Oaks Day results: racing +2.85U, NBA +0.86U"><span>Thu · Oaks Day</span></button>
-      <button class="shot" data-src="res-fri.jpg"><img src="res-fri.jpg" alt="Fri 6 Nov NBA and NFL results: +1.70U on the day"><span>Fri · NBA + NFL · +1.70U</span></button>
-      <button class="shot" data-src="res-sat.jpg"><img src="res-sat.jpg" alt="Sat 7 Nov Stakes Day results: +24.27U on the day"><span>Sat · Stakes Day · +24.27U</span></button>
-      <button class="shot" data-src="res-sun.jpg"><img src="res-sun.jpg" alt="Sun 8 Nov results: +0.26U on the day, NBL 1/1, NBA 2/4, rugby league 0/1"><span>Sun · NBA + NBL · +0.26U</span></button>
-      <button class="shot" data-src="res-mon.jpg"><img src="res-mon.jpg" alt="Mon 9 Nov results: −2.22U on the day, NFL 4/5 +5.88U, NBA 1/5 −8.09U"><span>Mon · NFL + NBA · −2.22U</span></button>
-      <button class="shot" data-src="res-tue10.jpg"><img src="res-tue10.jpg" alt="Tue 10 Nov results: −5.05U on the day, NFL 3/5 +2.00U, NBA 1/5 −7.05U"><span>Tue · NFL + NBA · −5.05U</span></button>
-      <button class="shot" data-src="res-wed11.jpg"><img src="res-wed11.jpg" alt="Wed 11 Nov results: +2.74U on the day, racing 1/2 +2.56U, NBL 1/1 +2.50U, NBA 4/9 −2.32U"><span>Wed · Racing + NBA + NBL · +2.74U</span></button>
-      <button class="shot" data-src="res-thu12.jpg"><img src="res-thu12.jpg" alt="Thu 12 Nov results: −7.60U on the day, NBA 1/5"><span>Thu · NBA · −7.60U</span></button>
-    </div>
+    <p class="note" id="recNote">CLV = alert price ÷ fair price at tip-off − 1. Beating the close over 100+ bets is the clearest sign of a real edge. 1 unit (1U) = your standard stake. <a href="record.html">Full record →</a></p>
   </div>
 </section>
 
@@ -378,213 +354,138 @@
   </div>
 </footer>
 
-<div class="lightbox" id="lightbox" aria-hidden="true">
-  <button class="lb-close" aria-label="Close">✕</button>
-  <img id="lbImg" alt="">
-</div>
-
 <div class="sticky" id="sticky">
-  <small><b>+68.54U this month</b>Free for the first 500</small>
+  <small><b id="stickyB">Every alert tracked</b>Free for the first 500</small>
   <a class="btn btn-mint" href="portal.html?signup">Sign up</a>
 </div>
 
 <script>
 document.body.classList.remove('no-js');
 
-/* ---- data: edit here to update the site ---- */
-const days = [
-  {d:'Mon', n:'2 Nov', what:'NBA 3-0 · NFL 3-3', sub:'Clean sweep on the NBA card', u:6.55, staked:null, bets:9, won:6},
-  {d:'Tue', n:'3 Nov', what:'Cup Day', sub:'Racing +32.7U (Point of Law won the Cup) · NBA 5-4 +1.0U · NFL SGM + JSN 110+ +2.1U', u:35.80, staked:80.25, bets:29, won:15,
-    sp:{'Horse Racing':[32.70,null,null], NBA:[1.00,5,9], NFL:[2.10,null,null]}},
-  {d:'Wed', n:'4 Nov', what:'2/2', sub:'Doolittle + Roma SGM', u:6.25, staked:4.25, bets:2, won:2},
-  {d:'Thu', n:'5 Nov', what:'Oaks Day 3/6 · NBA 4/7 · NBL 1/1', sub:'Racing +2.85U (Rey Magnerio @ $3.50) · NBA 4-3 +0.86U · Avdija, Kessler & Brunson cashed', u:5.84, staked:null, bets:14, won:8,
-    sp:{'Horse Racing':[2.85,3,6], NBA:[0.86,4,7], NBL:[2.13,1,1]}},
-  {d:'Fri', n:'6 Nov', what:'NFL TNF 2-1 · NBA 1-1', sub:'Henry & Hill cashed · Franz dropped 15 assists', u:1.70, staked:null, bets:5, won:3},
-  {d:'Sat', n:'7 Nov', what:'Stakes Day · 8/16 winners', sub:'Rosehill 3/3 +21.80U · Flemington 2/7 +2.50U · NBA 3/6 −0.03U', u:24.27, staked:42.75, bets:16, won:8,
-    sp:{'Horse Racing':[24.30,5,10], NBA:[-0.03,3,6]}},
-  {d:'Sun', n:'8 Nov', what:'NBA 2/4 · NBL 1/1 · RL 0/1', sub:'Clingan & Braun unders cashed · Kendric Davis 25+ @ $2.10', u:0.26, staked:13.25, bets:6, won:3, img:'res-sun.jpg',
-    legs:[['Kendric Davis 25+ pts','2.10',2,1],['Clingan U22.5 Pts+Reb','1.88',2.5,1],['Braun U6.5 Reb+Ast','2.05',2.25,1],['Jokic O37.5 Pts+Reb','1.80',2.5,0],['K. George U25.5 PRA','1.80',2.5,0],['Australia 1-12 v Samoa','3.20',1.5,0]],
-    sp:{NBA:[-0.44,2,4], NBL:[2.20,1,1], Rugby:[-1.50,0,1]}},
-  {d:'Mon', n:'9 Nov', what:'NFL 4-1 · NBA 1-4', sub:'NFL +5.88U (Walker, McGowan, CMC & the Burrow SGM cashed) · NBA −8.09U', u:-2.22, staked:24.75, bets:10, won:5, img:'res-mon.jpg',
-    legs:[['Burrow 2+ TDs / Brown 30+ SGM','1.72',2.5,1],['Randle O4.5 Ast','1.87',2.5,0],['McGowan O25.5 Rush Yds','1.88',2.5,1],['K. Walker III 90+ Rush Yds','1.80',2.5,1],['JSN O94.5 Rec Yds','1.88',2.25,0],['McCaffrey 60+ Rush Yds','1.85',2.5,1],['Edgecombe 20+ Pts+Reb','2.05',2.25,0],['LaMelo O21.5 Pts','1.96',2.25,1],['Celtics + Lopez U5.5 Reb SGM','1.72',2.5,0],['D. White O16.5 Pts+Reb','1.78',3,0]],
-    sp:{NFL:[5.88,4,5], NBA:[-8.09,1,5]}},
-  {d:'Tue', n:'10 Nov', what:'NFL 3-2 · NBA 1-4', sub:'NFL +2.00U (Cook 100+, Wentz under & the JJ/Cook SGM cashed) · NBA −7.05U (Allen 15+ @ $2.10 cashed)', u:-5.05, staked:23.50, bets:10, won:4, img:'res-tue10.jpg',
-    legs:[['J. Jefferson O77.5 Rec Yds','1.88',2.5,0],['J. Cook 100+ Rush+Rec Yds','2.20',2,1],['JJ 50+ Rec / Cook 60+ Rush SGM','1.70',3,1],['Wentz U1.5 Pass TDs','1.90',2.5,1],['Josh Allen Anytime TD','1.97',2.25,0],['G. Allen 15+ Pts','2.10',2,1],['J. Johnson 20+ Pts','1.83',2.5,0],['P. Reed 3+ Ast','2.45',1.75,0],['Gafford 15+ Pts+Reb','1.76',2.5,0],['Sengun O20.5 Pts','1.96',2.5,0]],
-    sp:{NFL:[2.00,3,5], NBA:[-7.05,1,5]},
-    review:{title:'What went wrong', notes:[
-      ['Sengun O20.5','Finished on 20 (11 reb, 8 ast). Missed by one. Part of the case was Denver possibly missing Murray. He played and scored 38.'],
-      ['J. Johnson 20+','15 pts on 6/14, 0/3 from deep. Good price, but his recent form was up and down and 2.5U was too big.'],
-      ['Gafford 15+ P+R','8 pts, 2 reb. Foul trouble (4 fouls) and Flagg took over with 43. Needed big minutes that never came.'],
-      ['P. Reed 3+ Ast','Didn\'t get there. Assist props on a backup big are always swingy.'],
-      ['Josh Allen Anytime TD','Didn\'t find the end zone.'],
-      ['Jefferson O77.5','Got past 50 for the SGM leg but well short of 77.5. The Vikings offence still isn\'t feeding him.']],
-      changes:['Smaller units on coin-flip props','Injury news has to be confirmed, not "potentially out"','Fewer NBA props on one slate']}},
-  {d:'Wed', n:'11 Nov', what:'Racing 1-1 · NBL 1-0 · NBA 4-5', sub:'Cosmic Jinks @ $3.78 (TAB pump) · Doyle O10.5 cashed in Q1 @ 2.00 · NBA −2.32U (Tatum, Hartenstein, McCain & Josh Green cashed)', u:2.74, staked:28.00, bets:12, won:6, img:'res-wed11.jpg',
-    legs:[['M. Doyle O10.5 Pts','2.00',2.5,1],['J. Tatum U7.5 Reb','1.95',2.5,1],['Hartenstein U22.5 PRA','1.80',2.5,1],['McCain O15.5 Pts+Reb','1.80',2.5,1],['Josh Green U7.5 Pts','1.72',2.5,1],['J. Brown 30+ PRA','1.76',2.5,0],['J. Brown 35+ PRA','2.95',1,0],['KAT U1.5 Threes','1.91',2,0],['Jalen Green U1.5 Threes','1.96',2.5,0],['Klay O15.5 Pts+Reb','1.80',2.5,0],['Cosmic Jinks (R6 Scone)','3.78',2,1],['Hansadios (R1 Belmont)','2.05',3,0]],
-    sp:{'Horse Racing':[2.56,1,2], NBL:[2.50,1,1], NBA:[-2.32,4,9]}},
-  {d:'Thu', n:'12 Nov', what:'NBA 1-4', sub:'Mobley U24.5 Pts+Reb @ 1.96 cashed · Johnson, Walsh & White unders all went over · Drummond O10.5 P+R @ 1.80 missed · NBA −7.60U', u:-7.60, staked:12.50, bets:5, won:1, img:'res-thu12.jpg',
-    legs:[['E. Mobley U24.5 Pts+Reb','1.96',2.5,1],['T. Johnson U8.5 Pts','1.75',2.5,0],['J. Walsh U5.5 Pts','1.87',2.5,0],['D. White U15.5 Pts','1.87',2.5,0],['A. Drummond O10.5 Pts+Reb','1.80',2.5,0]],
-    sp:{NBA:[-7.60,1,5]},
-    review:{title:'What went wrong', notes:[
-      ['J. Walsh U5.5','Finished on 6, lost by one point. Went 3/4 from the field in 18 minutes. TAB suspended the market mid-game and it still settled as a loss.'],
-      ['T. Johnson U8.5','15 pts on 5/10 with 2 threes. Got 29 minutes as Washington lost 114-101, way more run than the line expected.'],
-      ['D. White U15.5','19 pts and 7 ast in 38 minutes. Close Boston win (98-93) kept him on the floor the whole night.'],
-      ['A. Drummond O10.5 P+R','Bot picked up 1.80 at Sportsbet when every other bookie had 1.60. Only got 14 minutes off the Knicks bench (0 pts, 4 reb) in a 115-107 loss to Cleveland.'],
-      ['The prices moved our way','Every price shortened after we got on (and Drummond was 1.80 vs 1.60 everywhere else), so we beat the market on all five. Right side of the number, just ran bad. Mobley\'s under (15 P+R) was the one that held.']],
-      changes:['Keep getting on early, the market agreed with every pick','Fewer unders on the same slate','Happy to leave NBA there for the day']}},
-  /* legs (optional): [bet, odds, units, 1 = won / 0 = lost]   img (optional): results card image
-     sp (optional): per-sport split for the "By sport" tracker: {Sport:[units, won, bets]} (won/bets null if unknown) */
-];
-const winners = [
-  ['Point of Law','Melbourne Cup'],['Evaporate','7.50'],['Birdman','6.00'],['Pinhole','3.00'],
-  ['Savvy Spy','2.70'],['Horseshoe Hill','2.50'],['Harden 3+ threes','2.25'],['Barrett 35+ PRA','1.86'],
-  ['Dybantsa 6+ reb','1.81'],['Doolittle + Roma SGM','✓'],['Henry & Hill','TNF'],['K. Davis 25+ pts','2.10'],['Braun U6.5 R+A','2.05'],
-  ['K. Walker III 90+','1.80'],['McGowan O25.5','1.88'],['CMC 60+ rush','1.85'],['LaMelo O21.5','1.96'],
-  ['G. Allen 15+ pts','2.10'],['Cook 100+ yds','2.20'],['Wentz U1.5 TDs','1.90'],['JJ / Cook SGM','1.70'],
-  ['Cosmic Jinks','3.78'],['Doyle O10.5 pts','2.00'],['Tatum U7.5 reb','1.95'],['Hartenstein U22.5','1.80'],['McCain O15.5','1.80'],['Mobley U24.5 P+R','1.96']
-];
-
+/* ---- live: the odds tracker's record (odds-data/record.json, written by scripts/bet_log.py) ---- */
+const REC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/record.json';
 const fmt = u => (u>=0?'+':'−')+Math.abs(u).toFixed(2)+'U';
-const total = days.reduce((a,b)=>a+b.u,0);
-const maxDay = Math.max(...days.map(x=>Math.abs(x.u)));
+const pct = (x,d=1) => x==null?'–':(x>0?'+':x<0?'−':'')+Math.abs(x).toFixed(d)+'%';
+const escH = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const melDay = iso => new Date(iso).toLocaleDateString('en-CA',{timeZone:'Australia/Melbourne'});
+const dLabel = iso => new Date(iso).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'Australia/Melbourne'}).replace(',','');
+const dShort = iso => new Date(iso).toLocaleDateString('en-AU',{day:'numeric',month:'short',timeZone:'Australia/Melbourne'});
+const tLabel = iso => new Date(iso).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',timeZone:'Australia/Melbourne'});
+const $id = id => document.getElementById(id);
 
-/* yesterday's results card: shows the latest day in `days` */
-(function(){
-  const last=days[days.length-1]; if(!last) return;
-  const mel=new Date(new Date().toLocaleString('en-US',{timeZone:'Australia/Melbourne'})); mel.setHours(0,0,0,0);
-  const dd=new Date(last.n+' 2026'); dd.setHours(0,0,0,0);
-  const diff=Math.round((mel-dd)/864e5);
-  document.getElementById('ydayLabel').textContent = diff<=0 ? "Today's results" : diff===1 ? "Yesterday's results" : 'Latest results';
-  document.getElementById('ydayDate').textContent=last.d+' '+last.n;
-  const u=document.getElementById('ydayU'); u.textContent=fmt(last.u)+(Math.abs(last.u)<10?' ':'')+''; u.classList.toggle('neg',last.u<0);
-  const bits=[last.what]; if(last.bets) bits.push(last.won+'/'+last.bets+' bets won');
-  document.getElementById('ydayWhat').textContent=bits.join(' · ');
-  const ul=document.getElementById('ydayLegs');
-  if(last.legs){ ul.innerHTML=last.legs.map(([b,o,un,w])=>{const pl=w?un*(parseFloat(o)-1):-un;
-    return `<li class="${w?'w':'l'}"><i>${w?'✓':'✗'}</i><span>${b}</span><em><b>${fmt(+pl.toFixed(2))}</b>${un}U @ ${o}</em></li>`}).join(''); }
-  if(last.staked||last.bets){ const st=document.createElement('div'); st.className='yday-stats';
-    st.innerHTML=[['Staked',last.staked!=null?last.staked.toFixed(2)+'U':'–'],['ROI',last.staked?(last.u/last.staked*100).toFixed(1)+'%':'–'],['Strike',last.bets?last.won+'/'+last.bets:'–']].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('');
-    document.getElementById('ydayWhat').after(st); }
-  else ul.remove();
-  if(last.review){ const rv=document.getElementById('ydayReview'); rv.hidden=false;
-    rv.querySelector('summary').textContent=last.review.title;
-    rv.querySelector('div').innerHTML=last.review.notes.map(([b,t])=>`<p><b>${b}</b>${t}</p>`).join('')+
-      (last.review.changes?`<h4>What we're changing</h4><ul>${last.review.changes.map(c=>`<li>${c}</li>`).join('')}</ul>`:''); }
-  if(last.img){ const btn=document.getElementById('ydayCard'); btn.hidden=false;
-    btn.addEventListener('click',()=>{const lb=document.getElementById('lightbox'),im=document.getElementById('lbImg');im.src=last.img;im.alt=last.d+' '+last.n+' results card';lb.classList.add('open');lb.setAttribute('aria-hidden','false');}); }
-})();
-
-/* tracking stats */
-const has = k => days.every(x=>x[k]!=null);
-const sum = k => days.reduce((a,x)=>a+(x[k]||0),0);
-function meta(x){
-  const m=[];
-  if(x.staked!=null) m.push(`<em>Staked <b>${x.staked.toFixed(2)}U</b></em>`, `<em>ROI <b>${(x.u/x.staked*100).toFixed(1)}%</b></em>`);
-  if(x.bets!=null && x.won!=null) m.push(`<em>Strike <b>${x.won}/${x.bets}</b></em>`);
-  return m.length?`<div class="meta">${m.join('')}</div>`:'';
-}
-(function(){
-  let streak=0,best=0; days.forEach(x=>{streak=x.u>0?streak+1:0;best=Math.max(best,streak)});
-  const bestDay=days.reduce((a,b)=>b.u>a.u?b:a);
-  const k=[
-    ['Profit', fmt(total), `$${(total*10).toFixed(0)} on $10 units`],
-    has('staked') ? ['ROI', (total/sum('staked')*100).toFixed(1)+'%', `${sum('staked').toFixed(2)}U staked`] : null,
-    has('bets')&&has('won') ? ['Strike rate', (sum('won')/sum('bets')*100).toFixed(0)+'%', `${sum('won')}/${sum('bets')} bets won`] : null,
-    ['Winning days', `${days.filter(x=>x.u>0).length}/${days.length}`, `${best}-day win streak`],
-    ['Avg per day', fmt(total/days.length), `${days.length} days tracked`],
-    ['Best day', fmt(bestDay.u), `${bestDay.d} ${bestDay.n}`],
-  ].filter(Boolean).slice(0,8);
-  document.getElementById('kpis').innerHTML=k.map(([l,v,sm])=>`<div class="kpi"><span>${l}</span><b>${v}</b><small>${sm}</small></div>`).join('');
-})();
-
-/* results table */
-const rt = document.getElementById('resultsTable');
-rt.innerHTML = days.map(x=>`
-  <div class="row">
-    <div class="date"><b>${x.d}</b>${x.n}</div>
-    <div class="what">${x.what}${x.sub?`<small>${x.sub}</small>`:''}${meta(x)}<div class="bar${x.u<0?' neg':''}"><i data-w="${Math.max(4,Math.abs(x.u)/maxDay*100)}"></i></div></div>
-    <div class="u${x.u<0?' neg':''}">${fmt(x.u)}</div>
-  </div>`).join('') + `
-  <div class="row total">
-    <div class="date"><b>Nov</b>to date</div>
-    <div class="what">Month total · ${days.filter(x=>x.u>0).length}/${days.length} winning days</div>
-    <div class="u">${fmt(total)}</div>
-  </div>`;
-
-/* by-sport tracker: built from each day's `sp` split */
-(function(){
-  const SPORTS=['Horse Racing','NFL','NBA','NBL','Rugby'];
-  const grid=document.getElementById('sportsGrid');
-  grid.innerHTML=SPORTS.map(sp=>{
-    const rows=days.filter(x=>x.sp&&x.sp[sp]).map(x=>({n:x.n,u:x.sp[sp][0],w:x.sp[sp][1],b:x.sp[sp][2]}));
-    const tot=rows.reduce((a,r)=>a+r.u,0);
-    const known=rows.filter(r=>r.w!=null&&r.b!=null), w=known.reduce((a,r)=>a+r.w,0), b=known.reduce((a,r)=>a+r.b,0);
-    const pts=[0]; rows.forEach(r=>pts.push(+(pts[pts.length-1]+r.u).toFixed(2)));
-    let svg='';
-    if(rows.length){
-      const W=300,H=90,p=6, lo=Math.min(0,...pts), hi=Math.max(0,...pts), rg=(hi-lo)||1;
-      const X=i=>p+i*(W-2*p)/Math.max(1,pts.length-1), Y=v=>H-p-(v-lo)/rg*(H-2*p);
-      const d=pts.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
-      svg=`<svg class="spark${tot<0?' neg':''}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${sp} cumulative profit: ${fmt(tot)} across ${rows.length} days">
-        <line x1="${p}" x2="${W-p}" y1="${Y(0)}" y2="${Y(0)}" class="zero"/>
-        <path d="${d}" class="ln"/><circle cx="${X(pts.length-1)}" cy="${Y(pts[pts.length-1])}" r="4" class="pt"/></svg>`;
-    } else svg='<div class="spark-empty">No bets yet this month</div>';
-    const meta=rows.length?[b?`${w}/${b} won`:null,`${rows.length} day${rows.length>1?'s':''}`].filter(Boolean).join(' · '):'';
-    return `<div class="sport"><div class="sport-top"><span>${sp}</span><b class="${tot<0?'neg':''}">${rows.length?fmt(tot):'0.00U'}</b></div>
-      ${meta?`<small>${meta}</small>`:''}${svg}</div>`;
-  }).join('');
-})();
-
-/* ticker */
-const tk = document.getElementById('ticker');
-const items = winners.map(([n,o])=>`<span><i>✓</i>${n}<em>${o}</em></span>`).join('');
-tk.innerHTML = items + items;
-/* scroll the roll with JS (a CSS-animated strip this wide gets dropped by iPhone Safari) */
-(function(){
-  const box=tk.parentElement, slow=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const speed=(slow?12:window.innerWidth<720?45:38); // px per second
-  let pos=0,last=null;
-  function step(t){ if(last!==null){ pos+=speed*(t-last)/1000; const half=tk.scrollWidth/2; if(half>0&&pos>=half) pos-=half; box.scrollLeft=pos; }
-    last=t; requestAnimationFrame(step); }
-  requestAnimationFrame(step);
-})();
-
-/* profit curve */
-(function(){
-  const svg = document.getElementById('curve');
-  const W=520,H=220,pl=34,pr=16,pt=18,pb=28;
-  const pts=[0]; days.forEach(x=>pts.push(+(pts[pts.length-1]+x.u).toFixed(2)));
-  const labels=['1 Nov',...days.map(x=>x.n)];
-  const ymax=Math.ceil(Math.max(...pts)/20)*20||20;
-  const X=i=>pl+i*(W-pl-pr)/(pts.length-1);
-  const Y=v=>pt+(1-v/ymax)*(H-pt-pb);
+function heroCurve(cd){
+  const svg=$id('curve'); const W=520,H=220,pl=40,pr=16,pt=18,pb=28;
   const ns='http://www.w3.org/2000/svg';
   const el=(t,a)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);svg.appendChild(e);return e};
-  for(let v=0;v<=ymax;v+=ymax/4){
+  const pts=(cd||[]).map(x=>x[1]);
+  if(pts.length<2){ const t=el('text',{x:W/2,y:H/2,'text-anchor':'middle'}); t.textContent='Filling in as alerts are scored'; return; }
+  let lo=Math.min(0,...pts), hi=Math.max(0,...pts); const pad=(hi-lo)*.1||1; lo-=pad; hi+=pad;
+  const X=i=>pl+i*(W-pl-pr)/(pts.length-1), Y=v=>pt+(hi-v)/(hi-lo)*(H-pt-pb);
+  const raw=(hi-lo)/4, mag=Math.pow(10,Math.floor(Math.log10(raw))), stp=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw);
+  for(let v=Math.ceil(lo/stp)*stp; v<=hi; v+=stp){ v=+v.toFixed(6);
     el('line',{x1:pl,x2:W-pr,y1:Y(v),y2:Y(v),class:'grid'});
-    const t=el('text',{x:pl-8,y:Y(v)+4,'text-anchor':'end'});t.textContent=v;
-  }
-  labels.forEach((l,i)=>{ if(i%2===0||i===labels.length-1){const t=el('text',{x:X(i),y:H-6,'text-anchor':'middle'});t.textContent=l;} });
+    const t=el('text',{x:pl-8,y:Y(v)+4,'text-anchor':'end'}); t.textContent=(v>0?'+':'')+v+'%'; }
+  const ix=[0,Math.floor((pts.length-1)/2),pts.length-1].filter((v,i,a)=>a.indexOf(v)===i);
+  const oneDay=melDay(cd[0][0])===melDay(cd[cd.length-1][0]);
+  ix.forEach(i=>{const t=el('text',{x:X(i),y:H-6,'text-anchor':i===0?'start':i===pts.length-1?'end':'middle'}); t.textContent=oneDay?tLabel(cd[i][0]):dShort(cd[i][0]);});
   const d=pts.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
   el('path',{d:d+` L${X(pts.length-1)} ${Y(0)} L${X(0)} ${Y(0)} Z`,class:'area'});
-  const line=el('path',{d,class:'line'});
-  const len=line.getTotalLength();
-  line.style.strokeDasharray=len; line.style.strokeDashoffset=len;
-  line.getBoundingClientRect();
-  line.style.transition='stroke-dashoffset 1.8s cubic-bezier(.4,0,.2,1)';
-  requestAnimationFrame(()=>line.style.strokeDashoffset=0);
-  const last=pts.length-1;
-  el('circle',{cx:X(last),cy:Y(pts[last]),r:5.5,class:'pt'});
-  const tg=el('text',{x:X(last)-10,y:Y(pts[last])-12,'text-anchor':'end',class:'tag'});tg.textContent=fmt(pts[last]);
-  const cup=el('text',{x:X(2)+8,y:Y(pts[2])+18,class:'tag',style:'font-size:10px;fill:#87978f'});cup.textContent='Cup Day';
-})();
+  const line=el('path',{d,class:'line'}); const len=line.getTotalLength();
+  line.style.strokeDasharray=len; line.style.strokeDashoffset=len; line.getBoundingClientRect();
+  line.style.transition='stroke-dashoffset 1.8s cubic-bezier(.4,0,.2,1)'; requestAnimationFrame(()=>line.style.strokeDashoffset=0);
+  const last=pts.length-1; el('circle',{cx:X(last),cy:Y(pts[last]),r:5.5,class:'pt'});
+  const tg=el('text',{x:X(last)-10,y:Y(pts[last])-12,'text-anchor':'end',class:'tag'}); tg.textContent=pct(pts[last])+' CLV';
+}
 
-/* count-up */
-(function(){
-  const elN=document.getElementById('bigNum'); const t0=performance.now(), dur=1600;
-  function step(t){const p=Math.min(1,(t-t0)/dur);const e=1-Math.pow(1-p,3);elN.textContent=fmt(total*e);if(p<1)requestAnimationFrame(step)}
-  requestAnimationFrame(step);
-})();
+function countUp(target){
+  const elN=$id('bigNum'), t0=performance.now(), dur=1600;
+  (function step(t){const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3); elN.textContent=pct(target*e); if(p<1) requestAnimationFrame(step);})(t0);
+}
+
+function hero(D){
+  const a=D.periods.all;
+  if(a.clv!=null) countUp(a.clv);
+  $id('heroSub').innerHTML=a.beat!=null?`<b>Beat the close on ${a.beat}%</b> of ${a.clv_n} alerts`:'Average closing line value (CLV)';
+  $id('stN').textContent=a.n; $id('stBeat').textContent=a.beat==null?'–':a.beat+'%';
+  $id('stRec').textContent=a.w+a.l?a.w+'-'+a.l:'–'; $id('stU').textContent=a.w+a.l?fmt(a.units):'–';
+  if(a.clv!=null) $id('stickyB').textContent=pct(a.clv)+' avg CLV · '+a.n+' alerts';
+  heroCurve(D.clv_days);
+}
+
+function ticker(D){
+  const tk=$id('ticker'), price={}; (D.recent||[]).forEach(b=>{ if(b.result==='win') price[b.sel]=b.price; });
+  const u=D.units||[], wins=[]; for(let i=u.length-1;i>0&&wins.length<24;i--) if(u[i][3]==='win') wins.push([u[i][2],+(u[i][1]-u[i-1][1]).toFixed(2)]);
+  if(!wins.length){ tk.parentElement.hidden=true; return; }
+  const items=wins.map(([sel,pl])=>`<span><i>✓</i>${escH(sel)}<em>${price[sel]?'$'+Number(price[sel]).toFixed(2):fmt(pl)}</em></span>`).join('');
+  tk.innerHTML=items+items;
+  const box=tk.parentElement, slow=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const speed=(slow?12:window.innerWidth<720?45:38); let pos=0,last=null;
+  (function step(t){ if(last!==null){ pos+=speed*(t-last)/1000; const half=tk.scrollWidth/2; if(half>0&&pos>=half) pos-=half; box.scrollLeft=pos; }
+    last=t; requestAnimationFrame(step); })(performance.now());
+}
+
+function bySport(D){
+  const gs=(D.groups||[]).filter(g=>g.n>=2).slice(0,8);
+  $id('sportsGrid').innerHTML=gs.length?gs.map(g=>{
+    const meta=['avg CLV', `${g.n} alerts`, g.beat!=null?`${g.beat}% beat the close`:null, g.w+g.l?`${g.w}-${g.l} · ${fmt(g.units)}`:'CLV only'].filter(Boolean).join(' · ');
+    return `<div class="sport"><div class="sport-top"><span>${escH(g.name)}</span><b class="${g.clv<0?'neg':''}">${pct(g.clv)}</b></div><small>${meta}</small></div>`;
+  }).join(''):'<div class="sport"><small>The breakdown fills in once alerts have been scored.</small></div>';
+}
+
+function yesterday(D){
+  const today=new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Melbourne'});
+  const yd=new Date(Date.parse(today+'T12:00:00Z')-864e5).toISOString().slice(0,10);
+  const units=D.units||[], legs=[];
+  for(let i=1;i<units.length;i++){ const [t,cum,sel,res]=units[i]; if(melDay(t)===yd && (res==='win'||res==='loss')) legs.push([sel,+(cum-units[i-1][1]).toFixed(2),res]); }
+  const clv=(D.clv_days||[]).filter(x=>melDay(x[0])===yd).map(x=>x[2]);
+  const day=new Date(yd+'T12:00:00Z');
+  $id('ydayDate').textContent=day.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+  if(!legs.length && !clv.length){ $id('ydayU').textContent='–'; $id('ydayWhat').textContent='No alerts scored yesterday.'; $id('ydayLegs').remove(); return; }
+  const tot=legs.reduce((a,l)=>a+l[1],0), w=legs.filter(l=>l[2]==='win').length, ac=clv.length?clv.reduce((a,b)=>a+b,0)/clv.length:null;
+  const u=$id('ydayU'); u.textContent=legs.length?fmt(tot):pct(ac)+' CLV'; u.classList.toggle('neg',legs.length?tot<0:ac<0);
+  $id('ydayWhat').textContent=[legs.length?`${w}/${legs.length} graded bets won`:null, ac!=null?`${pct(ac)} avg CLV on ${clv.length} alerts`:null].filter(Boolean).join(' · ');
+  const st=document.createElement('div'); st.className='yday-stats';
+  st.innerHTML=[['Alerts',clv.length||legs.length],['Avg CLV',pct(ac)],['Strike',legs.length?w+'/'+legs.length:'–']].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('');
+  $id('ydayWhat').after(st);
+  const ul=$id('ydayLegs');
+  if(legs.length){ const sh=legs.slice(0,10);
+    ul.innerHTML=sh.map(([b,pl,r])=>`<li class="${r==='win'?'w':'l'}"><i>${r==='win'?'✓':'✗'}</i><span>${escH(b)}</span><em><b>${fmt(pl)}</b></em></li>`).join('');
+    if(legs.length>sh.length){ const m=document.createElement('p'); m.className='yday-what'; m.style.marginTop='8px'; m.innerHTML=`+ ${legs.length-sh.length} more graded bets on the <a href="record.html">full record</a>`; ul.after(m); } }
+  else ul.remove();
+}
+
+function results(D){
+  const a=D.periods.all;
+  const k=[['Alerts',a.n,a.clv_n?`${a.clv_n} with a closing price`:''],
+           ['Avg CLV',pct(a.clv),'vs the closing fair price'],
+           ['Beat the close',a.beat==null?'–':a.beat+'%','of alerts'],
+           ['Record',a.w+a.l?`${a.w}-${a.l}`:'–','graded bets'],
+           ['ROI',pct(a.roi),'flat 1U per bet'],
+           ['Profit',a.w+a.l?fmt(a.units):'–','at suggested stakes']];
+  $id('kpis').innerHTML=k.map(([l,v,sm])=>`<div class="kpi"><span>${l}</span><b>${v}</b><small>${sm}</small></div>`).join('');
+  const xs=(D.recent||[]).slice(0,12);
+  const res=b=>b.result==='win'?fmt((b.price-1)*(b.stake||1)):b.result==='loss'?fmt(-(b.stake||1)):b.result==='void'?'Void':pct(b.clv);
+  $id('resultsTable').innerHTML=(xs.length?xs.map(b=>`
+  <div class="row">
+    <div class="date"><b>${dLabel(b.start).split(' ')[0]}</b>${dLabel(b.start).split(' ').slice(1).join(' ')}</div>
+    <div class="what">${escH(b.sel)}<small>${escH(b.game)}${b.lg?' · '+escH(b.lg):''}</small>
+      <div class="meta"><em>$${Number(b.price).toFixed(2)} <b>${escH(b.book)}</b></em>${b.close?`<em>Close <b>$${Number(b.close).toFixed(2)}</b></em>`:''}<em>CLV <b>${pct(b.clv)}</b></em><em>${b.stake??1}U</em></div></div>
+    <div class="u${b.result==='loss'||(b.result!=='win'&&b.clv<0)?' neg':''}">${res(b)}</div>
+  </div>`).join(''):'<div class="row"><div class="what">Alerts show up here once their games start.</div></div>')+`
+  <div class="row total">
+    <div class="date"><b>All</b>${D.since?'since '+dLabel(D.since).split(' ').slice(1).join(' '):''}</div>
+    <div class="what">${a.n} alerts · ${pct(a.clv)} avg CLV · <a href="record.html">full record →</a></div>
+    <div class="u${a.units<0?' neg':''}">${a.w+a.l?fmt(a.units):'–'}</div>
+  </div>`;
+}
+
+fetch(REC+'?t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(D=>{
+  for(const f of [hero,ticker,bySport,yesterday,results]){ try{ f(D); }catch(e){ console.error(e); } }
+}).catch(()=>{
+  $id('heroSub').textContent='The record fills in as alerts are scored.'; heroCurve([]); $id('ticker').parentElement.hidden=true;
+  bySport({groups:[]}); $id('ydayWhat').textContent='Results show up here once alerts are scored.'; $id('ydayLegs').remove();
+  $id('resultsTable').innerHTML='<div class="row"><div class="what">Couldn\'t load the tracker record. <a href="record.html">Open the full record →</a></div></div>';
+});
 
 /* reveal + bars */
 const io = 'IntersectionObserver' in window ? new IntersectionObserver(es=>{
@@ -609,18 +510,6 @@ document.querySelectorAll('.spots').forEach(el=>{
   requestAnimationFrame(()=>setTimeout(()=>bar.style.width=pct+'%',300));
   if(left===0){el.querySelector('.spots-top span').innerHTML='<b>0</b> free spots left';}
 });
-
-/* gallery + lightbox */
-const gal=document.getElementById('gallery');
-document.querySelectorAll('.gal-nav button').forEach(b=>b.addEventListener('click',()=>{
-  const card=gal.querySelector('.shot'); const step=card?card.getBoundingClientRect().width+14:300;
-  gal.scrollBy({left:step*+b.dataset.dir,behavior:'smooth'});
-}));
-const lb=document.getElementById('lightbox'), lbImg=document.getElementById('lbImg');
-gal.querySelectorAll('.shot').forEach(s=>s.addEventListener('click',()=>{lbImg.src=s.dataset.src;lbImg.alt=s.querySelector('img').alt;lb.classList.add('open');lb.setAttribute('aria-hidden','false')}));
-const closeLb=()=>{lb.classList.remove('open');lb.setAttribute('aria-hidden','true')};
-lb.addEventListener('click',closeLb);
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb()});
 
 /* highlight Home / Results in the nav depending on where you are */
 (function(){
