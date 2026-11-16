@@ -20,6 +20,8 @@ SYD = ZoneInfo("Australia/Sydney")
 SITE = "https://overlay.tips"
 FOOT = "Overlay Tips | 18+ Gamble responsibly"
 MIN_VALUE = 4.0      # % edge needed to alert
+MAX_PRICE = float(os.environ.get("MAX_PRICE", "2.0"))   # sports bets over this price never alert (racing exempt)
+DISCORD = SITE + "/discord.html"
 MIN_FORM = float(os.environ.get("MIN_FORM", "0.6"))   # player props: he must have landed this side in 60%+ of his last 10
 MIN_FORM_GAMES = 3
 
@@ -85,9 +87,7 @@ def push(title, lines, click=None, actions=()):
 
 def _push(topic, title, lines, click=None, actions=(), priority=4):
     body = "\n".join(lines)
-    wa = f"{title}\n\n{body}\n\n{FOOT}"
-    acts = list(actions)[:2] + [{"action": "view", "label": "Share to WhatsApp",
-                                 "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]
+    acts = list(actions)[:2] + [{"action": "view", "label": "Open Discord", "url": DISCORD, "clear": False}]
     msg = {"topic": topic, "title": title, "message": body,   # titles carry their own emoji, so no ntfy tag (it doubled up)
            "priority": priority, "actions": acts}
     if click:
@@ -109,6 +109,12 @@ def stake(edge_pct, price):
         return 0.5
     k = (edge_pct / 100) / (price - 1)
     return max(0.5, min(3.0, round(BANK_UNITS * k / 4 * 2) / 2))
+
+
+def pstake(p):
+    """Stake for an alert: half size (min 0.5U) when the player is questionable or game-time."""
+    u = stake(p["edge"], p["price"])
+    return max(0.5, round(u / 2 * 2) / 2) if "⚠️" in (p.get("tag") or "") else u
 
 
 def tip(iso):
@@ -239,7 +245,8 @@ def collect(now):
     hot = load(os.path.join(OUT, "hot.json"), {})
     teams = team_map(hot)
     for v in hot.get("value") or []:
-        if (v.get("value") or 0) < MIN_VALUE or started(v.get("start", ""), now) or not backed(v.get("l10")):
+        if (v.get("value") or 0) < MIN_VALUE or started(v.get("start", ""), now) or not backed(v.get("l10")) \
+                or (v.get("price") or 0) > MAX_PRICE:
             continue
         side = "Under" if str(v.get("line", "")).lower().startswith("u") else "Over"
         add = SITE + "/tracker.html?" + urllib.parse.urlencode({
@@ -267,7 +274,7 @@ def collect(now):
             print(f"::warning::couldn't read picks.json: {e}")
             summ = {}
         for o in summ.get("overlays") or []:
-            if o["edge_pct"] < MIN_VALUE or started(o.get("start", ""), now):
+            if o["edge_pct"] < MIN_VALUE or started(o.get("start", ""), now) or o["price"] > MAX_PRICE:
                 continue
             if o.get("model") and not o["model"].get("agree"):
                 print(f"skipped (Betfair's model disagrees): {o['pick']}")
@@ -417,7 +424,7 @@ def bet_of_day(now, state):
             try:   # graded by the bet log like every alert
                 old = load(os.path.join(OUT, "new_alerts.json"), [])
                 row = {**p["log"], "id": p["key"] + "|" + p["start"], "price": p["price"], "book": p["book"], "edge": p["edge"],
-                       "stake": stake(p["edge"], p["price"]), "sel": p["sel"], "game": p.get("game", ""), "lg": p.get("lg", ""),
+                       "stake": pstake(p), "sel": p["sel"], "game": p.get("game", ""), "lg": p.get("lg", ""),
                        "start": p["start"]}
                 with open(os.path.join(OUT, "new_alerts.json"), "w") as f:
                     json.dump(old + [row], f)
@@ -507,14 +514,14 @@ def main():
     if not new:
         print("value alerts: nothing new")
     else:
-        # one notification per bet, so each has its own Share to WhatsApp and Log bet buttons
+        # one notification per bet, so each has its own Open Discord and Log bet buttons
         top = new[:MAX_SINGLE]
         sent = []
         for p in top:
             lg = f" ({p['lg']})" if p.get("lg") else ""
             title = f"💰 +{p['edge']:.1f}% · {p['sel']}"
             lines = [f"{p['emoji']} {p['game']}{lg} · {tip(p['start'])}",
-                     f"${p['price']:.2f} at {p['book']} · {stake(p['edge'], p['price']):g}U · {p['sub']}"] + p.get("why", [])
+                     f"${p['price']:.2f} at {p['book']} · {pstake(p):g}U · {p['sub']}"] + p.get("why", [])
             acts = [{"action": "view", "label": "Log bet", "url": p["add"], "clear": False}] if p["add"] else []
             acts.append({"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False})
             if push(title, lines, click=SITE + "/odds.html", actions=acts):
@@ -529,7 +536,7 @@ def main():
                      (p.get("add") or SITE + "/odds.html"), alert_tier(p))
         if len(new) > len(top):   # the rest in one summary
             rest = new[len(top):]
-            lines = [f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U" for p in rest[:10]]
+            lines = [f"+{p['edge']:.1f}% {p['text']} · {pstake(p):g}U" for p in rest[:10]]
             if len(rest) > 10:
                 lines.append(f"+{len(rest) - 10} more on the odds tracker")
             if push(f"💰 {len(rest)} more value bets", lines, click=SITE + "/odds.html",
@@ -539,7 +546,7 @@ def main():
             state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
         # hand every sent bet to the bet log (bet_log.py scores it on closing price + result)
         rows = [{**p["log"], "id": p["key"] + "|" + p.get("start", ""), "price": p["price"], "book": p["book"],
-                 "edge": p["edge"], "stake": stake(p["edge"], p["price"]), "sel": p["sel"], "game": p.get("game", ""),
+                 "edge": p["edge"], "stake": pstake(p), "sel": p["sel"], "game": p.get("game", ""),
                  "lg": p.get("lg", ""), "start": p.get("start", ""),
                  # who got it in the app: props go to Daily card + VIP, game bets and racing to VIP only
                  "tier": alert_tier(p)}
@@ -565,7 +572,7 @@ def main():
         if allv:
             lines.append("Top value:")
             for p in allv[:3]:
-                lines.append(f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U")   # one line each: the write-ups went out in the bet's own alert
+                lines.append(f"+{p['edge']:.1f}% {p['text']} · {pstake(p):g}U")   # one line each: the write-ups went out in the bet's own alert
         try:
             _push(TOPIC, f"📊 Odds updated {when}", lines, click=SITE + "/odds.html", priority=3)
         except Exception as e:

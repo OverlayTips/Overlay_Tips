@@ -1,7 +1,7 @@
 name: NFL alerts
 
 # NFL injury designations + game-day inactives -> push to Jayden's phone (ntfy app), with a
-# "Share to WhatsApp" button on each alert. Runs ~3am-2pm Sydney time, which covers the US injury
+# "Open Discord" button on each alert. Runs ~3am-2pm Sydney time, which covers the US injury
 # reports and inactives (~90 min before every kick-off, Thursday to Monday US time). Each run checks
 # every 10 min for ~50 min. Uses BALLDONTLIE only (NFL GOAT plan, same NBA_STATS_KEY secret).
 # Also builds the NFL starting lineups + position map for the Overlay Wire page (scripts/nfl_lineups.py ->

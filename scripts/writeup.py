@@ -122,7 +122,7 @@ def writeup(it):
             if nba and it.get("start"):
                 _, day = _local_day(it["start"])
                 if (day - datetime.fromisoformat(g[0]).date()).days == 1:
-                    add("Tonight is the second night of a back-to-back" + (", which suits the Under." if under else "."))
+                    add("This is the second night of a back-to-back" + (", which suits the Under." if under else "."))
                     score -= sgn
         except ValueError:
             pass
@@ -223,7 +223,7 @@ def writeup(it):
         d = proj["min"] - proj["l10"]
         if d >= 2:
             rs = ("with teammates out" if "teammates out" in why else "as a starter" if "starting" in why else "")
-            add(f"He projects for about {_num(proj['min'])} minutes tonight, up from {_num(proj['l10'])} lately"
+            add(f"He projects for about {_num(proj['min'])} minutes, up from {_num(proj['l10'])} lately"
                        + (f" {rs}" if rs else "") + (", a worry for the Under." if under else "."))
             score += sgn
         elif d <= -2 and "blowout" not in why:

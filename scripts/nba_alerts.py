@@ -6,7 +6,7 @@ Each run:
   2. writes lineups.json for the website (lineups-data branch)
   3. compares them with what it saw last run (state.json on the alerts-state branch)
   4. sends ONE push with whatever changed: lineups that just got confirmed, and injury status changes
-     for players on teams playing today. Each push has a "Share to WhatsApp" button with the same text,
+     for players on teams playing today. Each push has an "Open Discord" button,
      ready to forward to the Overlay group.
 
 Env:
@@ -59,11 +59,10 @@ def push(title, lines, tags="basketball"):
     if not TOPIC:
         return
     body = "\n".join(lines)
-    wa = f"{title}\n\n{body}\n\n{FOOT}"
     msg = {"topic": TOPIC, "title": title, "message": body,
             "tags": tags.split(","),
-           "actions": [{"action": "view", "label": "Share to WhatsApp",
-                        "url": "https://wa.me/?text=" + urllib.parse.quote(wa[:3500]), "clear": False}]}
+           "actions": [{"action": "view", "label": "Open Discord",
+                        "url": "https://overlay.tips/discord.html", "clear": False}]}
     req = urllib.request.Request("https://ntfy.sh/", data=json.dumps(msg).encode(),
                                  headers={"Content-Type": "application/json"})
     try:
@@ -164,7 +163,7 @@ def main():
         print("::warning::Add the NTFY_TOPIC secret to start sending alerts")
     if os.environ.get("TEST") == "1" and TOPIC:
         push("Overlay alerts are working ✅", ["You'll get NBA confirmed lineups + injury news here.",
-                                               "Tap 'Share to WhatsApp' on any alert to forward it."])
+                                               "Tap 'Open Discord' on any alert to jump to the server."])
         print("test push sent"); return
     if not KEY:
         sys.exit("NBA_STATS_KEY not set")

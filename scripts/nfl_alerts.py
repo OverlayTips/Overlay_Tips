@@ -6,7 +6,7 @@ Runs on GitHub's servers during the Aussie morning/arvo (see .github/workflows/n
   2. compares them with last run (nfl_state.json on the nfl-alerts-state branch)
   3. sends ONE push with what changed for QBs, RBs, WRs and TEs in games that haven't kicked off:
      new or changed injury designations, players ruled inactive, and questionable/doubtful players
-     confirmed active. Each push has a "Share to WhatsApp" button with the same text.
+     confirmed active. Each push has an "Open Discord" button.
   4. for anyone out, doubtful or inactive, adds a "who benefits" line from the team's season usage
      (BALLDONTLIE season stats + depth chart): the backup QB, the next running back's carries, or the
      receivers in line for the targets he leaves behind.
