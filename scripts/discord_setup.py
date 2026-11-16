@@ -142,6 +142,15 @@ def post_or_update(channel_id, content):
     msgs = call("GET", f"/channels/{channel_id}/messages?limit=50") or []
     head = content.split("\n", 1)[0]   # the bot's message with the same first line
     mine = [m for m in msgs if (m.get("author") or {}).get("bot") and (m.get("content") or "").split("\n", 1)[0] == head]
+    for extra in mine[:-1]:   # duplicates of this post (newest first from the API): keep the oldest, delete the rest
+        call("DELETE", f"/channels/{channel_id}/messages/{extra['id']}")
+    for m in msgs:   # the "pinned a message" notices the bot's own pins leave behind
+        if m.get("type") == 6 and (m.get("author") or {}).get("bot"):
+            try:
+                call("DELETE", f"/channels/{channel_id}/messages/{m['id']}")
+            except RuntimeError:
+                pass
+    mine = mine[-1:]
     if mine:
         if mine[-1].get("content") != content:
             call("PATCH", f"/channels/{channel_id}/messages/{mine[-1]['id']}", {"content": content})
