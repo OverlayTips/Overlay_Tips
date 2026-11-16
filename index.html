@@ -52,6 +52,7 @@
 .wire-row b{color:#ecf5f1}
 .wire-row .k{display:inline-block;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:3px 8px;border-radius:6px;margin-right:8px;background:var(--gold);color:#1a1305}
 .wire-row .k.m{background:var(--mint);color:#04130b}
+.yday-tabs{display:flex;gap:4px;margin-top:14px;padding:4px;background:rgba(0,0,0,.3);border:1px solid #1b2523;border-radius:12px;width:max-content;max-width:100%}.yday-tabs button{border:0;background:none;color:#c9d6d0;font:800 13px Archivo,system-ui,sans-serif;padding:7px 12px;border-radius:9px;cursor:pointer}.yday-tabs button.on{background:#62f0a8;color:#04130b}.yday-tabs button[data-s=m].on{background:#efbe3b;color:#1a1204}
 .vip-lines{margin:22px 0 0}.vip-chart{position:relative}.vc-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:15px}.vc-key{font-size:12px;color:#87978f;font-weight:600}.vc-key i{display:inline-block;width:10px;height:3px;border-radius:2px;margin:0 4px 3px 8px;vertical-align:middle}.vip-line.vip-chart .vc-plot svg{display:block;width:100%;height:auto;margin-top:8px;touch-action:pan-y}.vc-plot text{fill:#87978f;font-size:11px}.vip-chart small.vc-tip{min-height:2.6em}.vip-line{display:block;margin:0 0 10px;padding:12px 16px;border:1px solid #1f3a2e;border-radius:14px;background:linear-gradient(180deg,#0f1a16,#0b110f);color:#ecf5f1;font-weight:700;font-size:17px;line-height:1.4;text-decoration:none;max-width:560px}
 .vip-line svg{display:block;width:100%;height:56px;margin-top:8px}.vip-line svg .z{stroke:#2a3633;stroke-dasharray:3 4}.vip-line svg .ln{fill:none;stroke:#62f0a8;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.vip-line svg .ar{fill:#62f0a8;opacity:.12}.vip-line svg.neg .ln{stroke:#ff6b6b}.vip-line svg.neg .ar{fill:#ff6b6b}.vip-line svg .pt{fill:#62f0a8;stroke:#0b110f;stroke-width:2}.vip-line svg.neg .pt{fill:#ff6b6b}
 .vip-line b{color:#62f0a8;font-weight:900}.vip-line b.neg{color:#ff6b6b}.vip-line small{display:block;color:#87978f;font-weight:500;font-size:13px;margin-top:2px}
@@ -218,12 +219,17 @@
     </div>
     <div class="yday reveal" id="yday" aria-live="polite">
       <div class="yday-top">
-        <div class="mono" id="ydayLabel">Yesterday's tracker results</div>
+        <div class="mono" id="ydayLabel">Yesterday's results</div>
         <span class="yday-date" id="ydayDate"></span>
+      </div>
+      <div class="yday-tabs" id="ydayTabs" role="tablist" aria-label="System">
+        <button type="button" role="tab" data-s="v" class="on" aria-selected="true">VIP</button><button type="button" role="tab" data-s="m" aria-selected="false">Founding &amp; Daily Card</button>
       </div>
       <div class="yday-u" id="ydayU"></div>
       <div class="yday-what" id="ydayWhat"></div>
+      <div class="yday-stats" id="ydayStats"></div>
       <ul class="yday-legs" id="ydayLegs"></ul>
+      <p class="yday-what" id="ydayMore" style="margin-top:8px" hidden></p>
       <div class="yday-foot">
         <a href="record.html">Full record →</a>
       </div>
@@ -511,23 +517,26 @@ function bySport(D){
 function yesterday(D){
   const today=new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Melbourne'});
   const yd=new Date(Date.parse(today+'T12:00:00Z')-864e5).toISOString().slice(0,10);
-  const units=D.units||[], legs=[];
-  for(let i=1;i<units.length;i++){ const [t,cum,sel,res]=units[i]; if(melDay(t)===yd && (res==='win'||res==='loss')) legs.push([sel,+(cum-units[i-1][1]).toFixed(2),res]); }
-  const clv=(D.clv_days||[]).filter(x=>melDay(x[0])===yd).map(x=>x[2]);
-  const day=new Date(yd+'T12:00:00Z');
-  $id('ydayDate').textContent=day.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
-  if(!legs.length && !clv.length){ $id('ydayU').textContent='–'; $id('ydayWhat').textContent='No alerts scored yesterday.'; $id('ydayLegs').remove(); return; }
-  const tot=legs.reduce((a,l)=>a+l[1],0), w=legs.filter(l=>l[2]==='win').length, ac=clv.length?clv.reduce((a,b)=>a+b,0)/clv.length:null;
-  const u=$id('ydayU'); u.textContent=legs.length?fmt(tot):pct(ac)+' CLV'; u.classList.toggle('neg',legs.length?tot<0:ac<0);
-  $id('ydayWhat').textContent=[legs.length?`${w}/${legs.length} graded bets won`:null, ac!=null?`${pct(ac)} avg CLV on ${clv.length} alerts`:null].filter(Boolean).join(' · ');
-  const st=document.createElement('div'); st.className='yday-stats';
-  st.innerHTML=[['Alerts',clv.length||legs.length],['Avg CLV',pct(ac)],['Strike',legs.length?w+'/'+legs.length:'–']].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('');
-  $id('ydayWhat').after(st);
-  const ul=$id('ydayLegs');
-  if(legs.length){ const sh=legs.slice(0,10);
+  $id('ydayDate').textContent=new Date(yd+'T12:00:00Z').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+  const sets={v:{units:D.units,clv:D.clv_days}, m:{units:(D.members||{}).units, clv:(D.members||{}).clv_days}};
+  const render=k=>{
+    const units=sets[k].units||[], legs=[];
+    for(let i=1;i<units.length;i++){ const [t,cum,sel,res]=units[i]; if(melDay(t)===yd && (res==='win'||res==='loss')) legs.push([sel,+(cum-units[i-1][1]).toFixed(2),res]); }
+    const clv=(sets[k].clv||[]).filter(x=>melDay(x[0])===yd).map(x=>x[2]);
+    const u=$id('ydayU'), ul=$id('ydayLegs'), more=$id('ydayMore'), st=$id('ydayStats');
+    if(!legs.length && !clv.length){ u.textContent='–'; u.classList.remove('neg'); $id('ydayWhat').textContent='No bets graded yesterday.'; st.innerHTML=''; ul.innerHTML=''; more.hidden=true; return; }
+    const tot=legs.reduce((a,l)=>a+l[1],0), w=legs.filter(l=>l[2]==='win').length, ac=clv.length?clv.reduce((a,b)=>a+b,0)/clv.length:null;
+    u.textContent=legs.length?fmt(tot):pct(ac)+' CLV'; u.classList.toggle('neg',legs.length?tot<0:ac<0);
+    $id('ydayWhat').textContent=[legs.length?`${w}/${legs.length} graded bets won`:null, ac!=null?`${pct(ac)} avg CLV on ${clv.length} alerts`:null].filter(Boolean).join(' · ');
+    st.innerHTML=[['Alerts',clv.length||legs.length],['Avg CLV',pct(ac)],['Strike',legs.length?w+'/'+legs.length:'–']].map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('');
+    const sh=legs.slice(0,10);
     ul.innerHTML=sh.map(([b,pl,r])=>`<li class="${r==='win'?'w':'l'}"><i>${r==='win'?'✓':'✗'}</i><span>${escH(b)}</span><em><b>${fmt(pl)}</b></em></li>`).join('');
-    if(legs.length>sh.length){ const m=document.createElement('p'); m.className='yday-what'; m.style.marginTop='8px'; m.innerHTML=`+ ${legs.length-sh.length} more graded bets on the <a href="record.html">full record</a>`; ul.after(m); } }
-  else ul.remove();
+    more.hidden=legs.length<=sh.length; more.innerHTML=`+ ${legs.length-sh.length} more graded bets on the <a href="record.html">full record</a>`;
+  };
+  const tabs=$id('ydayTabs').querySelectorAll('button');
+  if(!(D.members&&D.members.units)) $id('ydayTabs').hidden=true;
+  tabs.forEach(b=>b.addEventListener('click',()=>{ tabs.forEach(x=>{x.classList.toggle('on',x===b); x.setAttribute('aria-selected',x===b);}); render(b.dataset.s); }));
+  render('v');
 }
 
 function results(D){
@@ -559,7 +568,7 @@ fetch(REC+'?t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; retur
   for(const f of [hero,ticker,bySport,yesterday,results]){ try{ f(D); }catch(e){ console.error(e); } }
 }).catch(()=>{
   $id('heroSub').textContent='The record fills in as alerts are scored.'; heroCurve([]); $id('ticker').parentElement.hidden=true;
-  bySport({groups:[]}); $id('ydayWhat').textContent='Results show up here once alerts are scored.'; $id('ydayLegs').remove();
+  bySport({groups:[]}); $id('ydayWhat').textContent='Results show up here once alerts are scored.'; $id('ydayTabs').hidden=true;
   $id('resultsTable').innerHTML='<div class="row"><div class="what">Couldn\'t load the tracker record. <a href="record.html">Open the full record →</a></div></div>';
 });
 
