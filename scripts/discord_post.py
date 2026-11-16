@@ -61,8 +61,12 @@ def send(channel, title, lines, url=None):
             print(f"::warning::discord: no #{channel} channel (run the Discord setup workflow)")
             return False
         body = "\n".join(l for l in lines if l is not None)
-        text = f"**{title}**\n{body}" + (f"\n<{url}>" if url else "") + f"\n{FOOT}"
-        _call("POST", f"/channels/{cid}/messages", {"content": text[:1990], "allowed_mentions": {"parse": []}})
+        head, tail = f"**{title}**\n", (f"\n<{url}>" if url else "") + f"\n{FOOT}"
+        room = 1990 - len(head) - len(tail)
+        if len(body) > room:   # Discord caps a message at 2000: cut at a line break so the link + footer always fit
+            cut = body[:room - 2]
+            body = (cut[:cut.rfind("\n")] if "\n" in cut else cut).rstrip() + "\n…"
+        _call("POST", f"/channels/{cid}/messages", {"content": head + body + tail, "allowed_mentions": {"parse": []}})
         return True
     except Exception as e:
         print(f"::warning::discord post to #{channel} failed: {type(e).__name__} {e}")
