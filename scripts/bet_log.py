@@ -287,7 +287,12 @@ def write_public(log, now):
                 mpts.append([b["start"], 0, "Start", ""])
             mu += ((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1)
             mpts.append([b["start"], round(mu, 2), b.get("sel", ""), b["result"]])
-    members = {"since": mem[0]["start"] if mem else None,
+    mclv, mt, mc = [], 0.0, 0
+    for b in mem:
+        if b.get("clv") is not None:
+            mt, mc = mt + b["clv"], mc + 1
+            mclv.append([b["start"], round(mt / mc, 2), round(b["clv"], 2), mc])
+    members = {"since": mem[0]["start"] if mem else None, "clv_days": mclv,
                "periods": {"7d": summarise([b for b in mem if _parse(b["start"]) > now - timedelta(days=7)]),
                            "30d": summarise([b for b in mem if _parse(b["start"]) > now - timedelta(days=30)]),
                            "all": summarise(mem)},
