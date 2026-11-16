@@ -115,7 +115,7 @@
         <div class="vip-line vip-chart" id="betChart" hidden>
           <div class="vc-head"><span>Every bet, both systems</span><span class="vc-key"><i style="background:#62f0a8"></i>VIP <i style="background:#efbe3b"></i>Founding &amp; Daily Card</span></div>
           <div class="vc-plot"></div>
-          <small class="vc-tip">Tap the chart to see each bet. <span style="color:#62f0a8">●</span> won <span style="color:#ff6b6b">●</span> lost</small>
+          <small class="vc-tip">Tap any dot to see that bet. <span style="color:#62f0a8">●</span> won <span style="color:#ff6b6b">●</span> lost</small>
         </div>
       </div>
       <a href="giveaway.html" class="live" style="margin-bottom:14px;display:inline-flex">Giveaway: refer a mate, you both get $50 →</a>
@@ -432,7 +432,10 @@ function hero(D){
     const raw=(hi-lo)/4, mag=Math.pow(10,Math.floor(Math.log10(raw))), stp=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw);
     let g=''; for(let v=Math.ceil(lo/stp)*stp; v<=hi; v+=stp){ v=+v.toFixed(6); g+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v===0?'#3a4743':'#18211f'}"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end">${v>0?'+':''}${v}U</text>`; }
     const path=ps=>ps.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ');
-    const dots=(ps,stroke)=>ps.map(p=>p[3]==='win'||p[3]==='loss'?`<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="2.6" fill="${p[3]==='win'?'#62f0a8':'#ff6b6b'}" stroke="${stroke}" stroke-width="1"/>`:'').join('');
+    const dots=(ps,stroke)=>ps.map(p=>p[3]==='win'||p[3]==='loss'?`<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3" fill="${p[3]==='win'?'#62f0a8':'#ff6b6b'}" stroke="${stroke}" stroke-width="1"/>`:'').join('');
+    const RC={}; (D.recent||[]).forEach(b=>{ RC[b.start+'|'+b.sel]=b; });
+    // every dot as a tappable target: [x, y, series, index in series]
+    const targets=[]; ap.forEach((p,k)=>{ if(k) targets.push([X(p[0]),Y(p[1]),'v',k]); }); mp.forEach((p,k)=>{ if(k) targets.push([X(p[0]),Y(p[1]),'m',k]); });
     const xl=`<text x="${L}" y="${H-5}">${dShort(A[1][0])}</text><text x="${W-R}" y="${H-5}" text-anchor="end">${dShort(A[n][0])} · ${n} bets</text>`;
     const el=$id('betChart'), box=el.querySelector('.vc-plot');
     box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running profit after every bet: VIP ${fmt(A[n][1])}, Founding and Daily Card ${fmt(mp[mp.length-1][1])}">${g}${xl}
@@ -440,16 +443,28 @@ function hero(D){
       <path d="${path(mp)}" fill="none" stroke="#efbe3b" stroke-width="2" stroke-linejoin="round"/>
       ${dots(ap,'#0b110f')}${dots(mp,'#3a2f0a')}
       <line id="vcx" y1="${T}" y2="${H-B}" stroke="#5b6b65" visibility="hidden"/>
-      <rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" id="vchit"/></svg>`;
+      <circle id="vcring" r="7" fill="none" stroke="#ecf5f1" stroke-width="2" visibility="hidden"/>
+      <rect x="0" y="0" width="${W}" height="${H}" fill="transparent" id="vchit" style="cursor:pointer"/></svg>`;
     el.hidden=false;
     const svg=box.querySelector('svg'), tip=el.querySelector('.vc-tip'), def=tip.innerHTML;
-    const show=e=>{ const r=svg.getBoundingClientRect(), cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
-      const i=Math.max(1,Math.min(n,Math.round(((cx*W/r.width)-L)/(W-L-R)*n))), b=ap[i];
-      let m=mp[0]; for(const p of mp){ if(p[0]<=i) m=p; else break; }
-      const ln=svg.getElementById('vcx'); ln.setAttribute('x1',X(i)); ln.setAttribute('x2',X(i)); ln.setAttribute('visibility','visible');
-      tip.innerHTML=`<span style="color:${b[3]==='win'?'#62f0a8':'#ff6b6b'}">${b[3]==='win'?'✓':'✗'}</span> ${escH(b[2])} · ${dShort(A[i][0])}<br>VIP <b>${fmt(b[1])}</b> · Founding &amp; Daily Card <b style="color:#efbe3b">${fmt(m[1])}</b>`; };
-    const hit=svg.getElementById('vchit'); hit.addEventListener('mousemove',show); hit.addEventListener('touchstart',show,{passive:true}); hit.addEventListener('touchmove',show,{passive:true});
-    hit.addEventListener('mouseleave',()=>{ svg.getElementById('vcx').setAttribute('visibility','hidden'); tip.innerHTML=def; });
+    let picked=null;
+    const pick=(e,sticky)=>{ const r=svg.getBoundingClientRect(), pt=e.changedTouches?e.changedTouches[0]:e;
+      const vx=(pt.clientX-r.left)*W/r.width, vy=(pt.clientY-r.top)*H/r.height;
+      let best=null,bd=1e9; for(const t of targets){ const d=(t[0]-vx)**2+(t[1]-vy)**2; if(d<bd){bd=d;best=t;} }
+      if(!best||bd>(sticky?900:400)) return;
+      if(sticky) picked=best;
+      const [cx,cy,ser,k]=best, ps=ser==='v'?ap:mp, p=ps[k], pl=+(p[1]-ps[k-1][1]).toFixed(2), i=p[0], a0=A[i], b=RC[a0[0]+'|'+a0[2]]||{};
+      let m=mp[0]; for(const q of mp){ if(q[0]<=i) m=q; else break; }
+      const ring=svg.getElementById('vcring'); ring.setAttribute('cx',cx); ring.setAttribute('cy',cy); ring.setAttribute('visibility','visible');
+      const ln=svg.getElementById('vcx'); ln.setAttribute('x1',cx); ln.setAttribute('x2',cx); ln.setAttribute('visibility','visible');
+      const won=p[3]==='win', when=new Date(a0[0]).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'Australia/Melbourne'});
+      tip.innerHTML=`<b style="color:${won?'#62f0a8':'#ff6b6b'}">${won?'✓ Won':'✗ Lost'} ${fmt(pl)}</b> · ${escH(p[2])}`+
+        `<br>${b.game?escH(b.game)+' · ':''}${when}${b.price?` · $${Number(b.price).toFixed(2)} ${escH(b.book||'')}`:''}${b.stake?` · ${b.stake}U`:''}${b.clv!=null?` · CLV ${pct(b.clv)}`:''}`+
+        `<br>After this bet: VIP <b>${fmt(ap[i][1])}</b> · Founding &amp; Daily Card <b style="color:#efbe3b">${fmt(m[1])}</b>`+(ser==='m'?'':(mp.some(q=>q[0]===i)?'':' <span style="color:#87978f">(VIP only)</span>')); };
+    const hit=svg.getElementById('vchit');
+    hit.addEventListener('click',e=>pick(e,true));
+    hit.addEventListener('mousemove',e=>{ if(!picked) pick(e,false); });
+    hit.addEventListener('mouseleave',()=>{ if(picked) return; for(const id of ['vcx','vcring']) svg.getElementById(id).setAttribute('visibility','hidden'); tip.innerHTML=def; });
   };
   try{ betChart(); }catch(e){ console.error(e); }
   const ndays=since=>{const d0=new Date(melDay(since)+'T00:00:00Z'), d1=new Date(melDay(new Date().toISOString())+'T00:00:00Z');
