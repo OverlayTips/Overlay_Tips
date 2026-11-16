@@ -57,13 +57,14 @@ def alert_tier(p):
     return ("founder" if founder_ok(p) else "core") if prop else "vip"
 
 
-def app_push(cat, title, lines, url, min_tier):
+def app_push(cat, title, lines, url, min_tier, full=None):
     """Members' app alerts (web push, scripts/web_push.py), next to the ntfy channels, plus the matching
-    Discord channel (scripts/discord_post.py). Never fails the caller."""
+    Discord channel (scripts/discord_post.py). Discord gets `full` (the whole write-up) when given, since
+    push notifications are short. Never fails the caller."""
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import discord_post
-        discord_post.alert(cat, title, lines, url, min_tier)
+        discord_post.alert(cat, title, full or lines, url, min_tier)
     except Exception as e:
         print(f"::warning::discord post failed: {e}")
     try:
@@ -533,7 +534,8 @@ def main():
                 cat = "games"
             why = (p.get("why") or [""])[0].split("\n\n")
             app_push(cat, title, lines[:2] + [w for w in why if w.startswith(("📈", "✅", "🤖"))][:2] or lines[:3],
-                     (p.get("add") or SITE + "/odds.html"), alert_tier(p))
+                     (p.get("add") or SITE + "/odds.html"), alert_tier(p),
+                     full=lines[:2] + [w for w in why if w.strip()])   # Discord: every section (form, matchup, role, game, price, verdict)
         if len(new) > len(top):   # the rest in one summary
             rest = new[len(top):]
             lines = [f"+{p['edge']:.1f}% {p['text']} · {pstake(p):g}U" for p in rest[:10]]
