@@ -100,7 +100,7 @@ def membership_post():
 **⭐ Founding member · FREE for life** (first 500 only)
 • Bet of the day + racing top picks
 • #founder-picks: the props where the matchup is good and the verdict is one we like
-• Every tip in the WhatsApp group
+• Every tip in the Discord
 • Overlay Wire, Hot stats and the bet tracker
 
 **🃏 Daily Card · {line("core-month", "core-week")}**
