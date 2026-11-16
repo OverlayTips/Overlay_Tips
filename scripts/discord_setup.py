@@ -63,6 +63,8 @@ Price signals, not sure things. 18+ only. Only bet what you can afford to lose.
 Gambling Help Online 1800 858 858 · <https://www.betstop.gov.au>"""
 
 
+BOT_NICK = "Overlay Tips"
+
 RULES = """**📜 Server rules**
 1. **18+ only.** Under 18 = removed.
 2. **Respect everyone.** No racism, sexism, homophobia, slurs or hate of any kind, including jokes.
@@ -238,6 +240,11 @@ def main():
                 chans.append(ch)
             print("  #" + name + (" (read-only)" if ro else ""))
 
+    try:   # the bot shows as "Overlay Tips" in the server (its account name stays "Overlay Tips Bot")
+        call("PATCH", f"/guilds/{GUILD}/members/@me", {"nick": BOT_NICK})
+        print("bot name:", BOT_NICK)
+    except Exception as e:
+        print(f"::warning::couldn't set the bot's name: {e}")
     start = find(TEXT, ["start-here"])
     if start:
         print("welcome:", post_or_update(start["id"], WELCOME))
