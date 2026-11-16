@@ -75,8 +75,8 @@ def membership_post():
         p = plans.get(key)
         if not p or p.get("amount") is None:
             return None
-        amt = p["amount"] / 100
-        return f"${amt:,.2f}".replace(".00", "") + f"/{p.get('interval', '')}"
+        amt = float(p["amount"])   # already in dollars (same as membership.html)
+        return (f"${amt:,.2f}" if amt % 1 else f"${amt:,.0f}") + f"/{p.get('interval', '')}"
 
     def line(m, w):
         a, b = price(m), price(w)
