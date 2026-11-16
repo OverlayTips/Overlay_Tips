@@ -70,6 +70,9 @@ def send(channel, title, lines, url=None):
 
 
 def alert(cat, title, lines, url, min_tier):
+    if min_tier == "founder" and cat not in ("botd", "racing"):   # best-backed props: founders' channel + the usual one
+        send("founder-picks", title, lines, url)
+        return send(channel_for(cat, "core"), title, lines, url)
     return send(channel_for(cat, min_tier), title, lines, url)
 
 

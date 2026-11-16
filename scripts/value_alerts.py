@@ -34,6 +34,27 @@ MAX_SINGLE = 10**6   # no limit: every new value bet gets its own notification
 BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U to 3U
 
 
+GOOD_MATCHUP = ("matchup is on his side", "matchup is on the Under's side", "a good matchup for him", "which suits the Under")
+LIKED_VERDICT = ("is one we like", "looks the right side of this line")
+
+
+def founder_ok(p):
+    """Founding members get the props where the write-up says the matchup is good AND the verdict is one we like."""
+    secs = {}
+    for para in ((p.get("why") or [""])[0] or "").split("\n\n"):
+        k = para.split(":", 1)[0]
+        for name in ("Matchup", "Verdict"):
+            if k.endswith(name):
+                secs[name] = para
+    return any(x in secs.get("Matchup", "") for x in GOOD_MATCHUP) and any(x in secs.get("Verdict", "") for x in LIKED_VERDICT)
+
+
+def alert_tier(p):
+    """Who gets this alert in the app / Discord: founder (best-backed props) < core (all props) < vip (everything)."""
+    prop = bool((p.get("log") or {}).get("desc")) and p.get("emoji") not in ("🏇", "🐕")
+    return ("founder" if founder_ok(p) else "core") if prop else "vip"
+
+
 def app_push(cat, title, lines, url, min_tier):
     """Members' app alerts (web push, scripts/web_push.py), next to the ntfy channels, plus the matching
     Discord channel (scripts/discord_post.py). Never fails the caller."""
@@ -505,7 +526,7 @@ def main():
                 cat = "games"
             why = (p.get("why") or [""])[0].split("\n\n")
             app_push(cat, title, lines[:2] + [w for w in why if w.startswith(("📈", "✅", "🤖"))][:2] or lines[:3],
-                     (p.get("add") or SITE + "/odds.html"), "core" if prop and cat != "racing" else "vip")
+                     (p.get("add") or SITE + "/odds.html"), alert_tier(p))
         if len(new) > len(top):   # the rest in one summary
             rest = new[len(top):]
             lines = [f"+{p['edge']:.1f}% {p['text']} · {stake(p['edge'], p['price']):g}U" for p in rest[:10]]
@@ -521,7 +542,7 @@ def main():
                  "edge": p["edge"], "stake": stake(p["edge"], p["price"]), "sel": p["sel"], "game": p.get("game", ""),
                  "lg": p.get("lg", ""), "start": p.get("start", ""),
                  # who got it in the app: props go to Daily card + VIP, game bets and racing to VIP only
-                 "tier": "core" if (p.get("log") or {}).get("desc") and p.get("emoji") not in ("🏇", "🐕") else "vip"}
+                 "tier": alert_tier(p)}
                 for p in sent if p.get("log") and p.get("start")]
         try:
             old = load(os.path.join(OUT, "new_alerts.json"), [])

@@ -30,6 +30,9 @@ LAYOUT = [
         ("bet-of-the-day", True, ["best-bet-of-day", "meeting-plans"]),
         ("racing-top-picks", True, []),
     ]),
+    ("FOUNDERS", ["Founder", "Daily Card", "VIP"], [
+        ("founder-picks", True, []),
+    ]),
     ("DAILY CARD", ["Daily Card", "VIP"], [
         ("nba-props", True, []),
         ("nbl-props", True, []),
@@ -48,7 +51,7 @@ DELETE = {"off-topic", "meeting-room", "Meeting Room", "free"}   # "free" channe
 WELCOME = """**Welcome to Overlay Tips 🏇🏀**
 We find bookie prices that beat the fair odds and post every bet, wins and losses, tracked live on <https://overlay.tips/record.html>.
 
-**Founder (free):** bet of the day + racing top picks
+**Founder (free):** bet of the day, racing top picks + #founder-picks: the props with a good matchup and a verdict we like
 **Daily Card:** every player prop alert (NBA, NBL, NFL)
 **VIP:** everything, plus game bets, racing value, arbs and steamers
 
@@ -85,6 +88,7 @@ def membership_post():
 
 **⭐ Founding member · FREE for life** (first 500 only)
 • Bet of the day + racing top picks
+• #founder-picks: the props where the matchup is good and the verdict is one we like
 • Every tip in the WhatsApp group
 • Overlay Wire, Hot stats and the bet tracker
 
@@ -200,14 +204,7 @@ def main():
 
     start = find(TEXT, ["start-here"])
     if start:
-        msgs = call("GET", f"/channels/{start['id']}/messages?limit=20") or []
-        if not any((m.get("author") or {}).get("bot") for m in msgs):
-            m = call("POST", f"/channels/{start['id']}/messages", {"content": WELCOME})
-            try:
-                call("PUT", f"/channels/{start['id']}/pins/{m['id']}")
-            except RuntimeError:
-                pass
-            print("welcome posted")
+        print("welcome:", post_or_update(start["id"], WELCOME))
     mem = find(TEXT, ["membership"])
     if mem:
         print("membership:", post_or_update(mem["id"], membership_post()))
