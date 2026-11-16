@@ -53,6 +53,7 @@
 .wire-row .k{display:inline-block;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:3px 8px;border-radius:6px;margin-right:8px;background:var(--gold);color:#1a1305}
 .wire-row .k.m{background:var(--mint);color:#04130b}
 .vip-line{display:block;margin:4px 0 10px;padding:12px 16px;border:1px solid #1f3a2e;border-radius:14px;background:linear-gradient(180deg,#0f1a16,#0b110f);color:#ecf5f1;font-weight:700;font-size:17px;line-height:1.4;text-decoration:none;max-width:560px}
+.vip-line svg{display:block;width:100%;height:56px;margin-top:8px}.vip-line svg .z{stroke:#2a3633;stroke-dasharray:3 4}.vip-line svg .ln{fill:none;stroke:#62f0a8;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}.vip-line svg .ar{fill:#62f0a8;opacity:.12}.vip-line svg.neg .ln{stroke:#ff6b6b}.vip-line svg.neg .ar{fill:#ff6b6b}.vip-line svg .pt{fill:#62f0a8;stroke:#0b110f;stroke-width:2}.vip-line svg.neg .pt{fill:#ff6b6b}
 .vip-line b{color:#62f0a8;font-weight:900}.vip-line b.neg{color:#ff6b6b}.vip-line small{display:block;color:#87978f;font-weight:500;font-size:13px;margin-top:2px}
 </style>
 <script src="nav.js?v=9"></script>
@@ -408,17 +409,22 @@ function countUp(target){
 
 function hero(D){
   const a=D.periods.all;
+  const spark=(u,label)=>{ const pts=(u||[]).map(x=>x[1]); if(pts.length<2) return '';
+    const W=500,H=56,p=4, lo=Math.min(0,...pts), hi=Math.max(0,...pts), rg=(hi-lo)||1;
+    const X=i=>p+i*(W-2*p)/(pts.length-1), Y=v=>H-p-(v-lo)/rg*(H-2*p), last=pts[pts.length-1];
+    const d=pts.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+    return `<svg class="${last<0?'neg':''}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${label} running profit: ${fmt(last)}"><line class="z" x1="${p}" x2="${W-p}" y1="${Y(0)}" y2="${Y(0)}" vector-effect="non-scaling-stroke"/><path class="ar" d="${d} L${X(pts.length-1)} ${Y(0)} L${X(0)} ${Y(0)} Z"/><path class="ln" d="${d}" vector-effect="non-scaling-stroke"/></svg>`; };
   const ndays=since=>{const d0=new Date(melDay(since)+'T00:00:00Z'), d1=new Date(melDay(new Date().toISOString())+'T00:00:00Z');
     const n=Math.max(1,Math.round((d1-d0)/864e5)+1); return `${n} day${n>1?'s':''}`;};
   if(D.since && a.w+a.l){
     const v=$id('vipLine');
-    v.innerHTML=`Our VIP system has generated <b class="${a.units<0?'neg':''}">${fmt(a.units)}</b> through <b>${ndays(D.since)}</b><small>${a.w}-${a.l} graded · ${pct(a.clv)} avg CLV · every alert tracked →</small>`;
+    v.innerHTML=`Our VIP system has generated <b class="${a.units<0?'neg':''}">${fmt(a.units)}</b> through <b>${ndays(D.since)}</b><small>${a.w}-${a.l} graded · ${pct(a.clv)} avg CLV · every alert tracked →</small>${spark(D.units,'VIP system')}`;
     v.hidden=false;
   }
   const m=D.members, ma=m&&m.periods&&m.periods.all;
   if(ma && m.since && ma.w+ma.l){
     const v=$id('memLine');
-    v.innerHTML=`Our Founding Members &amp; Daily Card has generated <b class="${ma.units<0?'neg':''}">${fmt(ma.units)}</b> through <b>${ndays(m.since)}</b><small>${ma.w}-${ma.l} graded · only the bets posted to those members · join →</small>`;
+    v.innerHTML=`Our Founding Members &amp; Daily Card has generated <b class="${ma.units<0?'neg':''}">${fmt(ma.units)}</b> through <b>${ndays(m.since)}</b><small>${ma.w}-${ma.l} graded · only the bets posted to those members · join →</small>${spark(m.units,'Founding Members and Daily Card')}`;
     v.hidden=false;
   }
   if(a.clv!=null) countUp(a.clv);
