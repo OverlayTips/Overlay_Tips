@@ -4,7 +4,7 @@ Reads, from the odds-data folder the odds workflow just wrote:
   hot.json    -> "value" list (NBA, NBL and NFL player props priced above the market-led fair price)
   picks.json  -> overlays (encrypted with ODDS_ALERTS_KEY)
 Remembers what it already sent in alerted.json (kept on the odds-data branch), so each pick alerts once.
-A pick alerts again only if its edge has grown by 3+ points or the price got better.
+A pick alerts again only if its edge has grown by 3+ points or the price is up by 5c+ (marked "⬆️ Better price").
 
 Env: NTFY_TOPIC (required to send), ODDS_ALERTS_KEY (optional, for overlays), OUT (default odds-data),
      TEST=1 sends a test push and exits.
@@ -20,6 +20,7 @@ SYD = ZoneInfo("Australia/Sydney")
 SITE = "https://overlay.tips"
 FOOT = "Overlay Tips | 18+ Gamble responsibly"
 MIN_VALUE = 4.0      # % edge needed to alert
+REALERT_PRICE = 0.05   # same pick alerts again only when the price is up this much (or the edge is up 3+ points)
 MAX_PRICE = float(os.environ.get("MAX_PRICE", "2.0"))   # sports bets over this price never alert (racing exempt)
 DISCORD = SITE + "/discord.html"
 MIN_FORM = float(os.environ.get("MIN_FORM", "0.6"))   # player props: he must have landed this side in 60%+ of his last 10
@@ -509,8 +510,9 @@ def main():
             continue
         old = state.get(p["key"])
         cleared = "⚠️" in old.get("tag", "") if old else False   # was questionable, now isn't
-        if old and p["edge"] < old["edge"] + 3 and p["price"] <= old["price"] and not (cleared and "⚠️" not in p["tag"]):
+        if old and p["edge"] < old["edge"] + 3 and p["price"] < old["price"] + REALERT_PRICE and not (cleared and "⚠️" not in p["tag"]):
             continue
+        p["again"] = bool(old)
         new.append(p)
     if not new:
         print("value alerts: nothing new")
@@ -520,7 +522,7 @@ def main():
         sent = []
         for p in top:
             lg = f" ({p['lg']})" if p.get("lg") else ""
-            title = f"💰 +{p['edge']:.1f}% · {p['sel']}"
+            title = ("⬆️ Better price · " if p.get("again") else "💰 ") + f"+{p['edge']:.1f}% · {p['sel']}"
             lines = [f"{p['emoji']} {p['game']}{lg} · {tip(p['start'])}",
                      f"${p['price']:.2f} at {p['book']} · {pstake(p):g}U · {p['sub']}"] + p.get("why", [])
             acts = [{"action": "view", "label": "Log bet", "url": p["add"], "clear": False}] if p["add"] else []
