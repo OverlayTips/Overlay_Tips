@@ -51,7 +51,7 @@ def channel_for(cat, min_tier):
     return "other-props" if min_tier == "core" else "game-bets"
 
 
-def send(channel, title, lines, url=None):
+def send(channel, title, lines, url=None, foot=FOOT):
     """Post one message. Returns True if it went."""
     if not enabled():
         return False
@@ -61,7 +61,7 @@ def send(channel, title, lines, url=None):
             print(f"::warning::discord: no #{channel} channel (run the Discord setup workflow)")
             return False
         body = "\n".join(l for l in lines if l is not None)
-        head, tail = f"**{title}**\n", (f"\n<{url}>" if url else "") + f"\n{FOOT}"
+        head, tail = f"**{title}**\n", (f"\n<{url}>" if url else "") + (f"\n{foot}" if foot else "")
         room = 1990 - len(head) - len(tail)
         if len(body) > room:   # Discord caps a message at 2000: cut at a line break so the link + footer always fit
             cut = body[:room - 2]
@@ -70,6 +70,19 @@ def send(channel, title, lines, url=None):
         return True
     except Exception as e:
         print(f"::warning::discord post to #{channel} failed: {type(e).__name__} {e}")
+        return False
+
+
+def posted(channel, needle, limit=50):
+    """True if one of the channel's last `limit` messages contains `needle` (to avoid double posts)."""
+    if not enabled():
+        return False
+    try:
+        cid = _channel(channel)
+        return bool(cid) and any(needle in (m.get("content") or "")
+                                 for m in _call("GET", f"/channels/{cid}/messages?limit={limit}") or [])
+    except Exception as e:
+        print(f"::warning::discord: couldn't read #{channel}: {type(e).__name__} {e}")
         return False
 
 

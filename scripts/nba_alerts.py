@@ -8,11 +8,13 @@ Each run:
   4. sends ONE push with whatever changed: lineups that just got confirmed, and injury status changes
      for players on teams playing today. Each push has an "Open Discord" button,
      ready to forward to the Overlay group.
+  5. posts the same news to #nba-lineups in the Discord (confirmed starters with positions, then injuries)
 
 Env:
   NBA_STATS_KEY   BALLDONTLIE key (secret, never printed)
   NTFY_TOPIC      ntfy topic name (secret: anyone who knows it can read/post to it)
   STATE           path to state.json (read + rewritten)
+  DISCORD_BOT_TOKEN, DISCORD_GUILD_ID   optional: post to #nba-lineups too
   TEST=1          send a test push and exit
 Usage: python scripts/nba_alerts.py
 """
@@ -158,6 +160,27 @@ def write_players():
                   open(path, "w"), separators=(",", ":"))
 
 
+DISC_FOOT = "-# Overlay Wire · 18+ · Gamble responsibly · 1800 858 858"
+
+
+def discord_post(lineups, injuries):
+    """#nba-lineups: one message for confirmed starters, one for injury news (keeps each under Discord's 2000 cap)."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import discord_post as dp
+        if not dp.enabled():
+            return
+        url = "https://overlay.tips/lineups.html"
+        if lineups:
+            title = "🏀 NBA confirmed starters" + (f": {lineups[0].split('**')[1]}" if len(lineups) == 1 else "")
+            for i in range(0, len(lineups), 6):   # ~6 teams per message
+                dp.send("nba-lineups", title, ("\n\n" if len(lineups) > 1 else "\n").join(lineups[i:i + 6]).split("\n"), url, DISC_FOOT)
+        if injuries:
+            dp.send("nba-lineups", "🚑 NBA injury update", injuries, url, DISC_FOOT)
+    except Exception as e:
+        print(f"::warning::discord lineups post failed: {e}")
+
+
 def main():
     if not TOPIC:   # phone alerts not set up: still build the website's lineups page
         print("::warning::Add the NTFY_TOPIC secret to start sending alerts")
@@ -193,7 +216,7 @@ def main():
 
     # ---- confirmed lineups ----
     sent = state.get("lineups", {}) if state.get("day") == day else {}
-    lineup_lines, pretip = [], False
+    lineup_lines, disc_lineups, pretip = [], [], False
     if games:
         for lu in all_lineups:
             if lu.get("status") != "confirmed":
@@ -207,6 +230,9 @@ def main():
             head = f"{teams.get(tid, '?')} {opp.get(tid, '')}".strip() + (f" ({tip[tid]})" if tip.get(tid) else "")
             change = " (CHANGED)" if k in sent else ""
             lineup_lines.append(f"✅ {head}{change}: {', '.join(names)}")
+            starters = [pname(x.get("player") or {}) + (f" ({pos})" if (pos := x.get("position") or (x.get("player") or {}).get("position")) else "")
+                        for x in lu.get("lineup") or []]
+            disc_lineups.append(f"✅ **{head}**{' ⚠️ CHANGED' if change else ''}\n" + " · ".join(starters))
             sent[k] = sig
             t0 = tipdt.get(tid)
             if t0 and timedelta(0) < t0 - datetime.now(timezone.utc) <= timedelta(minutes=REFRESH_BEFORE):
@@ -251,6 +277,7 @@ def main():
             web_push.send("news", "🏀 " + title, [l for l in body if l][:8], "https://overlay.tips/lineups.html", "core")
         except Exception as e:
             print(f"::warning::app push failed: {e}")
+        discord_post(disc_lineups, inj_lines)
 
     write_site(day, games, all_lineups, new)
     try:
