@@ -12,7 +12,7 @@ Runs on GitHub's servers during the Aussie morning/arvo (see .github/workflows/n
      receivers in line for the targets he leaves behind.
 The first run only records what's there (no flood of old news).
 
-Env: NBA_STATS_KEY (BALLDONTLIE key), NTFY_TOPIC, STATE (path to nfl_state.json), TEST=1 (test push)
+Env: NBA_STATS_KEY (BALLDONTLIE key), NTFY_TOPIC, DISCORD_BOT_TOKEN + DISCORD_GUILD_ID (#nfl-lineups), STATE (path to nfl_state.json), TEST=1 (test push)
 """
 import json, os, re, sys
 from datetime import datetime, timedelta, timezone
@@ -170,6 +170,12 @@ def main():
             web_push.send("news", f"🏈 NFL injury news ({n})", [l for l in out[:-1] if l][:8], "https://overlay.tips/live.html", "core")
         except Exception as e:
             print(f"::warning::app push failed: {e}")
+        try:   # Discord: same news into #nfl-lineups
+            import discord_post as dp
+            dp.send("nfl-lineups", f"🚑 NFL injury news ({n})", out[:-1], "https://overlay.tips/lineups.html",
+                    "-# Overlay Wire · 18+ · Gamble responsibly · 1800 858 858")
+        except Exception as e:
+            print(f"::warning::discord post failed: {e}")
         print(f"pushed {n} updates")
     else:
         print("no changes" if state is not None else f"first run: recorded {len(cur)} designations")

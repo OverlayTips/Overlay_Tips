@@ -73,7 +73,7 @@ def send(channel, title, lines, url=None, foot=FOOT):
         return False
 
 
-def posted(channel, needle, limit=50):
+def posted(channel, needle, limit=100):
     """True if one of the channel's last `limit` messages contains `needle` (to avoid double posts)."""
     if not enabled():
         return False

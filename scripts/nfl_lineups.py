@@ -6,10 +6,13 @@ from BALLDONTLIE's depth charts (/teams/<id>/roster), then fixes it up with the 
   - once the team's game-day actives/inactives are out (~90 min before kick-off) or BALLDONTLIE flags
     starters, the team flips from "projected" to "confirmed"
 Writes st/nfl_lineups.json (published to the nfl-lineups-data branch by .github/workflows/nfl-alerts.yml).
+When a team's lineup is confirmed (or a confirmed lineup changes), posts it to #nfl-lineups in the Discord.
+No state file: each post carries a short lineup code and the channel is checked for it first.
 
-Env: NBA_STATS_KEY (BALLDONTLIE NFL GOAT key), OUT (default st/nfl_lineups.json)
+Env: NBA_STATS_KEY (BALLDONTLIE NFL GOAT key), OUT (default st/nfl_lineups.json),
+     DISCORD_BOT_TOKEN + DISCORD_GUILD_ID (optional, for #nfl-lineups)
 """
-import json, os, sys
+import hashlib, json, os, sys
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -94,6 +97,62 @@ def build(roster, des_by_pid, gone):
     return {"off": off, "def": de, "st": [p for k in ST for p in [pick(k)] if p]}
 
 
+SKILL = ["QB", "RB", "FB", "WR", "TE"]
+FOOT = "-# Overlay Wire · 18+ · Gamble responsibly · 1800 858 858"
+
+
+def _who(p):
+    return p["n"] + (f" ({p['inj']})" if p.get("inj") else "")
+
+
+def discord_lineups(games):
+    """#nfl-lineups: one post per team when its lineup is confirmed, and again if the confirmed lineup changes."""
+    try:
+        import discord_post as dp
+        if not dp.enabled():
+            return
+        for g in games:
+            if g.get("status") not in ("scheduled", "delayed"):
+                continue
+            kick = base_kick(g.get("tip") or "")
+            for side, other, at in (("away", "home", "@"), ("home", "away", "vs")):
+                t, o = g.get(side) or {}, g.get(other) or {}
+                if t.get("status") != "confirmed" or not t.get("off"):
+                    continue
+                names = [p["n"] for p in t["off"] + t["def"] + t["st"]]
+                code = f"{g['id']}-{t['abbr']}-" + hashlib.md5(",".join(names).encode()).hexdigest()[:6]
+                if dp.posted("nfl-lineups", code):
+                    continue
+                changed = dp.posted("nfl-lineups", f"{g['id']}-{t['abbr']}-")
+                skill = sorted((p for p in t["off"] if p["slot"] in SKILL), key=lambda p: (SKILL.index(p["slot"]), p["x"]))
+                by = {}
+                for p in skill:
+                    by.setdefault(p["slot"], []).append(_who(p))
+                ol = [_who(p) for p in sorted(t["off"], key=lambda p: p["x"]) if p["slot"] not in SKILL]
+                lines = [" · ".join(f"**{k}** {', '.join(v)}" for k, v in by.items())]
+                if ol:
+                    lines.append("**OL** " + ", ".join(ol))
+                if t["def"]:
+                    lines.append("**D** " + ", ".join(f"{p['n']} ({p['slot']})" for p in t["def"]))
+                if t.get("inactive"):
+                    lines.append("❌ **Inactive:** " + ", ".join(t["inactive"][:12]))
+                lines.append(f"-# {code}")
+                title = f"🏈 {t['abbr']} {at} {o.get('abbr', '?')}" + (f" · {kick}" if kick else "") + \
+                        (" · lineup CHANGED ⚠️" if changed else " · starters confirmed ✅")
+                dp.send("nfl-lineups", title, lines, "https://overlay.tips/lineups.html", FOOT)
+    except Exception as e:
+        print(f"::warning::discord NFL lineups failed: {type(e).__name__} {e}")
+
+
+def base_kick(iso):
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Australia/Sydney")) \
+            .strftime("%a %-I:%M%p").replace("AM", "am").replace("PM", "pm")
+    except Exception:
+        return ""
+
+
 def main():
     if not base.KEY:
         print("NBA_STATS_KEY not set"); return
@@ -152,6 +211,7 @@ def main():
     os.makedirs(os.path.dirname(OUT) or ".", exist_ok=True)
     json.dump({"updated": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "season": season, "week": week,
                "games": out, "posvals": sorted(posvals)}, open(OUT, "w"), separators=(",", ":"))
+    discord_lineups(out)
     print(f"week {week}: {len(out)} games, positions seen: {' '.join(sorted(posvals))}")
 
 
