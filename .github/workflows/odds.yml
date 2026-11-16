@@ -98,6 +98,13 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python scripts/bet_log.py
 
+      - name: Racing record (racing picks graded at Betfair SP)
+        if: env.RUN == 'true' && env.PW_SET == 'true'
+        continue-on-error: true
+        env:
+          ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
+        run: python scripts/racing_log.py
+
       - name: Wipe unprotected data (no ODDS_PAGE_PASSWORD secret yet)
         if: env.RUN == 'true' && env.PW_SET != 'true'
         run: |
@@ -117,6 +124,8 @@ jobs:
           if [ -f alerted.json ]; then cp alerted.json .git-tmp/; fi   # value alerts already sent
           if [ -f bet_log.json ]; then cp bet_log.json .git-tmp/; fi   # tracker's own bet log (encrypted)
           if [ -f record.json ]; then cp record.json .git-tmp/; fi     # public Tracker record page (started bets only)
+          if [ -f racing_log.json ]; then cp racing_log.json .git-tmp/; fi         # racing picks log (encrypted)
+          if [ -f racing_record.json ]; then cp racing_record.json .git-tmp/; fi   # public Racing record (past races only)
           if [ -f botd.json ]; then cp botd.json .git-tmp/; fi         # public Bet of the day (home page)
           if [ -f nbl_players.json ]; then cp nbl_players.json .git-tmp/; fi   # bet tracker NBL name search
           if [ -f nfl_players.json ]; then cp nfl_players.json .git-tmp/; fi   # bet tracker NFL name search

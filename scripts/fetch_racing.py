@@ -54,8 +54,11 @@ def _mid(back, lay):
     return back or lay
 
 
-def fetch_raw(errors):
-    """Login + pull AU win markets. Returns {"cat":[...], "books":{...}} or None. Must run from an Australian IP."""
+def fetch_raw(errors, result_ids=()):
+    """Login + pull AU win markets. Returns {"cat":[...], "books":{...}, "results":{...}, "_seen":{...}} or None.
+    Must run from an Australian IP. result_ids: markets that have jumped (from earlier runs) to fetch settled
+    results for: winner + Betfair SP, for the racing record (racing_log.py). "_seen" is upcoming horse +
+    greyhound market ids -> start time, for the local cache only (not uploaded)."""
     token = login(errors)
     if not token:
         return None
@@ -86,7 +89,26 @@ def fetch_raw(errors):
                 books[b["marketId"]] = b
         except Exception as e:
             errors.append(f"betfair book: {type(e).__name__} {e}")
-    return {"fetched": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "cat": cat, "books": books}
+    seen = {m["marketId"]: m.get("marketStartTime") for m in cat}
+    try:   # greyhound race ids too (results only; their prices aren't pulled)
+        dflt = {"filter": {**flt["filter"], "eventTypeIds": ["4339"]}, "marketProjection": ["MARKET_START_TIME"],
+                "sort": "FIRST_TO_START", "maxResults": 1000}
+        seen.update({m["marketId"]: m.get("marketStartTime") for m in _rpc(host, token, "listMarketCatalogue", dflt)})
+    except Exception as e:
+        errors.append(f"betfair greyhound catalogue: {type(e).__name__} {e}")
+    results = {}
+    ids = list(result_ids)
+    for i in range(0, len(ids), 40):
+        try:
+            for b in _rpc(host, token, "listMarketBook", {"marketIds": ids[i:i + 40],
+                                                          "priceProjection": {"priceData": ["SP_TRADED"]}}):
+                if b.get("status") == "CLOSED":
+                    results[b["marketId"]] = {"status": "CLOSED", "runners": {
+                        str(r["selectionId"]): {"status": r.get("status"), "sp": (r.get("sp") or {}).get("actualSP")}
+                        for r in b.get("runners", [])}}
+        except Exception as e:
+            errors.append(f"betfair results: {type(e).__name__} {e}")
+    return {"fetched": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "cat": cat, "books": books, "results": results, "_seen": seen}
 
 
 def process(raw, prev, ts, errors=None):
@@ -150,12 +172,31 @@ if __name__ == "__main__":
         key = cfg["ODDS_ALERTS_KEY"]
     else:
         key = os.environ["ODDS_ALERTS_KEY"]
+    # local cache of race ids we've seen, so settled results can be pulled after they jump (closed markets
+    # drop out of the catalogue). Kept next to OUT, never uploaded.
+    seenp = os.path.join(os.path.dirname(os.path.abspath(outp)), "racing_seen.json")
+    try:
+        seen = json.load(open(seenp))
+    except Exception:
+        seen = {"ids": {}, "done": []}
+    now = datetime.now(timezone.utc)
+    def _t(s):
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    due = [m for m, st in seen["ids"].items() if st and now - timedelta(days=2) < _t(st) < now - timedelta(minutes=10)
+           and m not in seen["done"]]
     errs = []
-    raw = fetch_raw(errs)
+    raw = fetch_raw(errs, due)
     if not raw:
         print("FAILED:", errs); sys.exit(1)
+    seen["ids"].update(raw.pop("_seen", {}))
+    seen["done"] = [m for m in seen["done"] + list(raw.get("results", {})) if m in seen["ids"]]
+    seen["ids"] = {m: st for m, st in seen["ids"].items() if st and _t(st) > now - timedelta(days=3)}
+    seen["done"] = [m for m in seen["done"] if m in seen["ids"]]
+    json.dump(seen, open(seenp, "w"))
+    if errs:
+        print("warnings:", errs)
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     iv = secrets.token_bytes(12)
     ct = AESGCM(base64.b64decode(key)).encrypt(iv, gzip.compress(json.dumps(raw).encode()), None)
     json.dump({"v": 1, "iv": base64.b64encode(iv).decode(), "ct": base64.b64encode(ct).decode()}, open(outp, "w"))
-    print(f"OK {len(raw['cat'])} races -> {outp}")
+    print(f"OK {len(raw['cat'])} races, {len(raw['results'])} results -> {outp}")

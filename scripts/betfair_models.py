@@ -199,6 +199,7 @@ def racing_value(ratings, racing, now, fresh_min=20, window_min=90):
             out.append({"sport": rr["kind"] == "Horse" and "Racing" or "Greyhounds", "sport_key": "racing_" + rr["kind"].lower(),
                         "game": f"{race['venue']} {race['name'].split(' ')[0]}", "start": race["start"], "market": "Win",
                         "pick": f"{(str(x.get('no')) + '. ') if x.get('no') else ''}{m['name']}", "price": x["back"], "book": "Betfair",
+                        "mid": race["id"], "sid": x["id"],
                         "fair": m["rated"], "edge_pct": round(edge, 1), "fair_src": "betfair-model",
                         "why": (f"Betfair's {'thoroughbred' if rr['kind'] == 'Horse' else 'greyhound'} model rates {m['name']} at "
                                 f"${m['rated']:.2f}; the exchange is offering ${x['back']:.2f} to back ({edge:.0f}% over). "
@@ -221,6 +222,7 @@ def racing_tops(ratings, now, horses=8, dogs=4):
         if a["rated"] > 3.5:
             continue
         picks.append({"kind": r["kind"], "venue": r["venue"], "num": r.get("num"), "no": a.get("no"), "name": a["name"],
+                      "mid": r["id"], "sid": a["id"],
                       "rated": a["rated"], "next": b["name"], "next_rated": b["rated"], "gap": round(b["rated"] / a["rated"], 2)})
     picks.sort(key=lambda x: -x["gap"])
     out = [p for p in picks if p["kind"] == "Horse"][:horses] + [p for p in picks if p["kind"] == "Greyhound"][:dogs]

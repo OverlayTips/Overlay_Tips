@@ -46,7 +46,7 @@
 .rc-card{background:linear-gradient(180deg,#101716,#0b100f);border:1px solid #1b2523;border-radius:18px;padding:16px;margin-bottom:22px;position:relative}
 .rc-card h2{font-size:19px;font-weight:900;color:#ecf5f1;margin:0 0 4px}
 .rc-card p.sub{color:#87978f;font-size:13px;margin:0 0 12px}
-#chart svg,#chart2 svg{width:100%;height:auto;display:block}
+#chart svg,#chart2 svg,#chart3 svg{width:100%;height:auto;display:block}
 .rc-tip{position:absolute;pointer-events:none;background:#060807;border:1px solid #2a3633;border-radius:10px;padding:7px 10px;font-size:13px;color:#ecf5f1;white-space:nowrap;transform:translate(-50%,-115%)}
 .rc-tip small{color:#87978f;display:block}
 .rc-tbl{width:100%;border-collapse:collapse;font-size:14px}
@@ -61,6 +61,8 @@
 .rc-more{background:#0e1312;border:1px solid #1b2523;color:#c9d6d0;border-radius:999px;padding:8px 16px;font:700 14px Archivo,system-ui,sans-serif;cursor:pointer}
 .rc-empty{color:#87978f;padding:18px 4px}
 .rc-note{color:#87978f;font-size:13px;line-height:1.55}
+.rc-h{font-size:24px;font-weight:900;color:#ecf5f1;margin:34px 0 6px}
+.rc-lead{color:#87978f;font-size:14px;line-height:1.55;margin:0 0 14px;max-width:720px}
 @media(max-width:560px){.rc-hide{display:none}}
 </style>
 <script src="nav.js?v=9"></script>
@@ -153,6 +155,29 @@
       <div class="rc-scroll"><table class="rc-tbl" id="recent"></table></div>
     </div>
 
+    <h2 class="rc-h" id="racing">🏇 Racing record</h2>
+    <p class="rc-lead">Every racing pick the tracker sends: the Betfair models' morning top picks, plus racing value alerts. Each one is graded at Betfair SP, 1U level stakes, from Betfair's own result files.</p>
+    <div class="rc-meta" id="rmeta">Loading…</div>
+    <div class="rc-tiles" id="rtiles"></div>
+
+    <div class="rc-card">
+      <h2>Racing running profit (units)</h2>
+      <p class="sub">1U on every pick at Betfair SP, before Betfair's commission. Scratched runners are void.</p>
+      <div id="chart3"></div>
+    </div>
+
+    <div class="rc-card">
+      <h2>Racing by type</h2>
+      <p class="sub">SP vs rated = how far Betfair SP was over the model's rated price on average. Above 0% means the market let you back them at better than the model's price.</p>
+      <div class="rc-scroll"><table class="rc-tbl" id="rgroups"></table></div>
+    </div>
+
+    <div class="rc-card">
+      <h2>Recent racing picks</h2>
+      <p class="sub">Newest first. Races show up here the day after they run.</p>
+      <div class="rc-scroll"><table class="rc-tbl" id="rrecent"></table></div>
+    </div>
+
     <p class="rc-note">How it's scored: each alert is logged at the moment it's sent, with the bookie and price (Sportsbet, TAB, TABtouch or Betr). Until tip-off the tracker keeps updating the fair price for that exact line, using Pinnacle's no-vig price where it has one, otherwise the bookies' consensus with their margin taken off. CLV = alert price ÷ closing fair price − 1. Results are graded from official game logs and scores. AFL, NFL and soccer props are scored on CLV only for now. Profit uses the suggested stake (0.5U to 3U), 1U = $10. Past results don't guarantee future profit. <a href="membership.html">Get the alerts →</a></p>
   </div>
 </section>
@@ -201,7 +226,7 @@ function chart(pts,id='chart',u='U',tipx=null){
   const x=i=>L+(W-L-R)*i/(pts.length-1), y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
   const raw=(hi-lo)/4, mag=Math.pow(10,Math.floor(Math.log10(raw))), step=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw), ticks=[]; for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step) ticks.push(+v.toFixed(6));
   const grid=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${v===0?'#3a4743':'#18211f'}" stroke-width="1"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" fill="#87978f" font-size="11">${v>0?'+':''}${v}${u}</text>`).join('');
-  const oneDay=day(pts[0][0])===day(pts[pts.length-1][0]), xl=iso=>oneDay?tm(iso):day(iso);
+  const dOnly=id==='chart3', oneDay=!dOnly&&day(pts[0][0])===day(pts[pts.length-1][0]), xl=iso=>oneDay?tm(iso):day(iso);
   const lab=[0,Math.floor((pts.length-1)/2),pts.length-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>`<text x="${x(i)}" y="${H-6}" text-anchor="${i===0?'start':i===pts.length-1?'end':'middle'}" fill="#87978f" font-size="11">${xl(pts[i][0])}</text>`).join('');
   const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ');
   const last=pts[pts.length-1];
@@ -209,7 +234,7 @@ function chart(pts,id='chart',u='U',tipx=null){
   const rr=pts.length>120?2:pts.length>60?2.6:3.4;
   const dots=pts.some(p=>p[3])?pts.map((p,i)=>p[3]==='win'||p[3]==='loss'?`<circle cx="${x(i).toFixed(1)}" cy="${y(p[1]).toFixed(1)}" r="${rr}" fill="${p[3]==='win'?'#62f0a8':'#ff6b6b'}" stroke="#0b100f" stroke-width="1"/>`:'').join(''):'';
   const key=pts.some(p=>p[3])?`<text x="${W-R}" y="${T-4}" text-anchor="end" font-size="11" fill="#87978f"><tspan fill="#62f0a8">●</tspan> Won ${pts.filter(p=>p[3]==='win').length}  <tspan fill="#ff6b6b">●</tspan> Lost ${pts.filter(p=>p[3]==='loss').length}</text>`:'';
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${id==='chart'?'Running profit in units':'Running average CLV'}: ${sg(last[1])}${u} as of ${day(last[0])}">${grid}${lab}${key}
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${id==='chart2'?'Running average CLV':id==='chart3'?'Racing running profit in units':'Running profit in units'}: ${sg(last[1])}${u} as of ${day(last[0])}">${grid}${lab}${key}
     <path d="${d}" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}
     <circle cx="${x(pts.length-1)}" cy="${y(last[1])}" r="4" fill="var(--mint)" stroke="#0b100f" stroke-width="2"/>
@@ -225,7 +250,7 @@ function chart(pts,id='chart',u='U',tipx=null){
     svg.getElementById('xh').setAttribute('x1',px); svg.getElementById('xh').setAttribute('x2',px);
     svg.getElementById('xd').setAttribute('cx',px); svg.getElementById('xd').setAttribute('cy',py);
     svg.getElementById('xd').setAttribute('fill',pts[i][3]==='win'?'#62f0a8':pts[i][3]==='loss'?'#ff6b6b':'var(--mint)');
-    tip.hidden=false; tip.innerHTML=`<b>${sg(pts[i][1])}${u}</b><small>${day(pts[i][0])} ${tm(pts[i][0])}${tipx?' · '+tipx(pts[i]):''}</small>`;
+    tip.hidden=false; tip.innerHTML=`<b>${sg(pts[i][1])}${u}</b><small>${day(pts[i][0])}${dOnly?'':' '+tm(pts[i][0])}${tipx?' · '+tipx(pts[i]):''}</small>`;
     const card=el.parentElement.getBoundingClientRect();
     tip.style.left=(r.left-card.left+px*r.width/W)+'px'; tip.style.top=(r.top-card.top+py*r.height/H)+'px';};
   const out=()=>{tip.hidden=true; for(const id of ['xh','xd']) svg.getElementById(id).setAttribute('visibility','hidden');};
@@ -252,7 +277,42 @@ function recent(){
   if($('more')) $('more').onclick=()=>{SHOW+=30;recent();};
 }
 
-function draw(){ tiles(D.periods[per]); }
+let RD=null;
+const RSRC=SRC.replace(/record\.json/,'racing_record.json');
+function rtiles(s){
+  if(!$('rtiles')) return;
+  s=s||{n:0,w:0,l:0};
+  const t=[['Picks',s.n,s.pending?`${s.pending} still to grade`:'model top picks + value'],
+           ['Strike rate',s.strike==null?'–':s.strike+'%',s.w+s.l?`${s.w} won from ${s.w+s.l}`:'graded picks'],
+           ['Profit',s.w+s.l?sg(s.units)+'U':'–','1U at Betfair SP'],
+           ['ROI',s.roi==null?'–':sg(s.roi)+'%','before commission'],
+           ['SP vs rated',s.sp_over==null?'–':sg(s.sp_over)+'%','avg SP over the rated price']];
+  $('rtiles').innerHTML=t.map(([a,b,c])=>`<div class="rc-tile"><span>${a}</span><b>${esc(b)}</b><small>${esc(c)}</small></div>`).join('');
+}
+function rgroups(){
+  const gs=(RD&&RD.groups)||[];
+  if(!gs.length){$('rgroups').innerHTML='<tr><td class="rc-empty">No racing picks graded yet.</td></tr>';return;}
+  $('rgroups').innerHTML='<tr><th>Type</th><th class="n">Picks</th><th class="n">Record</th><th class="n rc-hide">Strike</th><th class="n">Profit</th><th class="n rc-hide">SP vs rated</th></tr>'+
+    gs.map(g=>`<tr><td>${esc(g.name)}</td><td class="n">${g.n}</td><td class="n">${g.w+g.l?g.w+'-'+g.l:'–'}</td><td class="n rc-hide">${g.strike==null?'–':g.strike+'%'}</td><td class="n">${g.w+g.l?sg(g.units)+'U':'–'}</td><td class="n rc-hide">${g.sp_over==null?'–':sg(g.sp_over)+'%'}</td></tr>`).join('');
+}
+let RSHOW=15;
+function rrecent(){
+  const all=(RD&&RD.recent)||[], xs=all.slice(0,RSHOW);
+  if(!xs.length){$('rrecent').innerHTML='<tr><td class="rc-empty">Racing picks show up here the day after they run.</td></tr>';return;}
+  const res=r=>r==='win'?'<span class="rc-pill win">✓ Won</span>':r==='loss'?'<span class="rc-pill loss">✗ Lost</span>':r==='void'?'<span class="rc-pill">Scratched</span>':r==='ungraded'?'<span class="rc-pill">No result</span>':'<span class="rc-pill">Pending</span>';
+  const dd=s=>new Date(s+'T12:00:00+11:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',timeZone:'Australia/Sydney'});
+  $('rrecent').innerHTML='<tr><th>Pick</th><th class="n rc-hide">Rated</th><th class="n">Betfair SP</th><th>Result</th></tr>'+
+    xs.map(p=>`<tr><td>${p.kind==='Greyhound'?'🐕':'🏇'} ${p.no?esc(p.no)+'. ':''}${esc(p.name)}<small>${esc(p.venue||'')}${p.num?' R'+esc(p.num):''} · ${dd(p.date)} · ${p.type==='top'?'Model top pick':'Value pick'+(p.price?' @ $'+Number(p.price).toFixed(2):'')}</small></td><td class="n rc-hide">${p.rated?'$'+Number(p.rated).toFixed(2):'–'}</td><td class="n">${p.bsp?'$'+Number(p.bsp).toFixed(2):'–'}</td><td>${res(p.result)}</td></tr>`).join('')+
+    (all.length>RSHOW?`<tr><td colspan="4" style="border:0;padding-top:12px"><button type="button" class="rc-more" id="rmore">Show more</button></td></tr>`:'');
+  if($('rmore')) $('rmore').onclick=()=>{RSHOW+=30;rrecent();};
+}
+function rchart(){ chart(RD&&RD.units,'chart3','U',p=>p[3]?`${p[3]==='win'?'✓':'✗'} ${esc(p[2])}`:esc(p[2]||'')); }
+fetch(RSRC+(RSRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0;return r.json();}).then(d=>{
+  RD=d; $('rmeta').textContent=(d.since?`Tracking since ${day(d.since+'T03:00:00Z')} · `:'')+`updated ${ago(d.updated)}`;
+  rtiles(d.periods[per]); rchart(); rgroups(); rrecent();
+  let rt; addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(rchart,150);});
+}).catch(()=>{ $('rmeta').textContent='The racing record starts filling in the day after the first morning racing picks go out.'; rtiles(null); rchart(); rgroups(); rrecent(); });
+function draw(){ tiles(D.periods[per]); if(RD) rtiles(RD.periods[per]); }
 function charts(){ chart(D.units,'chart','U',p=>p[3]?`${p[3]==='win'?'✓':'✗'} ${esc(p[2])}`:esc(p[2]||'')); chart(D.clv_days,'chart2','%',p=>`this bet ${sg(p[2])}% · ${p[3]} bets`); }
 $('per').querySelectorAll('button').forEach(b=>b.onclick=()=>{per=b.dataset.p;$('per').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));draw();});
 fetch(SRC+(SRC.includes('?')?'&':'?')+'t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0;return r.json();}).then(d=>{
