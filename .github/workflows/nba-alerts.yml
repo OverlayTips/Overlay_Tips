@@ -1,8 +1,8 @@
 name: NBA alerts
 
 # Confirmed starting lineups + injury news -> push to Jayden's phone (ntfy app), with a
-# "Share to WhatsApp" button on each alert. GitHub only fires the cron roughly hourly, so each run
-# loops for ~55 min, checking every 5 min (public repo, so Actions minutes are free). Covers ~6am-4pm
+# "Open Discord" button on each alert. GitHub fires the cron late and unevenly (often 60-90 min apart), so
+# each run loops for up to ~170 min and the next run cancels it and takes over: no gaps. Checks every 5 min (public repo, so Actions minutes are free). Covers ~6am-4pm
 # Sydney time (AEDT): the US injury reports and every tip-off. Also publishes lineups.json for the site. Uses BALLDONTLIE only (no Odds API credits).
 # Needs secrets: NBA_STATS_KEY (already set) and NTFY_TOPIC.
 # "Run workflow" with test ticked sends a test push.
@@ -27,7 +27,7 @@ concurrency:
 jobs:
   alerts:
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -60,7 +60,7 @@ jobs:
           mkdir -p st
           git fetch -q --depth=1 origin alerts-state && git show FETCH_HEAD:state.json > st/state.json || echo "no state yet"
           if [ "$TEST" = "1" ]; then python scripts/nba_alerts.py; exit 0; fi
-          end=$(( $(date +%s) + 55*60 ))
+          end=$(( $(date +%s) + 170*60 ))
           while :; do
             python scripts/nba_alerts.py || echo "::warning::check failed, retrying next loop"
             [ -f st/state.json ] && publish alerts-state state.json || true
