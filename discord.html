@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Connecting Discord | Overlay Tips</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#060807;color:#ecf5f1;font:600 16px system-ui,sans-serif}</style>
+</head>
+<body>
+<p id="m">Connecting your Discord…</p>
+<script>
+/* Discord sends members back here after "Connect Discord" in the portal (OAuth implicit grant).
+   The token is kept only for this browser tab and handed to the portal, which saves it for the role sync.
+   Kept off the portal page itself so it never clashes with the login session in the address bar. */
+(function(){
+  var h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search), ok = false;
+  try {
+    var want = sessionStorage.getItem('ot_dc_state');
+    if (h.get('access_token') && h.get('state') && h.get('state') === want) {
+      sessionStorage.setItem('ot_dc_token', h.get('access_token')); ok = true;
+    }
+    sessionStorage.removeItem('ot_dc_state');
+  } catch (e) {}
+  history.replaceState(null, '', location.pathname);
+  location.replace('portal.html?discord=' + (ok ? 'ok' : (q.get('error') || h.get('error') ? 'cancelled' : 'failed')));
+})();
+</script>
+</body>
+</html>

@@ -78,6 +78,10 @@ def call(method, path, body=None):
 def main():
     if not (TOKEN and GUILD):
         sys.exit("Add the DISCORD_BOT_TOKEN and DISCORD_GUILD_ID secrets first.")
+    try:   # the bot's application (client) id: public, used by the portal's "Connect Discord" button
+        print("application id:", call("GET", "/oauth2/applications/@me")["id"])
+    except RuntimeError as e:
+        print("application id: couldn't read", e)
     roles = {r["name"]: r["id"] for r in call("GET", f"/guilds/{GUILD}/roles")}
     for name, color in ROLES:
         if name not in roles:

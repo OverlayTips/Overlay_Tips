@@ -102,6 +102,15 @@ jobs:
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: python scripts/bet_log.py
 
+      - name: Discord roles (members' roles follow their plan)
+        if: env.RUN == 'true'
+        continue-on-error: true
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: python scripts/discord_roles.py
+
       - name: Racing record (racing picks graded at Betfair SP)
         if: env.RUN == 'true' && env.PW_SET == 'true'
         continue-on-error: true
