@@ -111,6 +111,15 @@ jobs:
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: python scripts/discord_roles.py
 
+      - name: Discord welcome DMs (new members)
+        if: env.RUN == 'true'
+        continue-on-error: true
+        env:
+          ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: python scripts/discord_welcome.py
+
       - name: Racing record (racing picks graded at Betfair SP)
         if: env.RUN == 'true' && env.PW_SET == 'true'
         continue-on-error: true
@@ -139,6 +148,7 @@ jobs:
           if [ -f record.json ]; then cp record.json .git-tmp/; fi     # public Tracker record page (started bets only)
           if [ -f racing_log.json ]; then cp racing_log.json .git-tmp/; fi         # racing picks log (encrypted)
           if [ -f racing_record.json ]; then cp racing_record.json .git-tmp/; fi   # public Racing record (past races only)
+          if [ -f discord_state.json ]; then cp discord_state.json .git-tmp/; fi   # who the Discord bot has welcomed (encrypted)
           if [ -f botd.json ]; then cp botd.json .git-tmp/; fi         # public Bet of the day (home page)
           if [ -f nbl_players.json ]; then cp nbl_players.json .git-tmp/; fi   # bet tracker NBL name search
           if [ -f nfl_players.json ]; then cp nfl_players.json .git-tmp/; fi   # bet tracker NFL name search

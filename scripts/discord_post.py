@@ -115,6 +115,49 @@ def daily_results(record, now):
     return ok
 
 
+def weekly_recap(record, now):
+    """Monday: last week (Mon-Sun, Melbourne) for both systems into #results, with the best and worst bet."""
+    end = now.astimezone(MEL).date() - timedelta(days=now.astimezone(MEL).weekday())   # this Monday
+    start = end - timedelta(days=7)
+    days = {(start + timedelta(days=i)).isoformat() for i in range(7)}
+    fmt = lambda u: f"{'+' if u >= 0 else '−'}{abs(u):.2f}U"
+    mem = record.get("members") or {}
+    lines, any_ = [], False
+    for name, units, clv in (("💎 VIP system", record.get("units"), record.get("clv_days")),
+                             ("⭐ Founding Members & Daily Card", mem.get("units"), mem.get("clv_days"))):
+        legs, cl = [], []
+        for d in days:
+            l, c = _day(units, clv, d)
+            legs += l
+            cl += c
+        if not legs:
+            continue
+        any_ = True
+        u, w = sum(l[1] for l in legs), sum(l[2] == "win" for l in legs)
+        best, worst = max(legs, key=lambda l: l[1]), min(legs, key=lambda l: l[1])
+        lines += ["", f"**{name}: {fmt(u)}** · {w}-{len(legs) - w}" + (f" · {sum(cl) / len(cl):+.1f}% avg CLV" if cl else ""),
+                  f"🔥 Best: {best[0]} {fmt(best[1])}", f"🧊 Worst: {worst[0]} {fmt(worst[1])}"]
+    if not any_:
+        print(f"discord weekly: no graded bets {start} to {end - timedelta(days=1)}")
+        return False
+    last = end - timedelta(days=1)
+    ok = send("results", f"🗓 Week in review · {start.day} {start.strftime('%b')} – {last.day} {last.strftime('%b')}", lines,
+              "https://overlay.tips/record.html")
+    print(f"discord weekly: {'posted' if ok else 'NOT posted'}")
+    return ok
+
+
+def teaser(b):
+    """A VIP-only bet just won: show #chat what VIP had (after the result, so nothing is given away)."""
+    stake = b.get("stake") or 1
+    won = (b["price"] - 1) * stake
+    game = f" · {b['game']}" if b.get("game") else ""
+    return send("chat", f"💎 VIP cashed: {b.get('sel', '')} @ ${b['price']:.2f} ✅",
+                [f"+{won:.2f}U on {stake:g}U{game}",
+                 "VIP members got this the moment the price was there, plus every game bet, racing value bet and arb."],
+                "https://overlay.tips/membership.html")
+
+
 if __name__ == "__main__":   # post yesterday's results now:  python scripts/discord_post.py record.json
     import sys
     from datetime import timezone

@@ -364,7 +364,7 @@ def main():
     need = sorted({b["sport_key"] for b in bets if not b.get("desc") and b.get("result") is None and b.get("sport_key")
                    and now - GIVE_UP < _parse(b["start"]) < now - GRADE_AFTER})
     scores = fetch_scores(need) if need else {}
-    graded = 0
+    graded, vip_wins = 0, []
     for b in bets:
         if b.get("result") is not None or _parse(b["start"]) > now - GRADE_AFTER:
             continue
@@ -372,6 +372,8 @@ def main():
         if r:
             b["result"] = r
             graded += 1
+            if r == "win" and (b.get("tier") or ("core" if b.get("desc") else "vip")) == "vip":
+                vip_wins.append(b)   # for the Discord upgrade teaser
         elif now - _parse(b["start"]) > GIVE_UP:
             b["result"] = "ungraded"
 
@@ -384,7 +386,8 @@ def main():
     for k in set(mutes) - set(log.get("muted") or []):
         print(f"bet log: muting {k} (avg CLV {sum(groups[k]) / len(groups[k]):.2f}% over {len(groups[k])})")
 
-    log = {"bets": bets, "muted": mutes, "report_day": log.get("report_day"), "discord_day": log.get("discord_day")}
+    log = {"bets": bets, "muted": mutes, "report_day": log.get("report_day"), "discord_day": log.get("discord_day"),
+           "weekly_day": log.get("weekly_day"), "tease": log.get("tease") or {}}
 
     # 5. daily report
     local = now.astimezone(MEL)
@@ -411,6 +414,23 @@ def main():
             if discord_post.daily_results(rec, now):
                 log["discord_day"] = today
                 save_log(log)
+        # Mondays: last week's recap for both systems
+        if discord_post.enabled() and local.weekday() == 0 and local.hour >= 9 and log.get("weekly_day") != today:
+            with open(os.path.join(OUT, "record.json")) as f:
+                rec = json.load(f)
+            if discord_post.weekly_recap(rec, now):
+                log["weekly_day"] = today
+                save_log(log)
+        # VIP-only winners: an upgrade teaser in #chat, at most 4 a day
+        if discord_post.enabled() and vip_wins:
+            t = log["tease"] if log["tease"].get("day") == today else {"day": today, "n": 0}
+            for b in sorted(vip_wins, key=lambda b: -(b["price"] - 1) * (b.get("stake") or 1)):
+                if t["n"] >= 4:
+                    break
+                if discord_post.teaser(b):
+                    t["n"] += 1
+            log["tease"] = t
+            save_log(log)
     except Exception as e:
         print("bet log: discord results failed:", type(e).__name__, e)
     print(f"bet log: {len(bets)} bets ({len(new)} new alerts), {updated} closing prices updated, {graded} graded, "
