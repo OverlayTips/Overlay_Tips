@@ -21,6 +21,7 @@ ROLES = [("VIP", 0xEFBE3B), ("Daily Card", 0x62F0A8), ("Founder", 0x87978F)]
 LAYOUT = [
     ("Information", None, [
         ("start-here", True, ["welcome-and-rules", "welcome", "rules"]),
+        ("membership", True, ["pricing", "prices"]),
         ("announcements", True, []),
         ("results", True, ["resources"]),
     ]),
@@ -55,6 +56,72 @@ Join or upgrade at <https://overlay.tips/membership.html>
 
 Price signals, not sure things. 18+ only. Only bet what you can afford to lose.
 Gambling Help Online 1800 858 858 · <https://www.betstop.gov.au>"""
+
+
+BILLING = "https://overlay-billing.borgjayden005.workers.dev/plans"   # live Stripe prices (cloudflare/billing-worker.js)
+
+
+def membership_post():
+    """The #membership message: plans, what's in each, and live prices from Stripe."""
+    try:
+        req = urllib.request.Request(BILLING, headers={"User-Agent": "overlay-tips/1.0"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            plans = json.load(r).get("plans") or {}
+    except Exception as e:
+        print("membership: couldn't read prices:", e)
+        plans = {}
+
+    def price(key):
+        p = plans.get(key)
+        if not p or p.get("amount") is None:
+            return None
+        amt = p["amount"] / 100
+        return f"${amt:,.2f}".replace(".00", "") + f"/{p.get('interval', '')}"
+
+    def line(m, w):
+        a, b = price(m), price(w)
+        return " or ".join(x for x in (a, b) if x) or "see the site for prices"
+    return f"""**💳 Overlay Tips memberships**
+
+**⭐ Founding member · FREE for life** (first 500 only)
+• Bet of the day + racing top picks
+• Every tip in the WhatsApp group
+• Overlay Wire, Hot stats and the bet tracker
+
+**🃏 Daily Card · {line("core-month", "core-week")}**
+Everything in Founding, plus:
+• Every player prop alert (NBA, NBL, NFL) in the Daily Card channels
+• Live bet + SGM tracking for NBA and NBL
+• Unit sizes and the reasoning for each play
+
+**💎 VIP · {line("vip-month", "vip-week")}**
+Everything in the Daily Card, plus:
+• The odds tracker: every Aussie bookie side by side
+• Game bets, racing value, arbs and steamers channels
+• Tips the moment they're locked, before the price moves
+• Saturday racing best bets + weekly bonus bet conversions
+
+**How to join:** sign up at <https://overlay.tips/portal.html>, pick a plan, then tap **Connect Discord** on the Group & alerts tab. Your role (and channels) unlock automatically within about 5 minutes.
+
+Refer a mate: they get 50% off their first month, you get a week free. Cancel anytime, no lock-in.
+-# 18+ only. Analysed tips, not guaranteed wins. Gamble responsibly · 1800 858 858"""
+
+
+def post_or_update(channel_id, content):
+    """Keep one bot message in the channel: edit it if it's there, otherwise post and pin it."""
+    msgs = call("GET", f"/channels/{channel_id}/messages?limit=20") or []
+    mine = [m for m in msgs if (m.get("author") or {}).get("bot")]
+    if mine:
+        if mine[-1].get("content") != content:
+            call("PATCH", f"/channels/{channel_id}/messages/{mine[-1]['id']}", {"content": content})
+            return "updated"
+        return "unchanged"
+    m = call("POST", f"/channels/{channel_id}/messages", {"content": content})
+    try:
+        call("PUT", f"/channels/{channel_id}/pins/{m['id']}")
+    except RuntimeError:
+        pass
+    return "posted"
 
 
 def call(method, path, body=None):
@@ -141,6 +208,9 @@ def main():
             except RuntimeError:
                 pass
             print("welcome posted")
+    mem = find(TEXT, ["membership"])
+    if mem:
+        print("membership:", post_or_update(mem["id"], membership_post()))
     print("done")
 
 
