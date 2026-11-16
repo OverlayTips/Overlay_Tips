@@ -22,6 +22,7 @@ LAYOUT = [
     ("Information", None, [
         ("start-here", True, ["welcome-and-rules", "welcome", "rules"]),
         ("membership", True, ["pricing", "prices"]),
+        ("giveaways", True, ["giveaway"]),
         ("announcements", True, []),
         ("results", True, ["resources"]),
     ]),
@@ -60,6 +61,16 @@ Join or upgrade at <https://overlay.tips/membership.html>
 Price signals, not sure things. 18+ only. Only bet what you can afford to lose.
 Gambling Help Online 1800 858 858 · <https://www.betstop.gov.au>"""
 
+
+GIVEAWAY = """**🎁 Refer a mate. You both get $50.**
+Every mate you refer = 1 entry. If you're drawn, you and your mate get **$50 cash each** via PayID.
+1. Follow @overlay_tips on Instagram
+2. Enter at <https://overlay.tips/giveaway.html>
+3. Share your link: overlay.tips/?ref=YOURHANDLE · more mates = more entries
+
+Entries close **Sun 22 Nov, 11:59pm AEDT**. Drawn live on @overlay_tips Instagram, Mon 23 Nov.
+Discord-only giveaways get posted in this channel too: react 🎉 to enter.
+-# Free to enter. 18+ Australian residents only. No betting account needed. T&Cs: <https://overlay.tips/terms.html>"""
 
 BILLING = "https://overlay-billing.borgjayden005.workers.dev/plans"   # live Stripe prices (cloudflare/billing-worker.js)
 
@@ -113,8 +124,9 @@ Refer a mate: they get 50% off their first month, you get a week free. Cancel an
 
 def post_or_update(channel_id, content):
     """Keep one bot message in the channel: edit it if it's there, otherwise post and pin it."""
-    msgs = call("GET", f"/channels/{channel_id}/messages?limit=20") or []
-    mine = [m for m in msgs if (m.get("author") or {}).get("bot")]
+    msgs = call("GET", f"/channels/{channel_id}/messages?limit=50") or []
+    head = content.split("\n", 1)[0]   # the bot's message with the same first line
+    mine = [m for m in msgs if (m.get("author") or {}).get("bot") and (m.get("content") or "").split("\n", 1)[0] == head]
     if mine:
         if mine[-1].get("content") != content:
             call("PATCH", f"/channels/{channel_id}/messages/{mine[-1]['id']}", {"content": content})
@@ -205,6 +217,9 @@ def main():
     start = find(TEXT, ["start-here"])
     if start:
         print("welcome:", post_or_update(start["id"], WELCOME))
+    gw = find(TEXT, ["giveaways"])
+    if gw:
+        print("giveaway post:", post_or_update(gw["id"], GIVEAWAY))
     mem = find(TEXT, ["membership"])
     if mem:
         print("membership:", post_or_update(mem["id"], membership_post()))

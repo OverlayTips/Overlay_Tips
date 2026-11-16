@@ -1,0 +1,44 @@
+name: Discord giveaway
+
+# Starts a giveaway in #giveaways: members react 🎉 to enter. The odds update draws the winner(s)
+# automatically when time is up (scripts/discord_giveaway.py draw-due).
+on:
+  workflow_dispatch:
+    inputs:
+      prize:
+        description: "Prize (e.g. $50 cash, 1 month VIP free)"
+        required: true
+      hours:
+        description: "How long it runs, in hours (e.g. 24, 72)"
+        required: true
+        default: "48"
+      winners:
+        description: "Number of winners"
+        required: true
+        default: "1"
+      who:
+        description: "Who can enter"
+        type: choice
+        options: [everyone, founder, core, vip]
+        default: everyone
+
+permissions:
+  contents: read
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Start the giveaway
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          PRIZE: ${{ inputs.prize }}
+          HOURS: ${{ inputs.hours }}
+          WINNERS: ${{ inputs.winners }}
+          WHO: ${{ inputs.who }}
+        run: python scripts/discord_giveaway.py start "$PRIZE" "$HOURS" "$WINNERS" "$WHO"
