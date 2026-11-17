@@ -1,5 +1,6 @@
 """Live bet tracking in Discord: #live-tracker gets one message per NBA game, edited every minute with each
-alerted prop's progress (e.g. "Zion 18/22 pts · needs 4"), plus a cashed / missed / void post per bet.
+alerted prop's progress (e.g. "Zion 18/22 pts · needs 4"), plus one pinned "today's tally" message
+(wins / losses / voids for the day) that's edited as each bet settles, instead of a post per bet.
 
 Bets come from the bet log (every value alert the tracker sent), live numbers from BALLDONTLIE box scores.
 No state file: the bot finds its own messages again by a small marker on the last line, so reruns never
@@ -21,6 +22,8 @@ LOG_KEY = os.environ.get("ODDS_ALERTS_KEY", "").strip()
 OUT = os.environ.get("OUT", "odds-data")
 CHANNEL = "live-tracker"
 ET = ZoneInfo("America/New_York")
+MEL = ZoneInfo("Australia/Melbourne")
+ICON = {"win": "✅", "loss": "❌", "void": "↩️"}
 FOOT = "-# 18+ · Gamble responsibly · 1800 858 858"
 
 # market key -> (short label, how to read it off a box-score row)
@@ -167,15 +170,18 @@ class Live:
         self.cid = discord_post._channel(CHANNEL)
         if not self.cid:
             sys.exit(f"no #{CHANNEL} channel: run the Discord setup workflow first")
-        self.msgs, self.done = {}, set()
-        for m in discord_post._call("GET", f"/channels/{self.cid}/messages?limit=100") or []:
+        self.msgs = {}
+        msgs = discord_post._call("GET", f"/channels/{self.cid}/messages?limit=100") or []
+        try:
+            msgs += discord_post._call("GET", f"/channels/{self.cid}/pins") or []   # the tally, even if it's scrolled away
+        except Exception:
+            pass
+        for m in msgs:
             if not (m.get("author") or {}).get("bot"):
                 continue
-            tag = re.search(r"`(live|res):([^`]+)`", m.get("content") or "")
-            if tag and tag.group(1) == "live":
-                self.msgs.setdefault(tag.group(2), (m["id"], m["content"]))
-            elif tag:
-                self.done.add(tag.group(2))
+            tag = re.search(r"`live:([^`]+)`", m.get("content") or "")
+            if tag:
+                self.msgs.setdefault(tag.group(1), (m["id"], m["content"]))
 
     def upsert(self, key, text):
         old = self.msgs.get(key)
@@ -190,14 +196,41 @@ class Live:
         self.msgs[key] = (old[0], text)
 
     def result(self, b, res, detail, game):
-        rid = hashlib.sha1(str(b.get("id") or b["sel"]).encode()).hexdigest()[:10]
-        if rid in self.done:
+        """Add a settled bet to the day's tally message (one per Melbourne day, edited in place, pinned)."""
+        day = datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(MEL).date()
+        key = f"tally-{day.isoformat()}"
+        old = self.msgs.get(key)
+        rows = self._tally_rows(old[1]) if old else {}
+        if rows.get(b["sel"], (None,))[0] == res:
             return
-        head = {"win": "✅ CASHED", "loss": "❌ MISSED", "void": "↩️ VOID"}[res]
-        discord_post._call("POST", f"/channels/{self.cid}/messages", {"content":
-            f"**{head} · {b['sel']}**\n{detail} · {game}\n-# `res:{rid}` · {FOOT[3:]}", "allowed_mentions": {"parse": []}})
-        self.done.add(rid)
-        print(f"result: {res} {b['sel']}")
+        rows[b["sel"]] = (res, f"{ICON[res]} **{b['sel']}** · {detail} · {game}")
+        w = sum(r == "win" for r, _ in rows.values())
+        l = sum(r == "loss" for r, _ in rows.values())
+        v = sum(r == "void" for r, _ in rows.values())
+        rate = f" · {round(100 * w / (w + l))}% hit rate" if w + l else ""
+        head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
+                f"## ✅ {w}  ❌ {l}" + (f"  ↩️ {v}" if v else "") + f"\n-# {w}W-{l}L{rate}\n")
+        foot = f"\n-# Live tally · updates as bets settle · `live:{key}` · {FOOT[3:]}"
+        body = "\n".join(t for _, t in rows.values())
+        while len(head + body + foot) > 1990 and "\n" in body:   # very big day: drop the oldest lines, keep the count right
+            body = body.split("\n", 1)[1]
+        new = key not in self.msgs
+        self.upsert(key, head + body + foot)
+        if new:
+            try:
+                discord_post._call("PUT", f"/channels/{self.cid}/pins/{self.msgs[key][0]}")
+            except Exception as e:
+                print(f"::notice::couldn't pin tally: {e}")
+        print(f"tally: {res} {b['sel']} -> {w}W-{l}L")
+
+    @staticmethod
+    def _tally_rows(text):
+        rows = {}
+        for ln in text.split("\n"):
+            m = re.match(r"(✅|❌|↩️) \*\*(.+?)\*\* · ", ln)
+            if m:
+                rows[m.group(2)] = ({v: k for k, v in ICON.items()}[m.group(1)], ln)
+        return rows
 
 
 def bp_started(b):
