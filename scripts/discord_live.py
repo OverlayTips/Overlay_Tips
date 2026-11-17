@@ -268,6 +268,8 @@ def one_pass(live, bets):
             live.result(b, res, text.split(" · ")[0] if res != "void" else "Didn't play", g)
         if state != "final":
             pending = True
+    print(f"pass: {len(bx)} box scores, {sum(len(g[3]) for g in games.values())}/{len(bets)} bets matched, "
+          + ", ".join(f"{g[0].get('visitor_team', {}).get('abbreviation')}@{g[0].get('home_team', {}).get('abbreviation')} {g[1]} {g[2]}" for g in games.values()))
     for k, (box, state, clock, lines) in games.items():
         h, a = box.get("home_team") or {}, box.get("visitor_team") or {}
         score = "" if state == "pre" else f" · {a.get('abbreviation')} {box.get('visitor_team_score', 0)}-{box.get('home_team_score', 0)} {h.get('abbreviation')}"
