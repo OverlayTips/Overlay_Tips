@@ -214,12 +214,27 @@ class Live:
             msgs += discord_post._call("GET", f"/channels/{self.cid}/pins") or []   # the tally, even if it's scrolled away
         except Exception:
             pass
-        for m in msgs:
-            if not (m.get("author") or {}).get("bot"):
+        extra, ids = [], set()
+        for m in msgs:   # newest first
+            if not (m.get("author") or {}).get("bot") or m["id"] in ids:
+                continue
+            ids.add(m["id"])
+            if m.get("type") == 6:   # "pinned a message" notices from the bot's own pins
+                extra.append(m["id"])
                 continue
             tag = re.search(r"`live:([^`]+)`", m.get("content") or "")
             if tag:
-                self.msgs.setdefault(tag.group(1), (m["id"], m["content"]))
+                if tag.group(1) in self.msgs:   # a double post (two runs overlapping): keep the newest
+                    extra.append(m["id"])
+                else:
+                    self.msgs[tag.group(1)] = (m["id"], m["content"])
+        for mid in extra:
+            try:
+                discord_post._call("DELETE", f"/channels/{self.cid}/messages/{mid}")
+            except Exception as e:
+                print(f"::notice::#{channel}: couldn't delete {mid}: {e}")
+        if extra:
+            print(f"#{channel}: cleaned up {len(extra)} duplicate/pin-notice messages")
 
     def set_bets(self, every):
         self.day_sels = {}
