@@ -262,7 +262,7 @@ def main():
         try:
             pending = one_pass(live, bets)
         except Exception as e:
-            print(f"::warning::live pass failed: {type(e).__name__} {e}")
+            print(f"::warning::live pass failed: {type(e).__name__} {e} {getattr(e, 'url', '')[:60]}")
             pending = True
         if os.environ.get("ONCE") == "1" or not pending or time.time() + 60 > end:
             break

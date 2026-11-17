@@ -7,7 +7,7 @@ the secrets missing just skips the post.
 
 Env: DISCORD_BOT_TOKEN, DISCORD_GUILD_ID.
 """
-import json, os, urllib.error, urllib.request
+import json, os, time, urllib.error, urllib.request
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -23,13 +23,24 @@ def enabled():
     return bool(TOKEN and GUILD)
 
 
-def _call(method, path, body=None):
-    req = urllib.request.Request(API + path, method=method, data=json.dumps(body).encode() if body is not None else None,
-                                 headers={"Authorization": f"Bot {TOKEN}", "Content-Type": "application/json",
-                                          "User-Agent": "DiscordBot (https://overlay.tips, 1.0)"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        raw = r.read()
-        return json.loads(raw) if raw else None
+def _call(method, path, body=None, tries=5):
+    """One Discord API call. On a rate limit (429) waits as long as Discord says and tries again."""
+    for i in range(tries):
+        req = urllib.request.Request(API + path, method=method, data=json.dumps(body).encode() if body is not None else None,
+                                     headers={"Authorization": f"Bot {TOKEN}", "Content-Type": "application/json",
+                                              "User-Agent": "DiscordBot (https://overlay.tips, 1.0)"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                raw = r.read()
+                return json.loads(raw) if raw else None
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or i == tries - 1:
+                raise
+            try:
+                wait = float(json.loads(e.read() or b"{}").get("retry_after") or 0)
+            except Exception:
+                wait = 0
+            time.sleep(min(max(wait, float(e.headers.get("Retry-After") or 1)), 30) + 0.3)
 
 
 def _channel(name):
