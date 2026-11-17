@@ -117,7 +117,15 @@ def game_state(box):
     p = box["period"]
     per = f"Q{p}" if p <= 4 else ("OT" if p == 5 else f"{p - 4}OT")
     t = str(box.get("time") or "").strip()
-    return "live", (f"{per} {t}" if t and t.lower() not in ("final", "half") else (t.title() or per))
+    if t.lower() == "final":
+        return "final", "Final"
+    hs, vs = box.get("home_team_score") or 0, box.get("visitor_team_score") or 0
+    clock = re.sub(r"^(Q\d|\d?OT)\s*", "", t, flags=re.I)   # BDL often sends "Q4 :00.0"
+    if p >= 4 and hs != vs and clock and re.fullmatch(r"[0:.\s]+", clock):
+        return "final", "Final"   # clock run out in Q4/OT and not tied: BDL's status lags a few minutes behind
+    if t.lower() in ("half", ""):
+        return "live", t.title() or per
+    return "live", f"{per} {clock}" if clock else per
 
 
 def load_bets(now):
