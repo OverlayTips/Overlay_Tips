@@ -618,9 +618,7 @@ function altLines(rows,books,mk=''){
 function render(){
   if(!DATA) return;
   const O=DATA.odds, P=DATA.props||{events:[]};
-  const c=O.credits_remaining;
   $('status').innerHTML=`<span>Updated <b>${ago(O.updated)}</b></span><span><b>${O.events.length}</b> games</span><span><b>${P.events.length}</b> with props</span>`+
-    (c!=null?`<span class="${c<200?'warn':''}">API credits left: <b>${c}</b></span>`:'')+
     (O.errors?.length?`<span class="warn" title="${esc(O.errors.join('\n'))}">${O.errors.length} fetch warning${O.errors.length>1?'s':''}</span>`:'');
   document.querySelectorAll('#views button,#moreViews button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   SHARE=[]; $('shareBar').hidden=!(['ev','arb','pp'].includes(view)||view.startsWith('bk:'));
