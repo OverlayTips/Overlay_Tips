@@ -263,8 +263,8 @@ class Live:
         done = set(rows) | {x for x in DAY_SELS.get(day, ()) if hashlib.sha1(x.encode()).hexdigest()[:5] in folded}
         left = len(DAY_SELS.get(day, set()) - done)
         head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
-                f"**✅ {w} ❌ {l}" + (f" ↩️ {v}" if v else "") + f" ⏳ {left} · {uicon} {units:+.2f}u · 💵 {staked:g}u staked**\n"
-                f"-# {w}W-{l}L{rate}{roi} · {left} bet{'s' if left != 1 else ''} left\n")
+                f"**✅{w} ❌{l}" + (f" ↩️{v}" if v else "") + f" ⏳{left} {uicon}{units:+.1f}u 💵{staked:g}u**\n"
+                f"-# {w}W-{l}L{rate}{roi} · {staked:g}u staked · {left} left\n")
         early = ""
         if sum(carry[:3]):
             early = f"-# …plus {sum(carry[:3])} earlier: {carry[0]}W-{carry[1]}L-{carry[2]}V · `{carry[3]:+.2f}u` · {carry[4]:g}u staked · `f:{','.join(folded)}`\n"
