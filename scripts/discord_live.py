@@ -208,9 +208,8 @@ class Live:
         u = 0.0 if res == "void" else ((price - 1) * stake if res == "win" else -stake)
         line = f"{ICON[res]} **{b['sel']}** · {detail} · {game} · {stake:g}u @ {price:.2f} → `{u:+.2f}u`"
         prev = rows.get(b["sel"])
-        if prev and prev[0] == res and re.search(r"u @ [\d.]+ → `", prev[1]):   # settled & counted (live stats can still tick up)
-            return
-        rows[b["sel"]] = (res, line)
+        if not (prev and prev[0] == res and re.search(r"u @ [\d.]+ → `", prev[1])):   # settled & counted: keep its line
+            rows[b["sel"]] = (res, line)
         while True:   # a big day: fold the oldest lines into one "earlier" line so the totals stay right
             text = self._tally_text(day, key, rows, carry, folded)
             olds = [k for k, (r, t) in rows.items() if re.search(r"u @ [\d.]+ → `", t)]
@@ -220,6 +219,8 @@ class Live:
             r0, t0 = rows.pop(olds[0])
             u0, s0 = self._nums(r0, t0)
             carry = [carry[0] + (r0 == "win"), carry[1] + (r0 == "loss"), carry[2] + (r0 == "void"), carry[3] + u0, carry[4] + s0]
+        if old and old[1] == text:
+            return
         new = key not in self.msgs
         self.upsert(key, text)
         if new:
