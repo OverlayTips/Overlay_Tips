@@ -24,7 +24,7 @@ To unlock your channels, link your Discord to your Overlay account (free):
 2. Open the **Group & alerts** tab and tap **Connect Discord**
 Your role and channels unlock within about 5 minutes.
 
-⭐ **Founder (free):** bet of the day, racing top picks + #founder-picks
+⭐ **Founder (free):** bet of the day, racing top picks, #founder-picks + #founder-tracker (live)
 🃏 **Daily Card:** every player prop alert
 💎 **VIP:** everything, plus game bets, racing value and arbs
 Plans and prices: #membership · Results: #results
@@ -65,7 +65,7 @@ def main():
               "Turn on Server Members Intent: Developer Portal -> Bot -> Privileged Gateway Intents.")
         return
     text = WELCOME
-    for name in ("founder-picks", "membership", "results"):   # make the channel names clickable
+    for name in ("founder-picks", "founder-tracker", "membership", "results"):   # make the channel names clickable
         cid = dp._channel(name)
         if cid:
             text = text.replace("#" + name, f"<#{cid}>")

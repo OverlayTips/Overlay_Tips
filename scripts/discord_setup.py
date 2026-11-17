@@ -38,6 +38,7 @@ LAYOUT = [
     ]),
     ("FOUNDERS", ["Founder", "Daily Card", "VIP"], [
         ("founder-picks", True, []),
+        ("founder-tracker", True, []),
     ]),
     ("DAILY CARD", ["Daily Card", "VIP"], [
         ("nba-props", True, []),
@@ -58,7 +59,7 @@ DELETE = {"off-topic", "meeting-room", "Meeting Room", "free"}   # "free" channe
 WELCOME = """**Welcome to Overlay Tips 🏇🏀**
 We find bookie prices that beat the fair odds and post every bet, wins and losses, tracked live on <https://overlay.tips/record.html>.
 
-**Founder (free):** bet of the day, racing top picks + #founder-picks: the props with a good matchup and a verdict we like
+**Founder (free):** bet of the day, racing top picks + #founder-picks: the props with a good matchup and a verdict we like, tracked live in #founder-tracker
 **Overlay Wire (free sign-up):** #nba-lineups + #nfl-lineups (confirmed starters + injury news) and #previews (the daily preview)
 **Daily Card:** every player prop alert (NBA, NBL, NFL)
 **VIP:** everything, plus game bets, racing value, arbs and steamers
@@ -123,6 +124,7 @@ def membership_post():
 **⭐ Founding member · FREE for life** (first 500 only)
 • Bet of the day + racing top picks
 • #founder-picks: the props where the matchup is good and the verdict is one we like
+• #founder-tracker: those picks tracked live, with a daily wins/losses tally
 • Every tip in the Discord
 • Overlay Wire, Hot stats and the bet tracker
 • #nba-lineups + #nfl-lineups (confirmed starters + injury news) and #previews
