@@ -2,7 +2,7 @@
 alerted prop's progress (e.g. "Zion 18/22 pts · needs 4"), plus one pinned "today's tally" message
 (wins / losses / voids for the day) that's edited as each bet settles, instead of a post per bet.
 #founder-tracker (FOUNDERS category) does the same for just the founder picks (the bets in #founder-picks),
-with its own tally, off the same box scores.
+with its own tally, off the same box scores. The bet of the day (botd.json) is tracked in both, tagged 🎯 BOTD.
 
 Bets come from the bet log (every value alert the tracker sent), live numbers from BALLDONTLIE box scores.
 No state file: the bot finds its own messages again by a small marker on the last line, so reruns never
@@ -106,6 +106,9 @@ def refresh_log():
         data = subprocess.run(["git", "show", "FETCH_HEAD:bet_log.json"], check=True, capture_output=True, timeout=30).stdout
         with open(os.path.join(OUT, "bet_log.json"), "wb") as f:
             f.write(data)
+        data = subprocess.run(["git", "show", "FETCH_HEAD:botd.json"], check=True, capture_output=True, timeout=30).stdout
+        with open(os.path.join(OUT, "botd.json"), "wb") as f:
+            f.write(data)
     except Exception as e:
         print(f"::warning::bet log refresh: {e}")
 
@@ -139,6 +142,12 @@ def load_bets(now):
     import picks
     with open(os.path.join(OUT, "bet_log.json")) as f:
         log = picks.decrypt_with_key(json.load(f), LOG_KEY)
+    try:   # bet of the day: (selection, start to the minute), like bet_log.py
+        with open(os.path.join(OUT, "botd.json")) as f:
+            bj = json.load(f)
+        botd = {(h.get("sel"), str(h.get("start"))[:16]) for h in ([bj.get("today")] if bj.get("today") else []) + (bj.get("hist") or [])}
+    except Exception:
+        botd = set()
     seen, every = {}, []
     for b in sorted(log.get("bets", []), key=lambda b: -(b.get("edge") or 0)):
         if b.get("sport_key") != "basketball_nba" or b.get("mk") not in STAT or b.get("point") is None or not b.get("desc"):
@@ -151,15 +160,24 @@ def load_bets(now):
         if k in seen:
             if b.get("tier") == "founder":
                 seen[k]["tier"] = "founder"
+            if (b.get("sel"), str(b.get("start"))[:16]) in botd:
+                seen[k]["botd"] = True
             continue
         seen[k] = b = dict(b)
+        if (b.get("sel"), str(b.get("start"))[:16]) in botd:
+            b["botd"] = True
         every.append(b)
     out = [b for b in every if now - timedelta(hours=6) <= datetime.fromisoformat(b["start"].replace("Z", "+00:00")) <= now + timedelta(minutes=30)]
     return out, every
 
 
 def is_founder(b):
-    return b.get("tier") == "founder"
+    """Founders' channel: their picks plus the bet of the day."""
+    return b.get("tier") == "founder" or bool(b.get("botd"))
+
+
+def name(b):
+    return ("🎯 BOTD · " if b.get("botd") else "") + f"**{b['sel']}**"
 
 
 def progress(b, row, state):
@@ -233,7 +251,7 @@ class Live:
             return
         stake, price = float(b.get("stake") or 1), float(b.get("price") or 1)
         u = 0.0 if res == "void" else ((price - 1) * stake if res == "win" else -stake)
-        line = f"{ICON[res]} **{b['sel']}** · {detail} · {game} · {stake:g}u @ {price:.2f} → `{u:+.2f}u`"
+        line = f"{ICON[res]} {'🎯 BOTD · ' if b.get('botd') else ''}**{b['sel']}** · {detail} · {game} · {stake:g}u @ {price:.2f} → `{u:+.2f}u`"
         prev = rows.get(b["sel"])
         if not (prev and prev[0] == res and re.search(r"u @ [\d.]+ → `", prev[1])):   # settled & counted: keep its line
             rows[b["sel"]] = (res, line)
@@ -301,7 +319,7 @@ class Live:
     def _tally_rows(text):
         rows, carry, folded = {}, [0, 0, 0, 0.0, 0.0], []
         for ln in text.split("\n"):
-            m = re.match(r"(✅|❌|↩️) \*\*(.+?)\*\* · ", ln)
+            m = re.match(r"(✅|❌|↩️) (?:🎯 BOTD · )?\*\*(.+?)\*\* · ", ln)
             if m:
                 rows[m.group(2)] = ({v: k for k, v in ICON.items()}[m.group(1)], ln)
             c = re.match(r"-# …plus \d+ earlier: (\d+)W-(\d+)L-(\d+)V · `([+-][\d.]+)u` · ([\d.]+)u staked", ln)
@@ -341,7 +359,7 @@ def one_pass(lives, bets):
         for live in lives:
             if not live.pick(b):
                 continue
-            games[id(live)].setdefault(k, (box, state, clock, []))[3].append(f"{icon} **{b['sel']}** · {text}")
+            games[id(live)].setdefault(k, (box, state, clock, []))[3].append(f"{icon} {name(b)} · {text}")
             if res:
                 live.result(b, res, text.split(" · ")[0] if res != "void" else "Didn't play", g)
         if state != "final":
