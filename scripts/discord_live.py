@@ -24,7 +24,7 @@ CHANNEL = "live-tracker"
 ET = ZoneInfo("America/New_York")
 MEL = ZoneInfo("Australia/Melbourne")
 ICON = {"win": "✅", "loss": "❌", "void": "↩️"}
-DAY_SELS = {}   # Melbourne day -> every NBA prop alert selection that day
+DAY_SELS = {}   # Melbourne day -> {selection: stake} for every NBA prop alert that day
 FOOT = "-# 18+ · Gamble responsibly · 1800 858 858"
 
 # market key -> (short label, how to read it off a box-score row)
@@ -140,7 +140,7 @@ def load_bets(now):
         if k in seen:
             continue
         seen.add(k)
-        DAY_SELS.setdefault(st.astimezone(MEL).date(), set()).add(b["sel"])   # for "bets left" in the tally
+        DAY_SELS.setdefault(st.astimezone(MEL).date(), {})[b["sel"]] = float(b.get("stake") or 1)   # for "bets left" in the tally
         if now - timedelta(hours=6) <= st <= now + timedelta(minutes=30):
             out.append(b)
     return out
@@ -261,10 +261,11 @@ class Live:
         roi = f" · ROI {100 * units / staked:+.0f}%" if staked else ""
         uicon = "🟢" if units > 0.005 else "🔴" if units < -0.005 else "⚪"
         done = set(rows) | {x for x in DAY_SELS.get(day, ()) if hashlib.sha1(x.encode()).hexdigest()[:5] in folded}
-        left = len(DAY_SELS.get(day, set()) - done)
+        pend = [x for x in DAY_SELS.get(day, {}) if x not in done]
+        left, total = len(pend), staked + sum(DAY_SELS[day][x] for x in pend)
         head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
-                f"**✅{w} ❌{l}" + (f" ↩️{v}" if v else "") + f" ⏳{left} {uicon}{units:+.1f}u 💵{staked:g}u**\n"
-                f"-# {w}W-{l}L{rate}{roi} · {staked:g}u staked · {left} left\n")
+                f"**✅{w} ❌{l}" + (f" ↩️{v}" if v else "") + f" ⏳{left} {uicon}{units:+.1f}u 💵{staked:g}/{total:g}u**\n"
+                f"-# {w}W-{l}L{rate}{roi} · {staked:g}u settled of {total:g}u staked today · {left} left\n")
         early = ""
         if sum(carry[:3]):
             early = f"-# …plus {sum(carry[:3])} earlier: {carry[0]}W-{carry[1]}L-{carry[2]}V · `{carry[3]:+.2f}u` · {carry[4]:g}u staked · `f:{','.join(folded)}`\n"
