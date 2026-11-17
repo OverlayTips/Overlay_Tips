@@ -248,7 +248,7 @@ class Live:
         roi = f" · ROI {100 * units / staked:+.0f}%" if staked else ""
         uicon = "🟢" if units > 0.005 else "🔴" if units < -0.005 else "⚪"
         head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
-                f"## ✅ {w}  ❌ {l}" + (f"  ↩️ {v}" if v else "") + f"  ·  {uicon} {units:+.2f}u  ·  💵 {staked:g}u staked\n"
+                f"**✅ {w} ❌ {l}" + (f" ↩️ {v}" if v else "") + f" · {uicon} {units:+.2f}u · 💵 {staked:g}u staked**\n"
                 f"-# {w}W-{l}L{rate}{roi}\n")
         early = ""
         if sum(carry[:3]):
