@@ -203,13 +203,17 @@ class Live:
         rows = self._tally_rows(old[1]) if old else {}
         if rows.get(b["sel"], (None,))[0] == res:
             return
-        rows[b["sel"]] = (res, f"{ICON[res]} **{b['sel']}** · {detail} · {game}")
+        stake = float(b.get("stake") or 1)
+        u = 0.0 if res == "void" else ((float(b.get("price") or 1) - 1) * stake if res == "win" else -stake)
+        rows[b["sel"]] = (res, f"{ICON[res]} **{b['sel']}** · {detail} · {game} · `{u:+.2f}u`")
         w = sum(r == "win" for r, _ in rows.values())
         l = sum(r == "loss" for r, _ in rows.values())
         v = sum(r == "void" for r, _ in rows.values())
         rate = f" · {round(100 * w / (w + l))}% hit rate" if w + l else ""
+        units = sum(float(m.group(1)) for _, t in rows.values() for m in [re.search(r"`([+-][\d.]+)u`$", t)] if m)
+        uicon = "🟢" if units > 0 else "🔴" if units < 0 else "⚪"
         head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
-                f"## ✅ {w}  ❌ {l}" + (f"  ↩️ {v}" if v else "") + f"\n-# {w}W-{l}L{rate}\n")
+                f"## ✅ {w}  ❌ {l}" + (f"  ↩️ {v}" if v else "") + f"  ·  {uicon} {units:+.2f}u\n-# {w}W-{l}L{rate}\n")
         foot = f"\n-# Live tally · updates as bets settle · `live:{key}` · {FOOT[3:]}"
         body = "\n".join(t for _, t in rows.values())
         while len(head + body + foot) > 1990 and "\n" in body:   # very big day: drop the oldest lines, keep the count right
