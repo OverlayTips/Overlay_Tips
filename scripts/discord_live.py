@@ -8,7 +8,7 @@ double-post. Run in a loop by .github/workflows/discord-live.yml during NBA game
 Env: NBA_STATS_KEY (BALLDONTLIE), ODDS_ALERTS_KEY (decrypts the bet log), DISCORD_BOT_TOKEN, DISCORD_GUILD_ID,
      OUT (folder holding bet_log.json, default odds-data), ONCE=1 to run one pass and stop.
 """
-import hashlib, json, math, os, re, sys, time, urllib.error, urllib.parse, urllib.request
+import hashlib, json, math, os, re, subprocess, sys, time, unicodedata, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -39,6 +39,7 @@ STAT = {
 
 
 def _nm(x):
+    x = unicodedata.normalize("NFKD", str(x or "")).encode("ascii", "ignore").decode()   # Traoré -> Traore
     x = re.sub(r"[^a-z ]", "", str(x or "").lower().replace("-", " ").replace(".", ""))
     return " ".join(w for w in x.split() if w not in ("jr", "sr", "ii", "iii", "iv"))
 
@@ -77,8 +78,30 @@ def players(box):
             pl = p.get("player") or {}
             row = {k: p.get(k) or 0 for k in ("pts", "reb", "ast", "fg3m", "blk", "stl")}
             row["min"] = str(p.get("min") or "0")
+            row["team"] = ((box.get(side) or {}).get("abbreviation") or "").upper()
             m[_nm(f"{pl.get('first_name', '')} {pl.get('last_name', '')}")] = row
     return m
+
+
+def find(nm, sel, rows):
+    """His box-score row: exact name, else same surname on the team in the bet label (Alex vs Alexandre Sarr)."""
+    if nm in rows:
+        return rows[nm]
+    team = re.search(r"\(([A-Z]{2,4})\)", sel or "")
+    last = nm.split()[-1] if nm else ""
+    hits = [r for n, r in rows.items() if n.split() and n.split()[-1] == last and (not team or r["team"] == team.group(1))]
+    return hits[0] if len(hits) == 1 else None
+
+
+def refresh_log():
+    """Pull the latest bet log so alerts sent after the run started get tracked too."""
+    try:
+        subprocess.run(["git", "fetch", "-q", "--depth=1", "origin", "odds-data"], check=True, timeout=60)
+        data = subprocess.run(["git", "show", "FETCH_HEAD:bet_log.json"], check=True, capture_output=True, timeout=30).stdout
+        with open(os.path.join(OUT, "bet_log.json"), "wb") as f:
+            f.write(data)
+    except Exception as e:
+        print(f"::warning::bet log refresh: {e}")
 
 
 def game_state(box):
@@ -177,6 +200,10 @@ class Live:
         print(f"result: {res} {b['sel']}")
 
 
+def bp_started(b):
+    return datetime.fromisoformat(b["start"].replace("Z", "+00:00")) < datetime.now(timezone.utc) - timedelta(minutes=15)
+
+
 def one_pass(live, bets):
     """Update every game once. Returns True while anything is still to come or in play."""
     bx = boxes()
@@ -187,13 +214,16 @@ def one_pass(live, bets):
     for b in bets:
         nm = _nm(b["desc"])
         day = datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(ET).date().isoformat()
-        hit = next(((k, bp) for k, bp in where.items() if k.startswith(day + "|") and nm in bp[1]), None)   # that night's game, not a back-to-back
+        hit = next(((k, bp, r) for k, bp in where.items() if k.startswith(day + "|")
+                    for r in [find(nm, b["sel"], bp[1])] if r), None)   # that night's game, not a back-to-back
         if not hit:
+            if bp_started(b):
+                print(f"::notice::no box-score match for {b['sel']}")
             pending = pending or datetime.fromisoformat(b["start"].replace("Z", "+00:00")) > datetime.now(timezone.utc) - timedelta(hours=4)
             continue
-        k, (box, rows) = hit
+        k, (box, rows), row = hit
         state, clock = game_state(box)
-        icon, text, res = progress(b, rows[nm], state)
+        icon, text, res = progress(b, row, state)
         games.setdefault(k, (box, state, clock, []))[3].append(f"{icon} **{b['sel']}** · {text}")
         h, a = box.get("home_team") or {}, box.get("visitor_team") or {}
         g = f"{a.get('abbreviation')} @ {h.get('abbreviation')}"
@@ -217,18 +247,22 @@ def main():
         sys.exit("NBA_STATS_KEY not set")
     if not discord_post.enabled():
         sys.exit("DISCORD_BOT_TOKEN / DISCORD_GUILD_ID not set")
-    now = datetime.now(timezone.utc)
-    bets = load_bets(now)
+    bets = load_bets(datetime.now(timezone.utc))
     print(f"{len(bets)} NBA prop alerts in the window")
     if not bets:
         return
     live = Live()
     end = time.time() + float(os.environ.get("MINUTES", "28")) * 60
+    n = 0
     while True:
+        if n and n % 5 == 0:   # every 5 min: newly sent alerts and games tipping off later in the run
+            refresh_log()
+            bets = load_bets(datetime.now(timezone.utc))
+        n += 1
         try:
             pending = one_pass(live, bets)
         except Exception as e:
-            print(f"::warning::live pass failed: {type(e).__name__} {e}")
+            print(f"::warning::live pass failed: {type(e).__name__} {e} {getattr(e, 'url', '')[:60]}")
             pending = True
         if os.environ.get("ONCE") == "1" or not pending or time.time() + 60 > end:
             break
