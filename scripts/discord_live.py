@@ -24,6 +24,7 @@ CHANNEL = "live-tracker"
 ET = ZoneInfo("America/New_York")
 MEL = ZoneInfo("Australia/Melbourne")
 ICON = {"win": "✅", "loss": "❌", "void": "↩️"}
+DAY_SELS = {}   # Melbourne day -> every NBA prop alert selection that day
 FOOT = "-# 18+ · Gamble responsibly · 1800 858 858"
 
 # market key -> (short label, how to read it off a box-score row)
@@ -127,6 +128,7 @@ def load_bets(now):
     with open(os.path.join(OUT, "bet_log.json")) as f:
         log = picks.decrypt_with_key(json.load(f), LOG_KEY)
     seen, out = set(), []
+    DAY_SELS.clear()
     for b in sorted(log.get("bets", []), key=lambda b: -(b.get("edge") or 0)):
         if b.get("sport_key") != "basketball_nba" or b.get("mk") not in STAT or b.get("point") is None or not b.get("desc"):
             continue
@@ -134,13 +136,13 @@ def load_bets(now):
             st = datetime.fromisoformat(b["start"].replace("Z", "+00:00"))
         except Exception:
             continue
-        if not (now - timedelta(hours=6) <= st <= now + timedelta(minutes=30)):
-            continue
         k = (_nm(b["desc"]), b["mk"], b["side"], b["point"])
         if k in seen:
             continue
         seen.add(k)
-        out.append(b)
+        DAY_SELS.setdefault(st.astimezone(MEL).date(), set()).add(b["sel"])   # for "bets left" in the tally
+        if now - timedelta(hours=6) <= st <= now + timedelta(minutes=30):
+            out.append(b)
     return out
 
 
@@ -210,6 +212,16 @@ class Live:
         prev = rows.get(b["sel"])
         if not (prev and prev[0] == res and re.search(r"u @ [\d.]+ → `", prev[1])):   # settled & counted: keep its line
             rows[b["sel"]] = (res, line)
+        self._write(day, key, old, rows, carry, folded, f"{res} {b['sel']}")
+
+    def refresh(self, day):
+        """Re-render a day's tally (bets-left count) without a new result."""
+        key = f"tally-{day.isoformat()}"
+        old = self.msgs.get(key)
+        if old:
+            self._write(day, key, old, *self._tally_rows(old[1]), "refresh")
+
+    def _write(self, day, key, old, rows, carry, folded, why):
         while True:   # a big day: fold the oldest lines into one "earlier" line so the totals stay right
             text = self._tally_text(day, key, rows, carry, folded)
             olds = [k for k, (r, t) in rows.items() if re.search(r"u @ [\d.]+ → `", t)]
@@ -228,7 +240,7 @@ class Live:
                 discord_post._call("PUT", f"/channels/{self.cid}/pins/{self.msgs[key][0]}")
             except Exception as e:
                 print(f"::notice::couldn't pin tally: {e}")
-        print(f"tally: {res} {b['sel']} -> {text.split(chr(10))[1]}")
+        print(f"tally: {why} -> {text.split(chr(10))[1]}")
 
     @staticmethod
     def _nums(res, t):
@@ -248,9 +260,11 @@ class Live:
         rate = f" · {round(100 * w / (w + l))}% hit rate" if w + l else ""
         roi = f" · ROI {100 * units / staked:+.0f}%" if staked else ""
         uicon = "🟢" if units > 0.005 else "🔴" if units < -0.005 else "⚪"
+        done = set(rows) | {x for x in DAY_SELS.get(day, ()) if hashlib.sha1(x.encode()).hexdigest()[:5] in folded}
+        left = len(DAY_SELS.get(day, set()) - done)
         head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
-                f"**✅ {w} ❌ {l}" + (f" ↩️ {v}" if v else "") + f" · {uicon} {units:+.2f}u · 💵 {staked:g}u staked**\n"
-                f"-# {w}W-{l}L{rate}{roi}\n")
+                f"**✅ {w} ❌ {l}" + (f" ↩️ {v}" if v else "") + f" ⏳ {left} · {uicon} {units:+.2f}u · 💵 {staked:g}u staked**\n"
+                f"-# {w}W-{l}L{rate}{roi} · {left} bet{'s' if left != 1 else ''} left\n")
         early = ""
         if sum(carry[:3]):
             early = f"-# …plus {sum(carry[:3])} earlier: {carry[0]}W-{carry[1]}L-{carry[2]}V · `{carry[3]:+.2f}u` · {carry[4]:g}u staked · `f:{','.join(folded)}`\n"
@@ -305,6 +319,7 @@ def one_pass(live, bets):
             pending = True
     print(f"pass: {len(bx)} box scores, {sum(len(g[3]) for g in games.values())}/{len(bets)} bets matched, "
           + ", ".join(f"{g[0].get('visitor_team', {}).get('abbreviation')}@{g[0].get('home_team', {}).get('abbreviation')} {g[1]} {g[2]}" for g in games.values()))
+    live.refresh(datetime.now(MEL).date())
     for k, (box, state, clock, lines) in games.items():
         h, a = box.get("home_team") or {}, box.get("visitor_team") or {}
         score = "" if state == "pre" else f" · {a.get('abbreviation')} {box.get('visitor_team_score', 0)}-{box.get('home_team_score', 0)} {h.get('abbreviation')}"
