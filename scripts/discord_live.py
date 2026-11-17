@@ -1,6 +1,8 @@
 """Live bet tracking in Discord: #live-tracker gets one message per NBA game, edited every minute with each
 alerted prop's progress (e.g. "Zion 18/22 pts · needs 4"), plus one pinned "today's tally" message
 (wins / losses / voids for the day) that's edited as each bet settles, instead of a post per bet.
+#founder-tracker (FOUNDERS category) does the same for just the founder picks (the bets in #founder-picks),
+with its own tally, off the same box scores.
 
 Bets come from the bet log (every value alert the tracker sent), live numbers from BALLDONTLIE box scores.
 No state file: the bot finds its own messages again by a small marker on the last line, so reruns never
@@ -21,10 +23,10 @@ KEY = os.environ.get("NBA_STATS_KEY", "").strip()
 LOG_KEY = os.environ.get("ODDS_ALERTS_KEY", "").strip()
 OUT = os.environ.get("OUT", "odds-data")
 CHANNEL = "live-tracker"
+FOUNDER_CHANNEL = "founder-tracker"
 ET = ZoneInfo("America/New_York")
 MEL = ZoneInfo("Australia/Melbourne")
 ICON = {"win": "✅", "loss": "❌", "void": "↩️"}
-DAY_SELS = {}   # Melbourne day -> {selection: stake} for every NBA prop alert that day
 FOOT = "-# 18+ · Gamble responsibly · 1800 858 858"
 
 # market key -> (short label, how to read it off a box-score row)
@@ -129,14 +131,15 @@ def game_state(box):
 
 
 def load_bets(now):
-    """NBA player-prop alerts that started up to 6 hours ago or start in the next 30 min, one per selection."""
+    """NBA player-prop alerts that started up to 6 hours ago or start in the next 30 min, one per selection.
+    Returns (bets in the window, every deduped alert). A selection sent more than once counts as a founder
+    pick if any of its alerts went to founders (tier "founder")."""
     if not LOG_KEY:
         sys.exit("ODDS_ALERTS_KEY not set")
     import picks
     with open(os.path.join(OUT, "bet_log.json")) as f:
         log = picks.decrypt_with_key(json.load(f), LOG_KEY)
-    seen, out = set(), []
-    DAY_SELS.clear()
+    seen, every = {}, []
     for b in sorted(log.get("bets", []), key=lambda b: -(b.get("edge") or 0)):
         if b.get("sport_key") != "basketball_nba" or b.get("mk") not in STAT or b.get("point") is None or not b.get("desc"):
             continue
@@ -146,12 +149,17 @@ def load_bets(now):
             continue
         k = (_nm(b["desc"]), b["mk"], b["side"], b["point"])
         if k in seen:
+            if b.get("tier") == "founder":
+                seen[k]["tier"] = "founder"
             continue
-        seen.add(k)
-        DAY_SELS.setdefault(st.astimezone(MEL).date(), {})[b["sel"]] = float(b.get("stake") or 1)   # for "bets left" in the tally
-        if now - timedelta(hours=6) <= st <= now + timedelta(minutes=30):
-            out.append(b)
-    return out
+        seen[k] = b = dict(b)
+        every.append(b)
+    out = [b for b in every if now - timedelta(hours=6) <= datetime.fromisoformat(b["start"].replace("Z", "+00:00")) <= now + timedelta(minutes=30)]
+    return out, every
+
+
+def is_founder(b):
+    return b.get("tier") == "founder"
 
 
 def progress(b, row, state):
@@ -176,10 +184,12 @@ def progress(b, row, state):
 
 
 class Live:
-    def __init__(self):
-        self.cid = discord_post._channel(CHANNEL)
+    def __init__(self, channel=CHANNEL, pick=None, label="Live tracker"):
+        self.channel, self.pick, self.label = channel, pick or (lambda b: True), label
+        self.day_sels = {}   # Melbourne day -> {selection: stake} for every bet this channel tracks that day ("bets left")
+        self.cid = discord_post._channel(channel)
         if not self.cid:
-            sys.exit(f"no #{CHANNEL} channel: run the Discord setup workflow first")
+            raise LookupError(f"no #{channel} channel: run the Discord setup workflow first")
         self.msgs = {}
         msgs = discord_post._call("GET", f"/channels/{self.cid}/messages?limit=100") or []
         try:
@@ -192,6 +202,13 @@ class Live:
             tag = re.search(r"`live:([^`]+)`", m.get("content") or "")
             if tag:
                 self.msgs.setdefault(tag.group(1), (m["id"], m["content"]))
+
+    def set_bets(self, every):
+        self.day_sels = {}
+        for b in every:
+            if self.pick(b):
+                d = datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(MEL).date()
+                self.day_sels.setdefault(d, {})[b["sel"]] = float(b.get("stake") or 1)
 
     def upsert(self, key, text):
         old = self.msgs.get(key)
@@ -268,9 +285,9 @@ class Live:
         rate = f" · {round(100 * w / (w + l))}% hit rate" if w + l else ""
         roi = f" · ROI {100 * units / staked:+.0f}%" if staked else ""
         uicon = "🟢" if units > 0.005 else "🔴" if units < -0.005 else "⚪"
-        done = set(rows) | {x for x in DAY_SELS.get(day, ()) if hashlib.sha1(x.encode()).hexdigest()[:5] in folded}
-        pend = [x for x in DAY_SELS.get(day, {}) if x not in done]
-        left, total = len(pend), staked + sum(DAY_SELS[day][x] for x in pend)
+        done = set(rows) | {x for x in self.day_sels.get(day, ()) if hashlib.sha1(x.encode()).hexdigest()[:5] in folded}
+        pend = [x for x in self.day_sels.get(day, {}) if x not in done]
+        left, total = len(pend), staked + sum(self.day_sels[day][x] for x in pend)
         head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
                 f"**✅{w} ❌{l}" + (f" ↩️{v}" if v else "") + f" ⏳{left} {uicon}{units:+.1f}u 💵{staked:g}/{total:g}u**\n"
                 f"-# {w}W-{l}L{rate}{roi} · {staked:g}u settled of {total:g}u staked today · {left} left\n")
@@ -299,13 +316,13 @@ def bp_started(b):
     return datetime.fromisoformat(b["start"].replace("Z", "+00:00")) < datetime.now(timezone.utc) - timedelta(minutes=15)
 
 
-def one_pass(live, bets):
-    """Update every game once. Returns True while anything is still to come or in play."""
+def one_pass(lives, bets):
+    """Update every game once in every tracker channel. Returns True while anything is still to come or in play."""
     bx = boxes()
     where = {}   # box key -> (box, {name: row})
     for k, b in bx.items():
         where[k] = (b, players(b))
-    games, pending = {}, False
+    games, pending = {id(l): {} for l in lives}, False
     for b in bets:
         nm = _nm(b["desc"])
         day = datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(ET).date().isoformat()
@@ -319,25 +336,34 @@ def one_pass(live, bets):
         k, (box, rows), row = hit
         state, clock = game_state(box)
         icon, text, res = progress(b, row, state)
-        games.setdefault(k, (box, state, clock, []))[3].append(f"{icon} **{b['sel']}** · {text}")
         h, a = box.get("home_team") or {}, box.get("visitor_team") or {}
         g = f"{a.get('abbreviation')} @ {h.get('abbreviation')}"
-        if res:
-            live.result(b, res, text.split(" · ")[0] if res != "void" else "Didn't play", g)
+        for live in lives:
+            if not live.pick(b):
+                continue
+            games[id(live)].setdefault(k, (box, state, clock, []))[3].append(f"{icon} **{b['sel']}** · {text}")
+            if res:
+                live.result(b, res, text.split(" · ")[0] if res != "void" else "Didn't play", g)
         if state != "final":
             pending = True
-    print(f"pass: {len(bx)} box scores, {sum(len(g[3]) for g in games.values())}/{len(bets)} bets matched, "
-          + ", ".join(f"{g[0].get('visitor_team', {}).get('abbreviation')}@{g[0].get('home_team', {}).get('abbreviation')} {g[1]} {g[2]}" for g in games.values()))
-    live.refresh(datetime.now(MEL).date())
+    for live in lives:
+        gs = games[id(live)]
+        print(f"#{live.channel}: {len(bx)} box scores, {sum(len(g[3]) for g in gs.values())}/{sum(map(live.pick, bets))} bets matched, "
+              + ", ".join(f"{g[0].get('visitor_team', {}).get('abbreviation')}@{g[0].get('home_team', {}).get('abbreviation')} {g[1]} {g[2]}" for g in gs.values()))
+        live.refresh(datetime.now(MEL).date())
+        draw_games(live, gs)
+    return pending
+
+
+def draw_games(live, games):
     for k, (box, state, clock, lines) in games.items():
         h, a = box.get("home_team") or {}, box.get("visitor_team") or {}
         score = "" if state == "pre" else f" · {a.get('abbreviation')} {box.get('visitor_team_score', 0)}-{box.get('home_team_score', 0)} {h.get('abbreviation')}"
         tag = f"{str(box.get('date', ''))[:10]}-{a.get('abbreviation')}-{h.get('abbreviation')}"
         note = "final" if state == "final" else "updates every minute"
         text = (f"🏀 **{a.get('full_name', a.get('abbreviation'))} @ {h.get('full_name', h.get('abbreviation'))}** · {clock}{score}\n"
-                + "\n".join(lines) + f"\n-# Live tracker · {note} · `live:{tag}`")
+                + "\n".join(lines) + f"\n-# {live.label} · {note} · `live:{tag}`")
         live.upsert(tag, text[:1990])
-    return pending
 
 
 def main():
@@ -345,20 +371,28 @@ def main():
         sys.exit("NBA_STATS_KEY not set")
     if not discord_post.enabled():
         sys.exit("DISCORD_BOT_TOKEN / DISCORD_GUILD_ID not set")
-    bets = load_bets(datetime.now(timezone.utc))
-    print(f"{len(bets)} NBA prop alerts in the window")
+    bets, every = load_bets(datetime.now(timezone.utc))
+    print(f"{len(bets)} NBA prop alerts in the window ({sum(map(is_founder, bets))} founder picks)")
     if not bets:
         return
-    live = Live()
+    lives = [Live()]
+    try:
+        lives.append(Live(FOUNDER_CHANNEL, is_founder, "Founder tracker"))
+    except LookupError as e:
+        print(f"::warning::{e}")
+    for l in lives:
+        l.set_bets(every)
     end = time.time() + float(os.environ.get("MINUTES", "28")) * 60
     n = 0
     while True:
         if n and n % 5 == 0:   # every 5 min: newly sent alerts and games tipping off later in the run
             refresh_log()
-            bets = load_bets(datetime.now(timezone.utc))
+            bets, every = load_bets(datetime.now(timezone.utc))
+            for l in lives:
+                l.set_bets(every)
         n += 1
         try:
-            pending = one_pass(live, bets)
+            pending = one_pass(lives, bets)
         except Exception as e:
             print(f"::warning::live pass failed: {type(e).__name__} {e} {getattr(e, 'url', '')[:60]}")
             pending = True
