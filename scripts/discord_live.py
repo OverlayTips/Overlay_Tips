@@ -201,11 +201,12 @@ class Live:
         key = f"tally-{day.isoformat()}"
         old = self.msgs.get(key)
         rows = self._tally_rows(old[1]) if old else {}
-        if rows.get(b["sel"], (None,))[0] == res:
-            return
         stake = float(b.get("stake") or 1)
         u = 0.0 if res == "void" else ((float(b.get("price") or 1) - 1) * stake if res == "win" else -stake)
-        rows[b["sel"]] = (res, f"{ICON[res]} **{b['sel']}** · {detail} · {game} · `{u:+.2f}u`")
+        line = f"{ICON[res]} **{b['sel']}** · {detail} · {game} · `{u:+.2f}u`"
+        if rows.get(b["sel"]) == (res, line):
+            return
+        rows[b["sel"]] = (res, line)
         w = sum(r == "win" for r, _ in rows.values())
         l = sum(r == "loss" for r, _ in rows.values())
         v = sum(r == "void" for r, _ in rows.values())
