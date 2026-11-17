@@ -44,5 +44,5 @@ jobs:
         run: |
           pip install -q cryptography
           mkdir -p odds-data
-          git fetch -q --depth=1 origin odds-data && git show FETCH_HEAD:bet_log.json > odds-data/bet_log.json
+          git fetch -q --depth=1 origin odds-data && git show FETCH_HEAD:bet_log.json > odds-data/bet_log.json && (git show FETCH_HEAD:botd.json > odds-data/botd.json || true)
           python scripts/discord_live.py
