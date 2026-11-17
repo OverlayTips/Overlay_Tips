@@ -200,42 +200,75 @@ class Live:
         day = datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(MEL).date()
         key = f"tally-{day.isoformat()}"
         old = self.msgs.get(key)
-        rows = self._tally_rows(old[1]) if old else {}
-        stake = float(b.get("stake") or 1)
-        u = 0.0 if res == "void" else ((float(b.get("price") or 1) - 1) * stake if res == "win" else -stake)
-        line = f"{ICON[res]} **{b['sel']}** · {detail} · {game} · `{u:+.2f}u`"
-        if rows.get(b["sel"]) == (res, line):
+        rows, carry, folded = self._tally_rows(old[1]) if old else ({}, [0, 0, 0, 0.0, 0.0], [])
+        h = hashlib.sha1(b["sel"].encode()).hexdigest()[:5]
+        if h in folded:   # already counted in the "earlier" line
+            return
+        stake, price = float(b.get("stake") or 1), float(b.get("price") or 1)
+        u = 0.0 if res == "void" else ((price - 1) * stake if res == "win" else -stake)
+        line = f"{ICON[res]} **{b['sel']}** · {detail} · {game} · {stake:g}u @ {price:.2f} → `{u:+.2f}u`"
+        prev = rows.get(b["sel"])
+        if prev and prev[0] == res and re.search(r"u @ [\d.]+ → `", prev[1]):   # settled & counted (live stats can still tick up)
             return
         rows[b["sel"]] = (res, line)
-        w = sum(r == "win" for r, _ in rows.values())
-        l = sum(r == "loss" for r, _ in rows.values())
-        v = sum(r == "void" for r, _ in rows.values())
-        rate = f" · {round(100 * w / (w + l))}% hit rate" if w + l else ""
-        units = sum(float(m.group(1)) for _, t in rows.values() for m in [re.search(r"`([+-][\d.]+)u`$", t)] if m)
-        uicon = "🟢" if units > 0 else "🔴" if units < 0 else "⚪"
-        head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
-                f"## ✅ {w}  ❌ {l}" + (f"  ↩️ {v}" if v else "") + f"  ·  {uicon} {units:+.2f}u\n-# {w}W-{l}L{rate}\n")
-        foot = f"\n-# Live tally · updates as bets settle · `live:{key}` · {FOOT[3:]}"
-        body = "\n".join(t for _, t in rows.values())
-        while len(head + body + foot) > 1990 and "\n" in body:   # very big day: drop the oldest lines, keep the count right
-            body = body.split("\n", 1)[1]
+        while True:   # a big day: fold the oldest lines into one "earlier" line so the totals stay right
+            text = self._tally_text(day, key, rows, carry, folded)
+            olds = [k for k, (r, t) in rows.items() if re.search(r"u @ [\d.]+ → `", t)]
+            if len(text) <= 1990 or len(rows) <= 1 or not olds:
+                break
+            folded.append(hashlib.sha1(olds[0].encode()).hexdigest()[:5])
+            r0, t0 = rows.pop(olds[0])
+            u0, s0 = self._nums(r0, t0)
+            carry = [carry[0] + (r0 == "win"), carry[1] + (r0 == "loss"), carry[2] + (r0 == "void"), carry[3] + u0, carry[4] + s0]
         new = key not in self.msgs
-        self.upsert(key, head + body + foot)
+        self.upsert(key, text)
         if new:
             try:
                 discord_post._call("PUT", f"/channels/{self.cid}/pins/{self.msgs[key][0]}")
             except Exception as e:
                 print(f"::notice::couldn't pin tally: {e}")
-        print(f"tally: {res} {b['sel']} -> {w}W-{l}L")
+        print(f"tally: {res} {b['sel']} -> {text.split(chr(10))[1]}")
+
+    @staticmethod
+    def _nums(res, t):
+        """(units, staked) for one tally line; voids stake nothing."""
+        m = re.search(r" · ([\d.]+)u @ [\d.]+ → `([+-][\d.]+)u`$", t)
+        if not m:   # line from before units were shown
+            m2 = re.search(r"`([+-][\d.]+)u`$", t)
+            return (float(m2.group(1)) if m2 else 0.0), 0.0
+        return float(m.group(2)), (0.0 if res == "void" else float(m.group(1)))
+
+    def _tally_text(self, day, key, rows, carry, folded):
+        w, l, v, units, staked = carry
+        for r, t in rows.values():
+            w, l, v = w + (r == "win"), l + (r == "loss"), v + (r == "void")
+            du, ds = self._nums(r, t)
+            units, staked = units + du, staked + ds
+        rate = f" · {round(100 * w / (w + l))}% hit rate" if w + l else ""
+        roi = f" · ROI {100 * units / staked:+.0f}%" if staked else ""
+        uicon = "🟢" if units > 0.005 else "🔴" if units < -0.005 else "⚪"
+        head = (f"📊 **Today's tally · {day.strftime('%a %-d %b')}**\n"
+                f"## ✅ {w}  ❌ {l}" + (f"  ↩️ {v}" if v else "") + f"  ·  {uicon} {units:+.2f}u  ·  💵 {staked:g}u staked\n"
+                f"-# {w}W-{l}L{rate}{roi}\n")
+        early = ""
+        if sum(carry[:3]):
+            early = f"-# …plus {sum(carry[:3])} earlier: {carry[0]}W-{carry[1]}L-{carry[2]}V · `{carry[3]:+.2f}u` · {carry[4]:g}u staked · `f:{','.join(folded)}`\n"
+        foot = f"\n-# Live tally · updates as bets settle · `live:{key}` · {FOOT[3:]}"
+        return head + early + "\n".join(t for _, t in rows.values()) + foot
 
     @staticmethod
     def _tally_rows(text):
-        rows = {}
+        rows, carry, folded = {}, [0, 0, 0, 0.0, 0.0], []
         for ln in text.split("\n"):
             m = re.match(r"(✅|❌|↩️) \*\*(.+?)\*\* · ", ln)
             if m:
                 rows[m.group(2)] = ({v: k for k, v in ICON.items()}[m.group(1)], ln)
-        return rows
+            c = re.match(r"-# …plus \d+ earlier: (\d+)W-(\d+)L-(\d+)V · `([+-][\d.]+)u` · ([\d.]+)u staked", ln)
+            if c:
+                carry = [int(c.group(1)), int(c.group(2)), int(c.group(3)), float(c.group(4)), float(c.group(5))]
+                f = re.search(r"`f:([0-9a-f,]*)`", ln)
+                folded = [x for x in (f.group(1).split(",") if f else []) if x]
+        return rows, carry, folded
 
 
 def bp_started(b):
