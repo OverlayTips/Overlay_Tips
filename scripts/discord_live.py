@@ -220,6 +220,7 @@ class Live:
             tag = re.search(r"`live:([^`]+)`", m.get("content") or "")
             if tag:
                 self.msgs.setdefault(tag.group(1), (m["id"], m["content"]))
+        print(f"DBG #{channel} cid={self.cid}: {len(msgs)} msgs, bots={sum(bool((m.get('author') or {}).get('bot')) for m in msgs)}, tags={list(self.msgs)[:8]}, sample={[ (m.get('author') or {}).get('username') for m in msgs[:3]]}")
 
     def set_bets(self, every):
         self.day_sels = {}
