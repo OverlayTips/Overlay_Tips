@@ -1014,8 +1014,9 @@ function evChart(top,ptOf){
 
 /* ---------- bonus bet conversions (stake not returned): bonus at a bookie, lay on Betfair ---------- */
 const BONUS_MIN=0.65;   // hide conversions keeping under 65% of the bonus
+const BONUS_PIN=['dabble_au'];   // always show these bookie chips, even with nothing at 65%+
 let bbook=store.get('bbook','all'), bcomm=store.get('bcomm',6);
-function conversions(evs,c){
+function conversions(evs,c,min=BONUS_MIN){
   const now=new Date(), out=[];
   evs.forEach(ev=>{
     if(new Date(ev.commence_time)<=now) return;
@@ -1029,7 +1030,7 @@ function conversions(evs,c){
           const l=lo.find(x=>x.name===o.name&&(x.description||'')===(o.description||'')&&(o.point==null||x.point===o.point));
           if(!l||!(l.price>1)) return;
           const conv=(o.price-1)*(1-c)/(l.price-c);
-          if(conv<BONUS_MIN) return;   // only show worthwhile conversions
+          if(conv<min) return;   // only show worthwhile conversions
           out.push({ev,mk:m.key,c:{book:b,name:o.name,desc:o.description||'',point:o.point,price:o.price},lay:{name:l.name,desc:l.description||'',point:l.point,price:l.price},conv});
         });
       });
@@ -1041,8 +1042,9 @@ function renderBonus(){
   const O=DATA.odds;
   const S=Math.max(1,parseFloat($('bstake').value)||50);
   $('bcomm').value=bcomm; const c=Math.min(Math.max(bcomm,0),50)/100;
-  const all=conversions(O.events,c);
+  const any=conversions(O.events,c,0), all=any.filter(x=>x.conv>=BONUS_MIN);
   const books={}; all.forEach(x=>books[x.c.book.key]=x.c.book);
+  O.events.forEach(e=>e.bookmakers.forEach(b=>{ if(BONUS_PIN.includes(b.key)) books[b.key]=b; }));
   if(bbook!=='all'&&!books[bbook]) bbook='all';
   $('sports').innerHTML=[['all','All bookies'],...Object.values(books).sort((a,b)=>bkName(a).localeCompare(bkName(b))).map(b=>[b.key,bkName(b)])]
     .map(([k,l])=>`<button class="chip ${k===bbook?'on':''}" data-s="${esc(k)}">${esc(l)}</button>`).join('');
@@ -1052,6 +1054,11 @@ function renderBonus(){
   const q=$('q').value.trim().toLowerCase();
   let rows=all.filter(x=>(bbook==='all'||x.c.book.key===bbook)&&
     (!q||(x.ev.home_team+' '+x.ev.away_team+' '+x.c.desc).toLowerCase().includes(q)));
+  let note='';
+  if(!rows.length&&bbook!=='all'){
+    rows=any.filter(x=>x.c.book.key===bbook&&(!q||(x.ev.home_team+' '+x.ev.away_team+' '+x.c.desc).toLowerCase().includes(q))).slice(0,10);
+    if(rows.length) note=`Nothing at 65%+ with ${esc(bkName(books[bbook]||{key:bbook}))} right now. Best available:`;
+  }
   if(!rows.length){$('list').innerHTML='<div class="empty"><h3>Nothing here</h3>No conversions of 65% or better for this bookie right now.</div>';return;}
   const pt=(mk,p)=>p==null?'':' '+fmtPt(mk,p);
   const lbl=(mk)=>mk==='h2h'?'H2H':mk==='spreads'?'Line':mk==='totals'?'Total':(PROP_LABEL[mk]||mk);
@@ -1064,7 +1071,7 @@ function renderBonus(){
       <td><span class="leg">Lay <b>$${L.toFixed(2)}</b> on ${sel(x,x.lay)} @ <b>${LO.toFixed(2)}</b> <span class="bk">Betfair · liability $${(L*(LO-1)).toFixed(2)}</span></span></td>
       <td><span class="leg">${esc(x.ev.home_team)} v ${esc(x.ev.away_team)}</span><span class="bk">${esc(x.ev.sport_title)} · ${lbl(x.mk)} · ${when(x.ev.commence_time)}</span></td>
       <td>${calc}</td></tr>`;}).join('');
-  $('list').innerHTML=`<div class="ev-meta" style="padding:0 4px 8px">${rows.length} markets, best conversion first</div><div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Lay (Betfair)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
+  $('list').innerHTML=`<div class="ev-meta" style="padding:0 4px 8px">${note||rows.length+' markets, best conversion first'}</div><div class="ev"><div class="tbl-wrap"><table class="bb"><tr><th>Keep</th><th>Bonus bet</th><th>Lay (Betfair)</th><th>Game</th><th></th></tr>${trs}</table></div></div>`;
 }
 $('bstake').oninput=()=>{if(!DATA)return; if(view==='bonus')renderBonus(); else if(view==='arb')renderArbs();};
 $('bcomm').oninput=()=>{const v=parseFloat($('bcomm').value); if(!(v>=0))return; bcomm=v; store.set('bcomm',bcomm); if(DATA&&view==='bonus')renderBonus(); else if(DATA&&view==='arb')renderArbs();};
