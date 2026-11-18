@@ -121,7 +121,7 @@
       </div>
       <div class="vip-lines">
         <div class="vip-line vip-chart" id="betChart" hidden>
-          <div class="vc-head"><span>Every bet, every tier</span><span class="vc-key"><i style="background:#62f0a8"></i>VIP <i style="background:#efbe3b"></i>Daily Card <i style="background:#7cc4ff"></i>Founding</span></div>
+          <div class="vc-head"><span>Every bet, every tier</span><span class="vc-key"><i style="background:#62f0a8"></i>VIP <i style="background:#efbe3b"></i>Daily Card <i style="background:#7cc4ff" class="fk"></i><span class="fk">Founding</span></span></div>
           <div class="vc-plot"></div>
           <small class="vc-tip">Tap any dot to see that bet. <span style="color:#62f0a8">●</span> won <span style="color:#ff6b6b">●</span> lost</small>
         </div>
@@ -382,6 +382,7 @@
 document.body.classList.remove('no-js');
 
 /* ---- live: the odds tracker's record (odds-data/record.json, written by scripts/bet_log.py) ---- */
+const FOUNDING_MIN=20;   // Founding record shows on the home page once it has this many graded bets
 const REC='https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/record.json';
 const fmt = u => (u>=0?'+':'−')+Math.abs(u).toFixed(2)+'U';
 const pct = (x,d=1) => x==null?'–':(x>0?'+':x<0?'−':'')+Math.abs(x).toFixed(d)+'%';
@@ -437,6 +438,7 @@ function hero(D){
     const tiers=[['m','Daily Card','#efbe3b','#3a2f0a',onA(D.members&&D.members.units)],
                  ['f','Founding','#7cc4ff','#0a2238',onA(D.founders&&D.founders.units)]].filter(t=>t[4].length>1);
     const S={v:ap}; tiers.forEach(t=>{ S[t[0]]=t[4]; });
+    if(!tiers.some(t=>t[0]==='f')) document.querySelectorAll('#betChart .fk').forEach(x=>x.hidden=true);
     const W=500,H=200,L=36,R=10,T=10,B=22, n=A.length-1;
     const ys=[].concat(...Object.values(S)).map(p=>p[1]); let lo=Math.min(0,...ys), hi=Math.max(0,...ys); const pd=(hi-lo)*.08||1; lo-=pd; hi+=pd;
     const X=i=>L+(W-L-R)*i/n, Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
@@ -575,6 +577,7 @@ function results(D){
 }
 
 fetch(REC+'?t='+Math.floor(Date.now()/300000)).then(r=>{if(!r.ok) throw 0; return r.json();}).then(D=>{
+  { const fa=D.founders&&D.founders.periods&&D.founders.periods.all; if(!fa||fa.w+fa.l<FOUNDING_MIN) delete D.founders; }   // too few bets to show yet
   for(const f of [hero,ticker,bySport,yesterday,results]){ try{ f(D); }catch(e){ console.error(e); } }
 }).catch(()=>{
   $id('heroSub').textContent='The record fills in as alerts are scored.'; heroCurve([]); $id('ticker').parentElement.hidden=true;
