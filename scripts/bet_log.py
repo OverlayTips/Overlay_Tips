@@ -333,10 +333,16 @@ def main():
             new = json.load(f)
     except Exception:
         new = []
+    byid = {b["id"]: b for b in bets}
     for a in new:
         if a.get("ev") and a.get("mk") and a.get("side") and a["id"] not in have:
             bets.append({**a, "t": now.isoformat(), "close": None, "clv": None, "result": None})
+            byid[a["id"]] = bets[-1]
             have.add(a["id"])
+        elif a.get("tier") == "founder" and a["id"] in byid:
+            # re-alerted (e.g. a better price) and this time it went to founders too: it counts as a founder pick,
+            # same as the Discord founder tracker
+            byid[a["id"]]["tier"] = "founder"
     if os.path.exists(NEW):
         os.remove(NEW)
 
