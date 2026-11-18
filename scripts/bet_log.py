@@ -268,35 +268,38 @@ def write_public(log, now):
         if b.get("clv") is not None:
             tot, cnt = tot + b["clv"], cnt + 1
             clv_days.append([b["start"], round(tot / cnt, 2), round(b["clv"], 2), cnt])
-    # Founding members + Daily card: the alerts those tiers get in the app (every prop alert goes to Daily card,
-    # the bet of the day to every member incl. founders). Older bets have no "tier": props = Daily card.
     try:
         with open(os.path.join(OUT, "botd.json")) as f:
             bj = json.load(f)
         botd = {(h.get("sel"), str(h.get("start"))[:16]) for h in ([bj.get("today")] if bj.get("today") else []) + (bj.get("hist") or [])}
     except Exception:
         botd = set()
-    def _member(b):
-        tier = b.get("tier") or ("core" if b.get("desc") else "vip")
-        return tier in ("founder", "core") or (b.get("sel"), str(b.get("start"))[:16]) in botd
-    mem = [b for b in done if _member(b)]
-    mu, mpts = 0.0, []
-    for b in mem:
-        if b.get("result") in ("win", "loss"):
-            if not mpts:
-                mpts.append([b["start"], 0, "Start", ""])
-            mu += ((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1)
-            mpts.append([b["start"], round(mu, 2), b.get("sel", ""), b["result"]])
-    mclv, mt, mc = [], 0.0, 0
-    for b in mem:
-        if b.get("clv") is not None:
-            mt, mc = mt + b["clv"], mc + 1
-            mclv.append([b["start"], round(mt / mc, 2), round(b["clv"], 2), mc])
-    members = {"since": mem[0]["start"] if mem else None, "clv_days": mclv,
-               "periods": {"7d": summarise([b for b in mem if _parse(b["start"]) > now - timedelta(days=7)]),
-                           "30d": summarise([b for b in mem if _parse(b["start"]) > now - timedelta(days=30)]),
-                           "all": summarise(mem)},
-               "units": mpts}
+    def _tier(b):   # older bets have no "tier": props = Daily card, everything else VIP
+        return b.get("tier") or ("core" if b.get("desc") else "vip")
+    def _botd(b):
+        return (b.get("sel"), str(b.get("start"))[:16]) in botd
+    def section(rows):
+        pts, u = [], 0.0
+        for b in rows:
+            if b.get("result") in ("win", "loss"):
+                if not pts:
+                    pts.append([b["start"], 0, "Start", ""])
+                u += ((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1)
+                pts.append([b["start"], round(u, 2), b.get("sel", ""), b["result"]])
+        clv, t, c = [], 0.0, 0
+        for b in rows:
+            if b.get("clv") is not None:
+                t, c = t + b["clv"], c + 1
+                clv.append([b["start"], round(t / c, 2), round(b["clv"], 2), c])
+        return {"since": rows[0]["start"] if rows else None, "clv_days": clv,
+                "periods": {"7d": summarise([b for b in rows if _parse(b["start"]) > now - timedelta(days=7)]),
+                            "30d": summarise([b for b in rows if _parse(b["start"]) > now - timedelta(days=30)]),
+                            "all": summarise(rows)},
+                "units": pts}
+    # Daily card: every prop alert (founder picks included) + the bet of the day.
+    # Founding: only the founder picks (good matchup + a verdict we like) + the bet of the day.
+    members = section([b for b in done if _tier(b) in ("founder", "core") or _botd(b)])
+    founders = section([b for b in done if _tier(b) == "founder" or _botd(b)])
     keep =("sel", "game", "lg", "book", "price", "close", "clv", "result", "start", "stake", "edge")
     out = {"updated": now.isoformat().replace("+00:00", "Z"),
            "since": done[0]["start"] if done else None,
@@ -307,7 +310,8 @@ def write_public(log, now):
            "sources": [{"name": k, **summarise(v)} for k, v in srcs.items()],
            "units": days,
            "clv_days": clv_days,
-           "members": members,
+           "members": members,     # Daily card
+           "founders": founders,   # Founding members
            "recent": [{k: b.get(k) for k in keep} for b in reversed(done[-60:])]}
     with open(os.path.join(OUT, "record.json"), "w") as f:
         json.dump(out, f, separators=(",", ":"))

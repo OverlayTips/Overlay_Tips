@@ -121,12 +121,13 @@
       </div>
       <div class="vip-lines">
         <div class="vip-line vip-chart" id="betChart" hidden>
-          <div class="vc-head"><span>Every bet, both systems</span><span class="vc-key"><i style="background:#62f0a8"></i>VIP <i style="background:#efbe3b"></i>Founding &amp; Daily Card</span></div>
+          <div class="vc-head"><span>Every bet, every tier</span><span class="vc-key"><i style="background:#62f0a8"></i>VIP <i style="background:#efbe3b"></i>Daily Card <i style="background:#7cc4ff"></i>Founding</span></div>
           <div class="vc-plot"></div>
           <small class="vc-tip">Tap any dot to see that bet. <span style="color:#62f0a8">●</span> won <span style="color:#ff6b6b">●</span> lost</small>
         </div>
         <a class="vip-line" id="vipLine" href="record.html" hidden></a>
         <a class="vip-line" id="memLine" href="membership.html" hidden></a>
+        <a class="vip-line" id="fndLine" href="membership.html" hidden></a>
       </div>
     </div>
 
@@ -223,7 +224,7 @@
         <span class="yday-date" id="ydayDate"></span>
       </div>
       <div class="yday-tabs" id="ydayTabs" role="tablist" aria-label="System">
-        <button type="button" role="tab" data-s="v" class="on" aria-selected="true">VIP</button><button type="button" role="tab" data-s="m" aria-selected="false">Founding &amp; Daily Card</button>
+        <button type="button" role="tab" data-s="v" class="on" aria-selected="true">VIP</button><button type="button" role="tab" data-s="m" aria-selected="false">Daily Card</button><button type="button" role="tab" data-s="f" aria-selected="false">Founding</button>
       </div>
       <div class="yday-u" id="ydayU"></div>
       <div class="yday-what" id="ydayWhat"></div>
@@ -428,12 +429,16 @@ function hero(D){
     const d=pts.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
     return `<svg class="${last<0?'neg':''}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${label} running profit: ${fmt(last)}"><line class="z" x1="${p}" x2="${W-p}" y1="${Y(0)}" y2="${Y(0)}" vector-effect="non-scaling-stroke"/><path class="ar" d="${d} L${X(pts.length-1)} ${Y(0)} L${X(0)} ${Y(0)} Z"/><path class="ln" d="${d}" vector-effect="non-scaling-stroke"/></svg>`; };
   const betChart=()=>{
-    const A=D.units||[], M=(D.members&&D.members.units)||[]; if(A.length<3) return;
+    const A=D.units||[]; if(A.length<3) return;
     const key=x=>x[0]+'|'+x[2], ix={}; A.forEach((x,i)=>{ if(i) ix[key(x)]=i; });
-    const mp=[[0,0,'Start','']]; M.slice(1).forEach(x=>{ const i=ix[key(x)]; if(i!=null) mp.push([i,x[1],x[2],x[3]]); });
+    const onA=M=>{ const out=[[0,0,'Start','']]; (M||[]).slice(1).forEach(x=>{ const i=ix[key(x)]; if(i!=null) out.push([i,x[1],x[2],x[3]]); }); return out; };
     const ap=A.map((x,i)=>[i,x[1],x[2],x[3]]);
+    // tiers after VIP: [series id, name, colour, dot stroke, points on VIP's x-axis]
+    const tiers=[['m','Daily Card','#efbe3b','#3a2f0a',onA(D.members&&D.members.units)],
+                 ['f','Founding','#7cc4ff','#0a2238',onA(D.founders&&D.founders.units)]].filter(t=>t[4].length>1);
+    const S={v:ap}; tiers.forEach(t=>{ S[t[0]]=t[4]; });
     const W=500,H=200,L=36,R=10,T=10,B=22, n=A.length-1;
-    const ys=ap.concat(mp).map(p=>p[1]); let lo=Math.min(0,...ys), hi=Math.max(0,...ys); const pd=(hi-lo)*.08||1; lo-=pd; hi+=pd;
+    const ys=[].concat(...Object.values(S)).map(p=>p[1]); let lo=Math.min(0,...ys), hi=Math.max(0,...ys); const pd=(hi-lo)*.08||1; lo-=pd; hi+=pd;
     const X=i=>L+(W-L-R)*i/n, Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
     const raw=(hi-lo)/4, mag=Math.pow(10,Math.floor(Math.log10(raw))), stp=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw);
     let g=''; for(let v=Math.ceil(lo/stp)*stp; v<=hi; v+=stp){ v=+v.toFixed(6); g+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v===0?'#3a4743':'#18211f'}"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end">${v>0?'+':''}${v}U</text>`; }
@@ -441,13 +446,14 @@ function hero(D){
     const dots=(ps,stroke)=>ps.map(p=>p[3]==='win'||p[3]==='loss'?`<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3" fill="${p[3]==='win'?'#62f0a8':'#ff6b6b'}" stroke="${stroke}" stroke-width="1"/>`:'').join('');
     const RC={}; (D.recent||[]).forEach(b=>{ RC[b.start+'|'+b.sel]=b; });
     // every dot as a tappable target: [x, y, series, index in series]
-    const targets=[]; ap.forEach((p,k)=>{ if(k) targets.push([X(p[0]),Y(p[1]),'v',k]); }); mp.forEach((p,k)=>{ if(k) targets.push([X(p[0]),Y(p[1]),'m',k]); });
+    const targets=[]; for(const [sid,ps] of Object.entries(S)) ps.forEach((p,k)=>{ if(k) targets.push([X(p[0]),Y(p[1]),sid,k]); });
     const xl=`<text x="${L}" y="${H-5}">${dShort(A[1][0])}</text><text x="${W-R}" y="${H-5}" text-anchor="end">${dShort(A[n][0])} · ${n} bets</text>`;
     const el=$id('betChart'), box=el.querySelector('.vc-plot');
-    box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running profit after every bet: VIP ${fmt(A[n][1])}, Founding and Daily Card ${fmt(mp[mp.length-1][1])}">${g}${xl}
+    const at=(ps,i)=>{ let m=ps[0]; for(const q of ps){ if(q[0]<=i) m=q; else break; } return m; };
+    box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running profit after every bet: VIP ${fmt(A[n][1])}${tiers.map(t=>`, ${t[1]} ${fmt(t[4][t[4].length-1][1])}`).join('')}">${g}${xl}
       <path d="${path(ap)}" fill="none" stroke="#62f0a8" stroke-width="2" stroke-linejoin="round"/>
-      <path d="${path(mp)}" fill="none" stroke="#efbe3b" stroke-width="2" stroke-linejoin="round"/>
-      ${dots(ap,'#0b110f')}${dots(mp,'#3a2f0a')}
+      ${tiers.map(t=>`<path d="${path(t[4])}" fill="none" stroke="${t[2]}" stroke-width="2" stroke-linejoin="round"/>`).join('')}
+      ${dots(ap,'#0b110f')}${tiers.map(t=>dots(t[4],t[3])).join('')}
       <line id="vcx" y1="${T}" y2="${H-B}" stroke="#5b6b65" visibility="hidden"/>
       <circle id="vcring" r="7" fill="none" stroke="#ecf5f1" stroke-width="2" visibility="hidden"/>
       <rect x="0" y="0" width="${W}" height="${H}" fill="transparent" id="vchit" style="cursor:pointer"/></svg>`;
@@ -459,14 +465,15 @@ function hero(D){
       let best=null,bd=1e9; for(const t of targets){ const d=(t[0]-vx)**2+(t[1]-vy)**2; if(d<bd){bd=d;best=t;} }
       if(!best||bd>(sticky?900:400)) return;
       if(sticky) picked=best;
-      const [cx,cy,ser,k]=best, ps=ser==='v'?ap:mp, p=ps[k], pl=+(p[1]-ps[k-1][1]).toFixed(2), i=p[0], a0=A[i], b=RC[a0[0]+'|'+a0[2]]||{};
-      let m=mp[0]; for(const q of mp){ if(q[0]<=i) m=q; else break; }
+      const [cx,cy,ser,k]=best, ps=S[ser], p=ps[k], pl=+(p[1]-ps[k-1][1]).toFixed(2), i=p[0], a0=A[i], b=RC[a0[0]+'|'+a0[2]]||{};
       const ring=svg.getElementById('vcring'); ring.setAttribute('cx',cx); ring.setAttribute('cy',cy); ring.setAttribute('visibility','visible');
       const ln=svg.getElementById('vcx'); ln.setAttribute('x1',cx); ln.setAttribute('x2',cx); ln.setAttribute('visibility','visible');
       const won=p[3]==='win', when=new Date(a0[0]).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'Australia/Melbourne'});
+      const inT=tiers.filter(t=>t[4].some(q=>q[0]===i)).map(t=>t[1]);
       tip.innerHTML=`<b style="color:${won?'#62f0a8':'#ff6b6b'}">${won?'✓ Won':'✗ Lost'} ${fmt(pl)}</b> · ${escH(p[2])}`+
         `<br>${b.game?escH(b.game)+' · ':''}${when}${b.price?` · $${Number(b.price).toFixed(2)} ${escH(b.book||'')}`:''}${b.stake?` · ${b.stake}U`:''}${b.clv!=null?` · CLV ${pct(b.clv)}`:''}`+
-        `<br>After this bet: VIP <b>${fmt(ap[i][1])}</b> · Founding &amp; Daily Card <b style="color:#efbe3b">${fmt(m[1])}</b>`+(ser==='m'?'':(mp.some(q=>q[0]===i)?'':' <span style="color:#87978f">(VIP only)</span>')); };
+        `<br>After this bet: VIP <b>${fmt(ap[i][1])}</b>${tiers.map(t=>` · ${t[1]} <b style="color:${t[2]}">${fmt(at(t[4],i)[1])}</b>`).join('')}`+
+        `<br><span style="color:#87978f">Posted to: VIP${inT.length?', '+inT.join(', '):' only'}</span>`; };
     const hit=svg.getElementById('vchit');
     hit.addEventListener('click',e=>pick(e,true));
     hit.addEventListener('mousemove',e=>{ if(!picked) pick(e,false); });
@@ -480,10 +487,12 @@ function hero(D){
     v.innerHTML=`Our VIP system has generated <b class="${a.units<0?'neg':''}">${fmt(a.units)}</b> through <b>${ndays(D.since)}</b><small>${a.w}-${a.l} graded · ${pct(a.clv)} avg CLV · every alert tracked →</small>${spark(D.units,'VIP system')}`;
     v.hidden=false;
   }
-  const m=D.members, ma=m&&m.periods&&m.periods.all;
-  if(ma && m.since && ma.w+ma.l){
-    const v=$id('memLine');
-    v.innerHTML=`Our Founding Members &amp; Daily Card has generated <b class="${ma.units<0?'neg':''}">${fmt(ma.units)}</b> through <b>${ndays(m.since)}</b><small>${ma.w}-${ma.l} graded · only the bets posted to those members · join →</small>${spark(m.units,'Founding Members and Daily Card')}`;
+  for(const [id,m,name,what] of [['memLine',D.members,'Daily Card','every prop alert + the bet of the day'],
+                                  ['fndLine',D.founders,'Founding Members','the founder picks + the bet of the day']]){
+    const ma=m&&m.periods&&m.periods.all;
+    if(!(ma && m.since && ma.w+ma.l)) continue;
+    const v=$id(id);
+    v.innerHTML=`Our ${name} ${name.endsWith('s')?'have':'has'} generated <b class="${ma.units<0?'neg':''}">${fmt(ma.units)}</b> through <b>${ndays(m.since)}</b><small>${ma.w}-${ma.l} graded · ${what} · join →</small>${spark(m.units,name)}`;
     v.hidden=false;
   }
   if(a.clv!=null) countUp(a.clv);
@@ -518,7 +527,7 @@ function yesterday(D){
   const today=new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Melbourne'});
   const yd=new Date(Date.parse(today+'T12:00:00Z')-864e5).toISOString().slice(0,10);
   $id('ydayDate').textContent=new Date(yd+'T12:00:00Z').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
-  const sets={v:{units:D.units,clv:D.clv_days}, m:{units:(D.members||{}).units, clv:(D.members||{}).clv_days}};
+  const sets={v:{units:D.units,clv:D.clv_days}, m:{units:(D.members||{}).units, clv:(D.members||{}).clv_days}, f:{units:(D.founders||{}).units, clv:(D.founders||{}).clv_days}};
   const render=k=>{
     const units=sets[k].units||[], legs=[];
     for(let i=1;i<units.length;i++){ const [t,cum,sel,res]=units[i]; if(melDay(t)===yd && (res==='win'||res==='loss')) legs.push([sel,+(cum-units[i-1][1]).toFixed(2),res]); }
@@ -535,6 +544,7 @@ function yesterday(D){
   };
   const tabs=$id('ydayTabs').querySelectorAll('button');
   if(!(D.members&&D.members.units)) $id('ydayTabs').hidden=true;
+  if(!(D.founders&&D.founders.units)) { const fb=$id('ydayTabs').querySelector('[data-s="f"]'); if(fb) fb.hidden=true; }
   tabs.forEach(b=>b.addEventListener('click',()=>{ tabs.forEach(x=>{x.classList.toggle('on',x===b); x.setAttribute('aria-selected',x===b);}); render(b.dataset.s); }));
   render('v');
 }
