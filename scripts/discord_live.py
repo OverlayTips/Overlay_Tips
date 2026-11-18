@@ -278,6 +278,8 @@ class Live:
         old = self.msgs.get(key)
         if old:
             self._write(day, key, old, *self._tally_rows(old[1]), "refresh")
+        elif self.day_sels.get(day):   # bets today but nothing settled yet: post the tally now (all ⏳)
+            self._write(day, key, None, {}, [0, 0, 0, 0.0, 0.0], [], "new day")
 
     def _write(self, day, key, old, rows, carry, folded, why):
         while True:   # a big day: fold the oldest lines into one "earlier" line so the totals stay right
@@ -326,7 +328,7 @@ class Live:
                 f"-# {w}W-{l}L{rate}{roi} · {staked:g}u settled of {total:g}u staked today · {left} left\n")
         early = ""
         if sum(carry[:3]):
-            early = f"-# …plus {sum(carry[:3])} earlier: {carry[0]}W-{carry[1]}L-{carry[2]}V · `{carry[3]:+.2f}u` · {carry[4]:g}u staked · `f:{','.join(folded)}`\n"
+            early = f"-# …plus {sum(carry[:3])} earlier: {carry[0]}W-{carry[1]}L-{carry[2]}V · `{carry[3]:+.2f}u` · {carry[4]:g}u staked · f:{''.join(folded)}\n"
         foot = f"\n-# Live tally · updates as bets settle · `live:{key}` · {FOOT[3:]}"
         return head + early + "\n".join(t for _, t in rows.values()) + foot
 
@@ -340,8 +342,9 @@ class Live:
             c = re.match(r"-# …plus \d+ earlier: (\d+)W-(\d+)L-(\d+)V · `([+-][\d.]+)u` · ([\d.]+)u staked", ln)
             if c:
                 carry = [int(c.group(1)), int(c.group(2)), int(c.group(3)), float(c.group(4)), float(c.group(5))]
-                f = re.search(r"`f:([0-9a-f,]*)`", ln)
-                folded = [x for x in (f.group(1).split(",") if f else []) if x]
+                f = re.search(r"f:([0-9a-f,]+)", ln)   # folded bet ids: old style `f:a,b`, now f:ab (5 hex each)
+                raw = f.group(1).replace(",", "") if f else ""
+                folded = [raw[i:i + 5] for i in range(0, len(raw) - 4, 5)]
         return rows, carry, folded
 
 
@@ -425,6 +428,12 @@ def main():
                 l.set_bets(every)
         n += 1
         pending = False
+        if not bets:
+            for l in lives:
+                try:
+                    l.refresh(datetime.now(MEL).date())
+                except Exception as e:
+                    print(f"::warning::tally refresh: {e}")
         if bets:
             try:
                 pending = one_pass(lives, bets)
