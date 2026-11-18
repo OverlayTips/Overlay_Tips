@@ -406,7 +406,7 @@ def main():
         sys.exit("DISCORD_BOT_TOKEN / DISCORD_GUILD_ID not set")
     bets, every = load_bets(datetime.now(timezone.utc))
     print(f"{len(bets)} NBA prop alerts in the window ({sum(map(is_founder, bets))} founder picks)")
-    if not bets:
+    if not bets and os.environ.get("ONCE") == "1":
         return
     lives = [Live()]
     try:
@@ -424,12 +424,18 @@ def main():
             for l in lives:
                 l.set_bets(every)
         n += 1
-        try:
-            pending = one_pass(lives, bets)
-        except Exception as e:
-            print(f"::warning::live pass failed: {type(e).__name__} {e} {getattr(e, 'url', '')[:60]}")
-            pending = True
-        if os.environ.get("ONCE") == "1" or not pending or time.time() + 60 > end:
+        pending = False
+        if bets:
+            try:
+                pending = one_pass(lives, bets)
+            except Exception as e:
+                print(f"::warning::live pass failed: {type(e).__name__} {e} {getattr(e, 'url', '')[:60]}")
+                pending = True
+        # Stay alive through game hours even with nothing live yet: GitHub's cron often skips runs, so a run that
+        # quit early left games that tipped off later untracked. Stop once nothing is live and game hours are over.
+        if os.environ.get("ONCE") == "1" or time.time() + 60 > end:
+            break
+        if not pending and datetime.now(MEL).hour >= 19:
             break
         time.sleep(60)
 
