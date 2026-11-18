@@ -237,6 +237,41 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
         spreads = _spreads(games, teams)
         posmap = {k: v[3] for k, v in ((stats.get("ids") or {}).get("map") or {}).items() if len(v) > 3}
         proj_cache = {}
+
+    def project(p, desc, ev):
+        """Projected minutes tonight (cached per player): recent minutes, starting role, teammates out, blowout risk."""
+        if not mx:
+            return None
+        pk = by.get(desc, "")
+        if pk not in proj_cache:
+            tm = p.get("team")
+            mates = {k: v for k, v in by_team.get(tm, {}).items() if k != pk}
+            st = None
+            if avail and tm in avail.lineup_teams:
+                st = _ikey(p.get("n") or desc) in avail.proj_starters
+            proj_cache[pk] = mx.minutes(p, mates, out_keys, st, bool(avail and tm in avail.lineup_teams),
+                                        spreads.get(ev["id"], {}).get(tm))
+        return proj_cache[pk]
+
+    def role_up(p, gs, proj):
+        """Why an Under is a pass tonight, or None: his role looks bigger than the games the under record is built on."""
+        if not mx:
+            return None
+        if proj:
+            if "starting" in proj["why"]:
+                return "starting tonight, usually off the bench"
+            if proj["min"] >= proj["l10"] + 3 and proj["min"] >= proj["l10"] * 1.12:
+                return f"projects {proj['min']:g} min, up from {proj['l10']:g}"
+        # last game was a minutes spike with teammates missing, and those teammates are out again tonight
+        prev = [g[3] for g in gs[1:10]]
+        if gs and prev and gs[0][3] >= 1.35 * sum(prev) / len(prev):
+            last = gs[0][0]
+            for k, t in by_team.get(p.get("team"), {}).items():
+                tg = [g for g in t.get("g", []) if g[3] > 0][:10]
+                if k in out_keys and tg and sum(g[3] for g in tg) / len(tg) >= 15 and last not in {g[0] for g in t.get("g", [])}:
+                    return f"played {gs[0][3]:.0f} min last game with {t.get('n') or k} out, and he's out again"
+        return None
+
     for ev in prop_events:
         if ev.get("sport_key") != sport:
             continue
@@ -338,15 +373,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
             proj = mu = pc = usg = None
             if mx:
                 pk = by.get(desc, "")
-                if pk not in proj_cache:
-                    tm = p.get("team")
-                    mates = {k: v for k, v in by_team.get(tm, {}).items() if k != pk}
-                    st = None
-                    if avail and tm in avail.lineup_teams:
-                        st = _ikey(p.get("n") or desc) in avail.proj_starters
-                    proj_cache[pk] = mx.minutes(p, mates, out_keys, st, bool(avail and tm in avail.lineup_teams),
-                                                spreads.get(ev["id"], {}).get(tm))
-                proj = proj_cache[pk]
+                proj = project(p, desc, ev)
                 mu = mx.matchup(ctx, opp, posmap.get(pk), mk)
                 pc = mx.pace(ctx, p.get("team"), opp)
                 usg = (ctx.get("usg") or {}).get(str(p.get("id")))
@@ -439,7 +466,8 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                         item["ctx"] = mx.describe(proj_cache.get(pk), mu, usg, pc)
             except Exception:
                 pass
-        ccands += _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich)
+        ccands += _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich,
+                        (lambda p, d, ev=ev: project(p, d, ev)) if mx else None, role_up if mx else None)
     cands.sort(key=lambda x: (x["l10"][0] / x["l10"][1], x["l5"][0] / x["l5"][1], x["price"]), reverse=True)
     out, per = [], {}
     for c in cands:
@@ -473,9 +501,12 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
 COLD_MAX_PRICE = 3.0
 
 
-def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich=None):
+def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich=None, project=None, role_up=None):
     """Cold streaks: main-line unders the player has stayed under in 80%+ of his last 10.
-    Needs a two-sided market (Pinnacle, or 3+ Aussie bookies pricing Over and Under) for a fair price."""
+    Needs a two-sided market (Pinnacle, or 3+ Aussie bookies pricing Over and Under) for a fair price.
+    NBA: skipped when his role looks bigger tonight (starting, minutes up, or a minutes spike last game with the
+    same teammates out again), since the under record comes from his normal role. Otherwise the chance blends in
+    projected minutes x his per-minute rate, like the Overs."""
     h, a = teams.get(ev["home_team"]), teams.get(ev["away_team"])
     top = {}
     for (mk, desc, pt), (price, book) in bestu.items():
@@ -506,6 +537,18 @@ def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich
         wn = 3 * len(l5) + 2 * len(l10) + len(gs)
         wn_eff = wn / 6
         p_form = (wh / wn * wn_eff + SHRINK * p_mkt) / (wn_eff + SHRINK)
+        proj = project(p, desc) if project else None
+        if role_up and role_up(p, gs, proj):
+            print(f"cold: pass {desc} Under {pt:g} {mk}: {role_up(p, gs, proj)}")
+            continue
+        mins10 = sum(g[3] for g in l10)
+        if proj and mins10 > 0:   # projected minutes x per-minute rate -> chance of staying under
+            mean = sum(f(g) for g in l10) / mins10 * proj["min"]
+            vals = [f(g) for g in l10]
+            avgv = sum(vals) / len(vals)
+            sd = max((sum((v - avgv) ** 2 for v in vals) / max(1, len(vals) - 1)) ** 0.5, 0.9 * math.sqrt(max(mean, 0.5)), 0.8)
+            p_under = 0.5 * (1 + math.erf((pt - mean) / sd / math.sqrt(2)))
+            p_form = 0.5 * p_form + 0.5 * min(0.97, max(0.03, p_under))
         prob = FORM_W[src] * p_form + (1 - FORM_W[src]) * p_mkt
         opp = a if p.get("team") == h else h if p.get("team") == a else None
         vs = [g for g in gs if opp and g[1] == opp]
