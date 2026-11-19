@@ -210,7 +210,9 @@ def progress(b, row, state):
     if state == "pre":
         return "⏳", "not started", None
     if over:
-        return "🔥" if need - v <= 2 else "⏳", f"{v}/{need} {lbl} · needs {need - v}", None
+        # 🔥 = close: at least halfway and within a quarter of the target (2 for small lines), never at 0
+        hot = v > 0 and v * 2 >= need and need - v <= max(2, math.ceil(need / 4))
+        return "🔥" if hot else "⏳", f"{v}/{need} {lbl} · needs {need - v}", None
     return "🛡️", f"{v} {lbl} · max {need}, room for {need - v}", None
 
 
