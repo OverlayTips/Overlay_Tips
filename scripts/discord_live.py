@@ -487,9 +487,6 @@ def one_pass(lives, bets):
         mine = [(k, bp) for k, bp in where.items() if k.startswith(day + "|") and in_game(b, bp[0])]   # that night's game, his teams only
         hit = next(((k, bp, bp[1][nm]) for k, bp in mine if nm in bp[1]), None) \
             or next(((k, bp, r) for k, bp in mine for r in [find(nm, b["sel"], bp[1])] if r), None)
-        if not hit and nfl and len(mine) == 1 and mine[0][1][0]["_state"] == "final":
-            # NFL stats only list players who recorded something: his game is over and he's not in it -> void
-            hit = (mine[0][0], mine[0][1], dict.fromkeys(("pyd", "ptd", "cmp", "patt", "int", "ryd", "ratt", "rec", "ryds", "td"), 0) | {"min": "0"})
         if not hit:
             if bp_started(b):
                 print(f"::notice::no box-score match for {b['sel']}")
