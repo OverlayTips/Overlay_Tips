@@ -7,8 +7,8 @@ Each alert is logged at the price and bookie it was sent with. Then, every odds 
            no-vig if it has the line, else the no-vig median across bookies). At tip-off it freezes = closing.
   CLV    - price / closing fair - 1. Beating the close on average is the best sign of a real edge,
            and it shows up after ~100 bets, long before profit and loss settles down.
-  result - NBA/NBL player props from the game logs; H2H / line / total from The Odds API scores.
-           Other props (AFL, NFL, soccer) are judged on CLV only.
+  result - NBA/NBL/NFL player props from the game logs (NFL anytime TD excepted); H2H / line / total from
+           The Odds API scores. Other props (AFL, soccer) are judged on CLV only.
   mute   - any league + market type with 100+ alerts and average CLV below MUTE_CLV stops alerting
            (value_alerts.py reads the list) until it climbs back above it.
   report - once a day (after 9am Melbourne) a push with CLV, record and profit, split by where it's working.
@@ -133,11 +133,16 @@ STATF = {"player_points": lambda g: g[4], "player_rebounds": lambda g: g[5], "pl
          "player_threes": lambda g: g[7], "player_blocks": lambda g: g[8], "player_steals": lambda g: g[9],
          "player_points_rebounds_assists": lambda g: g[4] + g[5] + g[6], "player_points_rebounds": lambda g: g[4] + g[5],
          "player_points_assists": lambda g: g[4] + g[6], "player_rebounds_assists": lambda g: g[5] + g[6]}
+# NFL logs (nfl_stats.py): [date, opp, @/vs, played, pyd, ptd, cmp, patt, int, ryd, ratt, rec, ryds, tgt, team]
+NFL_STATF = {"player_pass_yds": lambda g: g[4], "player_pass_tds": lambda g: g[5], "player_pass_completions": lambda g: g[6],
+             "player_pass_attempts": lambda g: g[7], "player_pass_interceptions": lambda g: g[8],
+             "player_rush_yds": lambda g: g[9], "player_rush_attempts": lambda g: g[10],
+             "player_receptions": lambda g: g[11], "player_reception_yds": lambda g: g[12]}
 
 
 def grade_prop(b, stats):
-    lg = {"basketball_nba": "nba", "basketball_nbl": "nbl"}.get(b.get("sport_key"))
-    f = STATF.get(b["mk"])
+    lg = {"basketball_nba": "nba", "basketball_nbl": "nbl", "americanfootball_nfl": "nfl"}.get(b.get("sport_key"))
+    f = (NFL_STATF if lg == "nfl" else STATF).get(b["mk"])
     if not lg or not f or b.get("point") is None:
         return None
     st = stats.get(lg) or {}
@@ -397,7 +402,7 @@ def main():
         print(f"bet log: muting {k} (avg CLV {sum(groups[k]) / len(groups[k]):.2f}% over {len(groups[k])})")
 
     log = {"bets": bets, "muted": mutes, "report_day": log.get("report_day"), "discord_day": log.get("discord_day"),
-           "weekly_day": log.get("weekly_day"), "tease": log.get("tease") or {}}
+           "weekly_day": log.get("weekly_day"), "league_day": log.get("league_day"), "tease": log.get("tease") or {}}
 
     # 5. daily report
     local = now.astimezone(MEL)
@@ -423,6 +428,11 @@ def main():
                 rec = json.load(f)
             if discord_post.daily_results(rec, now):
                 log["discord_day"] = today
+                save_log(log)
+        # and yesterday's units by league (NBA / NFL / NBL, only the ones with action)
+        if discord_post.enabled() and local.hour >= 9 and log.get("league_day") != today:
+            if discord_post.league_summary(bets, now):
+                log["league_day"] = today
                 save_log(log)
         # Mondays: last week's recap for both systems
         if discord_post.enabled() and local.weekday() == 0 and local.hour >= 9 and log.get("weekly_day") != today:

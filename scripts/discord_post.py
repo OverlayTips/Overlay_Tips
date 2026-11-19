@@ -143,6 +143,50 @@ def daily_results(record, now):
     return ok
 
 
+LEAGUES = (("basketball_nba", "🏀 NBA"), ("americanfootball_nfl", "🏈 NFL"), ("basketball_nbl", "🇦🇺 NBL"))
+
+
+def league_summary(bets, now):
+    """Yesterday's units by league into #results: NBA, NFL and NBL, each only if it had bets that day (Melbourne
+    day of the start). Waits until that day's bets have all settled, or 6pm, so the numbers don't change after.
+    The caller makes sure it runs once a day."""
+    local = now.astimezone(MEL)
+    day = local.date() - timedelta(days=1)
+    fmt = lambda u: f"{'+' if u >= 0 else '−'}{abs(u):.2f}U"
+    lines, tot, pend = [], [0.0, 0.0, 0, 0], 0   # units, staked, wins, losses
+    for key, label in LEAGUES:
+        bs = [b for b in bets if b.get("sport_key") == key and b.get("start")
+              and datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(MEL).date() == day]
+        if not bs:
+            continue   # no action in that league that day: leave it out
+        gr = [b for b in bs if b.get("result") in ("win", "loss")]
+        pend += sum(b.get("result") is None for b in bs)
+        if not gr:
+            continue
+        u = sum(((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1) for b in gr)
+        st = sum(b.get("stake") or 1 for b in gr)
+        w = sum(b["result"] == "win" for b in gr)
+        v = sum(b.get("result") == "void" for b in bs)
+        best = max(gr, key=lambda b: ((b["price"] - 1) if b["result"] == "win" else -1) * (b.get("stake") or 1))
+        lines.append(f"{'🟢' if u > 0.005 else '🔴' if u < -0.005 else '⚪'} **{label}: {fmt(u)}** · {w}-{len(gr) - w}"
+                     + (f" ({v} void)" if v else "") + f" · {st:g}U staked · ROI {100 * u / st:+.0f}%")
+        if best["result"] == "win":
+            lines.append(f"-# Best: {best.get('sel', '')} @ ${best['price']:.2f} {fmt((best['price'] - 1) * (best.get('stake') or 1))}")
+        tot = [tot[0] + u, tot[1] + st, tot[2] + w, tot[3] + len(gr) - w]
+    if pend and local.hour < 18:
+        print(f"discord league summary: {pend} bets from {day} still settling, waiting")
+        return False
+    if not lines:
+        print(f"discord league summary: no graded NBA/NFL/NBL bets on {day}, nothing to post")
+        return False
+    if sum(l.startswith(("🟢", "🔴", "⚪")) for l in lines) > 1:
+        lines += ["", f"**Total: {fmt(tot[0])}** · {tot[2]}-{tot[3]} · {tot[1]:g}U staked · ROI {100 * tot[0] / tot[1]:+.0f}%"]
+    ok = send("results", f"🧾 Units by league · {day.strftime('%a')} {day.day} {day.strftime('%b')}", lines,
+              "https://overlay.tips/record.html")
+    print(f"discord league summary: {day} {'posted to #results' if ok else 'NOT posted'}")
+    return ok
+
+
 def weekly_recap(record, now):
     """Monday: last week (Mon-Sun, Melbourne) for both systems into #results, with the best and worst bet."""
     end = now.astimezone(MEL).date() - timedelta(days=now.astimezone(MEL).weekday())   # this Monday
