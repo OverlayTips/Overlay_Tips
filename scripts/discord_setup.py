@@ -13,7 +13,11 @@ API = "https://discord.com/api/v10"
 TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "").strip()
 GUILD = os.environ.get("DISCORD_GUILD_ID", "").strip()
 VIEW, SEND = 1 << 10, 1 << 11
+THREADS = (1 << 35) | (1 << 36) | (1 << 38)   # create public/private threads, send in threads
+NO_TALK = SEND | THREADS
+OPEN_CHAT = {"chat"}   # the only channel members can type in
 TEXT, VOICE, CATEGORY = 0, 2, 4
+ANNOUNCE, FORUM = 5, 15
 
 ROLES = [("VIP", 0xEFBE3B), ("Daily Card", 0x62F0A8), ("Founder", 0x87978F)]
 
@@ -237,9 +241,9 @@ def main():
             if ro:   # members read, only the bot (admin) posts
                 e = next((o for o in ow if o["id"] == everyone), None)
                 if e:
-                    e["deny"] = str(int(e["deny"]) | SEND)
+                    e["deny"] = str(int(e["deny"]) | NO_TALK)
                 else:
-                    ow.append({"id": everyone, "type": 0, "allow": "0", "deny": str(SEND)})
+                    ow.append({"id": everyone, "type": 0, "allow": "0", "deny": str(NO_TALK)})
             ch = find(TEXT, [name] + old)
             body = {"name": name, "parent_id": c["id"], "position": i, "permission_overwrites": ow}
             if ch:
@@ -248,6 +252,25 @@ def main():
                 ch = call("POST", f"/guilds/{GUILD}/channels", {**body, "type": TEXT})
                 chans.append(ch)
             print("  #" + name + (" (read-only)" if ro else ""))
+
+    # Lock every other channel too (ones added by hand in Discord): members can read but not type,
+    # except #chat. Keeps whoever can see it as-is; only takes away typing for @everyone.
+    laid = {n for _, _, items in LAYOUT for n, _, _ in items}
+    for ch in call("GET", f"/guilds/{GUILD}/channels"):
+        name = ch.get("name", "")
+        if ch.get("type") not in (TEXT, VOICE, ANNOUNCE, FORUM) or name in laid or name in OPEN_CHAT:
+            continue
+        ow = [dict(o) for o in ch.get("permission_overwrites", [])]
+        e = next((o for o in ow if o["id"] == everyone), None)
+        if e:
+            if int(e["deny"]) & NO_TALK == NO_TALK:
+                continue
+            e["deny"] = str(int(e["deny"]) | NO_TALK)
+            e["allow"] = str(int(e["allow"]) & ~NO_TALK)
+        else:
+            ow.append({"id": everyone, "type": 0, "allow": "0", "deny": str(NO_TALK)})
+        call("PATCH", f"/channels/{ch['id']}", {"permission_overwrites": ow})
+        print("  locked:", name)
 
     try:   # the bot's account name and its name in the server both = "Overlay Tips"
         if (call("GET", "/users/@me") or {}).get("username") != BOT_NICK:
