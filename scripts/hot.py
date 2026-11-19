@@ -127,6 +127,10 @@ MARGIN_ONE_SIDED = 0.90                  # Over-only (ladder) prices: ~10% margi
 FORM_W = {"pin": 0.15, "two": 0.2, "one": 0.25}   # how much form counts vs the market, by market source
 SHRINK = 8                               # pseudo-games pulling the form estimate toward the market
 VALUE_CAP = 15.0                         # expected return above this = stale/wrong price, not value
+# NBL props at Aussie bookies are nearly all Over-only ladders (no Unders, no Pinnacle), so a two-sided-only rule
+# left NBL with almost no value alerts. There, one-sided lines count too, on a stricter bar: more bookies, bigger edge.
+ONE_SIDED_OK = {"basketball_nbl"}
+ONE_SIDED_BOOKS, ONE_SIDED_MIN = 4, 6.0
 
 
 def _median(xs):
@@ -436,8 +440,11 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 top[key] = item
             item.update({"ev": ev["id"], "mk": mk, "desc": desc, "sk": sport})   # lets the bet log re-find this line for its closing price
             # value needs a real two-sided fair price: an Over-only ladder with a guessed margin isn't one
-            if (src != "one" and VALUE_MIN <= item["value"] <= VALUE_CAP and len(ps) >= VALUE_BOOKS and price <= VALUE_MAX_PRICE
-                    and price <= med * 1.25) and (key not in vtop or item["value"] > vtop[key]["value"]):
+            if src == "one":
+                vok = sport in ONE_SIDED_OK and ONE_SIDED_MIN <= item["value"] <= VALUE_CAP and len(ps) >= ONE_SIDED_BOOKS
+            else:
+                vok = VALUE_MIN <= item["value"] <= VALUE_CAP and len(ps) >= VALUE_BOOKS
+            if (vok and price <= VALUE_MAX_PRICE and price <= med * 1.25) and (key not in vtop or item["value"] > vtop[key]["value"]):
                 vtop[key] = item
         cands += top.values()
         vcands += vtop.values()
