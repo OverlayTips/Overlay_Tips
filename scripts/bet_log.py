@@ -32,6 +32,9 @@ KEY = os.environ.get("ODDS_ALERTS_KEY", "").strip()
 MEL = ZoneInfo("Australia/Melbourne")
 KEEP = timedelta(days=180)
 MUTE_MIN, MUTE_CLV = 100, -1.0     # 100+ alerts with average CLV under -1% -> stop alerting that bucket
+# one market (e.g. NBA Pts + Reb): 20+ graded bets in the last 14 days losing 15%+ of stakes -> stop alerting it;
+# the window rolls, so a mute lifts by itself once the bad run ages out
+MK_MUTE_MIN, MK_MUTE_ROI, MK_MUTE_DAYS = 20, -15.0, 14
 GRADE_AFTER = timedelta(hours=2, minutes=30)   # look for a result this long after the start (only Final games count)
 GIVE_UP = timedelta(days=4)        # no result by then: leave it CLV-only
 
@@ -57,8 +60,14 @@ def save_log(log):
 
 
 def muted():
-    """Buckets value_alerts.py should stay quiet on."""
-    return set(load_log().get("muted") or [])
+    """Buckets value_alerts.py should stay quiet on (league + prop/game, and single markets)."""
+    log = load_log()
+    return set(log.get("muted") or []) | set(log.get("muted_mk") or [])
+
+
+def mbucket(b):
+    """League + market, main and alt lines together: 'NBA|player_points_rebounds', 'NBA|h2h'."""
+    return f"{b.get('lg') or b.get('sport_key') or '?'}|{str(b.get('mk') or '?').replace('_alternate', '')}"
 
 
 def bucket(b):
@@ -401,7 +410,24 @@ def main():
     for k in set(mutes) - set(log.get("muted") or []):
         print(f"bet log: muting {k} (avg CLV {sum(groups[k]) / len(groups[k]):.2f}% over {len(groups[k])})")
 
-    log = {"bets": bets, "muted": mutes, "report_day": log.get("report_day"), "discord_day": log.get("discord_day"),
+    # 5. mute single markets that are losing money lately
+    since = now - timedelta(days=MK_MUTE_DAYS)
+    pl = {}
+    for b in bets:
+        if b.get("result") in ("win", "loss") and _parse(b["start"]) >= since:
+            st = b.get("stake") or 1
+            r = pl.setdefault(mbucket(b), [0, 0.0, 0.0])
+            r[0] += 1
+            r[1] += st
+            r[2] += (b["price"] - 1) * st if b["result"] == "win" else -st
+    mk_mutes = sorted(k for k, (n, st, u) in pl.items() if n >= MK_MUTE_MIN and st and 100 * u / st < MK_MUTE_ROI)
+    for k in set(mk_mutes) - set(log.get("muted_mk") or []):
+        n, st, u = pl[k]
+        print(f"bet log: muting market {k} ({n} bets, ROI {100 * u / st:+.1f}% over {MK_MUTE_DAYS} days)")
+    for k in set(log.get("muted_mk") or []) - set(mk_mutes):
+        print(f"bet log: unmuting market {k}")
+
+    log = {"bets": bets, "muted": mutes, "muted_mk": mk_mutes, "report_day": log.get("report_day"), "discord_day": log.get("discord_day"),
            "weekly_day": log.get("weekly_day"), "league_day": log.get("league_day"), "tease": log.get("tease") or {}}
 
     # 5. daily report

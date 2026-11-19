@@ -32,6 +32,40 @@ def backed(form):
     if not form or len(form) < 2 or (form[1] or 0) < MIN_FORM_GAMES:
         return True   # no stats to judge it on (game markets, players we don't have logs for)
     return form[0] / form[1] >= MIN_FORM
+
+
+# Tighter bars for the markets the bet log showed leaking (first week: game H2H 8-23, Nations League 0-9,
+# Pts + Reb 5-9, main-line Overs 17-18 while Unders and ladders made the money)
+GAME_MIN = float(os.environ.get("GAME_MIN", "6.0"))     # game markets: Pinnacle-priced only, this much edge
+COMBO_MIN = float(os.environ.get("COMBO_MIN", "6.0"))   # Pts + Reb / Pts + Ast props
+OVER_FORM = float(os.environ.get("OVER_FORM", "0.7"))   # main-line Overs: this hit rate over his last 10...
+OVER_MIN = float(os.environ.get("OVER_MIN", "6.0"))     # ...or this much edge
+COMBO = {"player_points_rebounds", "player_points_assists"}
+
+
+def refine(p, form=None, ladder=False):
+    """Why this pick misses the tighter bars, or None when it can alert."""
+    lg = p.get("log") or {}
+    if not lg:
+        return None   # racing
+    mk = str(lg.get("mk") or "").replace("_alternate", "")
+    if not lg.get("desc"):   # game market (H2H / line / total)
+        if str(lg.get("sport_key") or "").startswith("soccer"):
+            return "soccer game market"
+        if lg.get("src") != "pin":
+            return "game market without a Pinnacle price"
+        if p["edge"] < GAME_MIN:
+            return f"game market under {GAME_MIN:g}% edge"
+        return None
+    if mk in COMBO and p["edge"] < COMBO_MIN:
+        return f"combo prop under {COMBO_MIN:g}% edge"
+    if lg.get("side") == "Over" and not ladder and p["edge"] < OVER_MIN:
+        ok = form and len(form) >= 2 and (form[1] or 0) >= MIN_FORM_GAMES and form[0] / form[1] >= OVER_FORM
+        if not ok:
+            return f"main-line Over under {OVER_FORM:.0%} form and {OVER_MIN:g}% edge"
+    return None
+
+
 MAX_PER_PUSH = 6
 MAX_SINGLE = 10**6   # no limit: every new value bet gets its own notification
 BANK_UNITS = 100     # stake suggestion = quarter Kelly on a 100-unit bank, 0.5U to 3U
@@ -278,6 +312,9 @@ def collect(now):
                     "log": {"ev": v.get("ev"), "mk": v.get("mk"), "desc": v.get("desc") or v["player"], "side": side,
                             "point": v.get("point"), "sport_key": v.get("sk"), "fair": round(1 / v["prob"], 3) if v.get("prob") else None,
                             "src": "hot-" + str(v.get("msrc") or "")}})
+        why_not = refine(out[-1], v.get("l10"), str(v.get("line", "")).endswith("+") or "_alternate" in str(v.get("mk")))
+        if why_not:
+            print(f"skipped ({why_not}): {out.pop()['sel']}")
     key = os.environ.get("ODDS_ALERTS_KEY", "").strip()
     bundle = load(os.path.join(OUT, "picks.json"), None)
     if key and bundle and bundle.get("ct"):
@@ -309,6 +346,9 @@ def collect(now):
                         "log": {"ev": o.get("ev"), "mk": o.get("mk"), "desc": o.get("desc") or "", "side": o.get("side"),
                                 "point": o.get("point"), "sport_key": o.get("sport_key"), "fair": o.get("fair"),
                                 "src": o.get("fair_src")}})
+            why_not = refine(out[-1], o.get("form"), "_alternate" in str(o.get("mk")))
+            if why_not:
+                print(f"skipped ({why_not}): {out.pop()['sel']}")
         for o in summ.get("racing_value") or []:   # Betfair back price over the Hub model's rated price
             if started(o.get("start", ""), now):
                 continue
@@ -525,9 +565,11 @@ def main():
             if ck in seen:
                 continue
             seen.add(ck)
-        if mute and (p.get("log") or {}).get("sport_key") and \
-                bet_log.bucket({"lg": p.get("lg"), "sport_key": p["log"]["sport_key"], "desc": p["log"]["desc"]}) in mute:
-            continue
+        if mute and (p.get("log") or {}).get("sport_key"):
+            b = {"lg": p.get("lg"), "sport_key": p["log"]["sport_key"], "desc": p["log"]["desc"], "mk": p["log"].get("mk")}
+            if bet_log.bucket(b) in mute or bet_log.mbucket(b) in mute:
+                print(f"skipped (muted market): {p['sel']}")
+                continue
         old = state.get(p["key"]) or (state.get(ck) if ck else None)
         cleared = "⚠️" in old.get("tag", "") if old else False   # was questionable, now isn't
         if old and p["edge"] < old["edge"] + 3 and p["price"] < old["price"] + REALERT_PRICE and not (cleared and "⚠️" not in p["tag"]):
