@@ -1,13 +1,13 @@
 name: Discord live tracker
 
-# Live NBA prop tracking in Discord #live-tracker and #founder-tracker (founder picks only) (scripts/discord_live.py): one message per game edited
+# Live NBA + NFL prop tracking in Discord #live-tracker and #founder-tracker (founder picks only) (scripts/discord_live.py): one message per game edited
 # every minute with each alerted bet's progress, plus a live wins/losses tally for the day.
 # GitHub's cron is unreliable (skips runs), so each run stays alive up to ~5.5h through game hours, checking for new alerts every
-# 5 min (a newer run cancels it). It stops once nothing is live after 7pm Melbourne. Covers 5am-7pm Melbourne (all NBA tip-offs incl. weekend matinees). Public repo: minutes are free.
+# 5 min (a newer run cancels it). It stops once nothing is live after 7pm Melbourne. Covers 4am-7pm Melbourne (all NBA tip-offs incl. weekend matinees, and every NFL slot: 1pm ET Sunday = 5am, SNF/MNF/TNF ~12:15pm, Thanksgiving/Christmas 12:30pm ET = 4:30am). Public repo: minutes are free.
 # Needs secrets: NBA_STATS_KEY, ODDS_ALERTS_KEY, DISCORD_BOT_TOKEN, DISCORD_GUILD_ID.
 on:
   schedule:
-    - cron: "*/30 18-23,0-8 * * *"
+    - cron: "*/30 17-23,0-8 * * *"
   workflow_dispatch:
     inputs:
       once:

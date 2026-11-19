@@ -1,10 +1,11 @@
-"""Live bet tracking in Discord: #live-tracker gets one message per NBA game, edited every minute with each
+"""Live bet tracking in Discord: #live-tracker gets one message per NBA / NFL game, edited every minute with each
 alerted prop's progress (e.g. "Zion 18/22 pts · needs 4"), plus one pinned "today's tally" message
 (wins / losses / voids for the day) that's edited as each bet settles, instead of a post per bet.
 #founder-tracker (FOUNDERS category) does the same for just the founder picks (the bets in #founder-picks),
 with its own tally, off the same box scores. The bet of the day (botd.json) is tracked in both, tagged 🎯 BOTD.
 
-Bets come from the bet log (every value alert the tracker sent), live numbers from BALLDONTLIE box scores.
+Bets come from the bet log (every value alert the tracker sent), live numbers from BALLDONTLIE box scores
+(NBA) and BALLDONTLIE NFL game stats (NFL GOAT plan, same key).
 No state file: the bot finds its own messages again by a small marker on the last line, so reruns never
 double-post. Run in a loop by .github/workflows/discord-live.yml during NBA game hours.
 
@@ -43,6 +44,23 @@ STAT = {
     "player_rebounds_assists": ("R+A", lambda p: p["reb"] + p["ast"]),
 }
 
+# NFL props (BALLDONTLIE NFL GOAT plan, same key): market key -> (short label, stat off our NFL row)
+NFL = "https://api.balldontlie.io/nfl/v1"
+NFL_STAT = {
+    "player_pass_yds": ("pass yds", lambda p: p["pyd"]),
+    "player_pass_tds": ("pass TD", lambda p: p["ptd"]),
+    "player_pass_completions": ("cmp", lambda p: p["cmp"]),
+    "player_pass_attempts": ("pass att", lambda p: p["patt"]),
+    "player_pass_interceptions": ("INT", lambda p: p["int"]),
+    "player_rush_yds": ("rush yds", lambda p: p["ryd"]),
+    "player_rush_attempts": ("carries", lambda p: p["ratt"]),
+    "player_receptions": ("rec", lambda p: p["rec"]),
+    "player_reception_yds": ("rec yds", lambda p: p["ryds"]),
+    "player_anytime_td": ("TD", lambda p: p["td"]),
+}
+SPORTS = {"basketball_nba": STAT, "americanfootball_nfl": NFL_STAT}
+ALL_STAT = {**STAT, **NFL_STAT}
+
 
 def _nm(x):
     x = unicodedata.normalize("NFKD", str(x or "")).encode("ascii", "ignore").decode()   # Traoré -> Traore
@@ -73,6 +91,85 @@ def boxes():
         print(f"::warning::live box scores: {e}")
     for b in rows:
         out[f"{str(b.get('date', ''))[:10]}|{(b.get('home_team') or {}).get('id')}"] = b
+    return out
+
+
+def nfl_get(path, params=()):
+    """Every page of an NFL endpoint (cursor paging)."""
+    out, cursor = [], None
+    for _ in range(15):
+        p = list(params) + [("per_page", 100)] + ([("cursor", cursor)] if cursor is not None else [])
+        req = urllib.request.Request(f"{NFL}{path}?{urllib.parse.urlencode(p)}", headers={"Authorization": KEY})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            j = json.load(r)
+        out += j.get("data") or []
+        cursor = (j.get("meta") or {}).get("next_cursor")
+        if cursor is None:
+            break
+    return out
+
+
+def nfl_state(g):
+    s = g.get("status_state") or ""
+    if s in ("final", "postponed", "canceled", "abandoned"):
+        return "final"
+    if s in ("in_progress", "delayed", "suspended"):
+        return "live"
+    if s == "scheduled":
+        return "pre"
+    return "final" if str(g.get("status") or "").lower().startswith("final") else "pre"
+
+
+def nfl_boxes():
+    """NFL games for the last two US dates, shaped like the NBA box scores (home_team / visitor_team / scores /
+    ET date) plus _lg, _state, _clock and _rows (our per-player rows). Keyed nfl|date|home id."""
+    today = datetime.now(ET).date()
+    try:
+        games = nfl_get("/games", [("dates[]", (today - timedelta(days=d)).isoformat()) for d in (1, 0)]
+                        + [("season_types[]", 2), ("season_types[]", 3)])
+    except Exception as e:
+        print(f"::warning::NFL games: {e}")
+        return {}
+    played = [g for g in games if nfl_state(g) != "pre"]
+    stats = []
+    if played:
+        try:
+            stats = nfl_get("/stats", [("game_ids[]", g["id"]) for g in played])
+        except Exception as e:
+            print(f"::warning::NFL stats: {e}")
+    rows = {}   # game id -> {name: row}
+    for s in stats:
+        gid, pl, tm = (s.get("game") or {}).get("id"), s.get("player") or {}, s.get("team") or {}
+        n = lambda k: s.get(k) or 0
+        rows.setdefault(gid, {})[_nm(f"{pl.get('first_name', '')} {pl.get('last_name', '')}")] = {
+            "pyd": n("passing_yards"), "ptd": n("passing_touchdowns"), "cmp": n("passing_completions"),
+            "patt": n("passing_attempts"), "int": n("passing_interceptions"), "ryd": n("rushing_yards"),
+            "ratt": n("rushing_attempts"), "rec": n("receptions"), "ryds": n("receiving_yards"),
+            "td": n("rushing_touchdowns") + n("receiving_touchdowns"),
+            "min": "1", "team": (tm.get("abbreviation") or "").upper()}   # a stat row = he played
+    out = {}
+    for g in games:
+        st, gid = nfl_state(g), g.get("id")
+        clock = "Final" if st == "final" else "Not started"
+        if st == "live":   # quarter + clock off the newest play (plays come oldest first)
+            q = next((5 - i for i, k in enumerate(("ot", "q4", "q3", "q2", "q1"))
+                      if g.get(f"home_team_{k}") is not None or g.get(f"visitor_team_{k}") is not None), 0)
+            clock = f"Q{q}" if 0 < q <= 4 else ("OT" if q else "Live")
+            try:
+                p = (nfl_get("/plays", [("game_id", gid)]) or [None])[-1]
+                if p and p.get("period"):
+                    per = f"Q{p['period']}" if p["period"] <= 4 else "OT"
+                    clock = f"{per} {p.get('clock_display') or ''}".strip()
+            except Exception as e:
+                print(f"::notice::NFL plays {gid}: {e}")
+        try:
+            day = datetime.fromisoformat(str(g.get("date")).replace("Z", "+00:00")).astimezone(ET).date().isoformat()
+        except Exception:
+            day = str(g.get("date") or "")[:10]
+        box = {"date": day, "home_team": g.get("home_team") or {}, "visitor_team": g.get("visitor_team") or {},
+               "home_team_score": g.get("home_team_score") or 0, "visitor_team_score": g.get("visitor_team_score") or 0,
+               "_lg": "NFL", "_state": st, "_clock": clock, "_rows": rows.get(gid, {})}
+        out[f"nfl|{day}|{box['home_team'].get('id')}"] = box
     return out
 
 
@@ -147,7 +244,7 @@ def game_state(box):
 
 
 def load_bets(now):
-    """NBA player-prop alerts that started up to 6 hours ago or start in the next 30 min, one per selection.
+    """NBA and NFL player-prop alerts that started up to 6 hours ago or start in the next 30 min, one per selection.
     Returns (bets in the window, every deduped alert). A selection sent more than once counts as a founder
     pick if any of its alerts went to founders (tier "founder")."""
     if not LOG_KEY:
@@ -163,7 +260,13 @@ def load_bets(now):
         botd = set()
     seen, every = {}, []
     for b in sorted(log.get("bets", []), key=lambda b: -(b.get("edge") or 0)):
-        if b.get("sport_key") != "basketball_nba" or b.get("mk") not in STAT or b.get("point") is None or not b.get("desc"):
+        if b.get("mk") not in SPORTS.get(b.get("sport_key"), ()) or not b.get("desc"):
+            continue
+        if b["mk"] == "player_anytime_td":   # Yes = 1+ TD, i.e. Over 0.5
+            if b.get("side") not in ("Yes", "Over", None):
+                continue
+            b = dict(b, point=0.5, side="Over")
+        if b.get("point") is None:
             continue
         try:
             st = datetime.fromisoformat(b["start"].replace("Z", "+00:00"))
@@ -195,7 +298,7 @@ def name(b):
 
 def progress(b, row, state):
     """(icon, text, result or None) for one bet given his box-score row."""
-    lbl, f = STAT[b["mk"]]
+    lbl, f = ALL_STAT[b["mk"]]
     v, pt, over = f(row), float(b["point"]), b["side"] == "Over"
     need = math.floor(pt) + 1 if over else math.ceil(pt) - 1   # 22+ on a 21.5 line; Under 4.5 = 4 or fewer
     played = row["min"] not in ("", "0", "00", "0:00", "00:00")
@@ -369,24 +472,31 @@ def bp_started(b):
 
 def one_pass(lives, bets):
     """Update every game once in every tracker channel. Returns True while anything is still to come or in play."""
-    bx = boxes()
+    sports = {b.get("sport_key") for b in bets}
+    bx = boxes() if "basketball_nba" in sports else {}
+    if "americanfootball_nfl" in sports:
+        bx.update(nfl_boxes())
     where = {}   # box key -> (box, {name: row})
     for k, b in bx.items():
-        where[k] = (b, players(b))
+        where[k] = (b, b["_rows"] if b.get("_lg") == "NFL" else players(b))
     games, pending = {id(l): {} for l in lives}, False
     for b in bets:
         nm = _nm(b["desc"])
-        day = datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(ET).date().isoformat()
+        nfl = b.get("sport_key") == "americanfootball_nfl"
+        day = ("nfl|" if nfl else "") + datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(ET).date().isoformat()
         mine = [(k, bp) for k, bp in where.items() if k.startswith(day + "|") and in_game(b, bp[0])]   # that night's game, his teams only
         hit = next(((k, bp, bp[1][nm]) for k, bp in mine if nm in bp[1]), None) \
             or next(((k, bp, r) for k, bp in mine for r in [find(nm, b["sel"], bp[1])] if r), None)
+        if not hit and nfl and len(mine) == 1 and mine[0][1][0]["_state"] == "final":
+            # NFL stats only list players who recorded something: his game is over and he's not in it -> void
+            hit = (mine[0][0], mine[0][1], dict.fromkeys(("pyd", "ptd", "cmp", "patt", "int", "ryd", "ratt", "rec", "ryds", "td"), 0) | {"min": "0"})
         if not hit:
             if bp_started(b):
                 print(f"::notice::no box-score match for {b['sel']}")
             pending = pending or datetime.fromisoformat(b["start"].replace("Z", "+00:00")) > datetime.now(timezone.utc) - timedelta(hours=4)
             continue
         k, (box, rows), row = hit
-        state, clock = game_state(box)
+        state, clock = (box["_state"], box["_clock"]) if box.get("_lg") == "NFL" else game_state(box)
         icon, text, res = progress(b, row, state)
         h, a = box.get("home_team") or {}, box.get("visitor_team") or {}
         g = f"{a.get('abbreviation')} @ {h.get('abbreviation')}"
@@ -411,9 +521,10 @@ def draw_games(live, games):
     for k, (box, state, clock, lines) in games.items():
         h, a = box.get("home_team") or {}, box.get("visitor_team") or {}
         score = "" if state == "pre" else f" · {a.get('abbreviation')} {box.get('visitor_team_score', 0)}-{box.get('home_team_score', 0)} {h.get('abbreviation')}"
-        tag = f"{str(box.get('date', ''))[:10]}-{a.get('abbreviation')}-{h.get('abbreviation')}"
+        nfl = box.get("_lg") == "NFL"
+        tag = ("nfl-" if nfl else "") + f"{str(box.get('date', ''))[:10]}-{a.get('abbreviation')}-{h.get('abbreviation')}"
         note = "final" if state == "final" else "updates every minute"
-        text = (f"🏀 **{a.get('full_name', a.get('abbreviation'))} @ {h.get('full_name', h.get('abbreviation'))}** · {clock}{score}\n"
+        text = (f"{'🏈' if nfl else '🏀'} **{a.get('full_name', a.get('abbreviation'))} @ {h.get('full_name', h.get('abbreviation'))}** · {clock}{score}\n"
                 + "\n".join(lines) + f"\n-# {live.label} · {note} · `live:{tag}`")
         live.upsert(tag, text[:1990])
 
@@ -424,7 +535,7 @@ def main():
     if not discord_post.enabled():
         sys.exit("DISCORD_BOT_TOKEN / DISCORD_GUILD_ID not set")
     bets, every = load_bets(datetime.now(timezone.utc))
-    print(f"{len(bets)} NBA prop alerts in the window ({sum(map(is_founder, bets))} founder picks)")
+    print(f"{len(bets)} NBA/NFL prop alerts in the window ({sum(map(is_founder, bets))} founder picks)")
     if not bets and os.environ.get("ONCE") == "1":
         return
     lives = [Live()]
