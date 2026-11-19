@@ -247,6 +247,14 @@ def with_team(sel, teams):
     return sel
 
 
+def same_bet(p):
+    """One key per real bet whatever source found it: player, market (main and alt lines together), side, line."""
+    lg = p.get("log") or {}
+    if not (lg.get("desc") and lg.get("mk") and lg.get("side") and lg.get("point") is not None):
+        return None
+    return f"bet|{_nm(lg['desc'])}|{str(lg['mk']).replace('_alternate', '')}|{lg['side']}|{float(lg['point']):g}"
+
+
 def collect(now):
     out = []
     hot = load(os.path.join(OUT, "hot.json"), {})
@@ -508,16 +516,24 @@ def main():
         race_morning(now, state)
     except Exception as e:
         print(f"::warning::racing morning push failed: {e}")
-    new = []
+    new, seen = [], set()
     for p in sorted(collect(now), key=lambda x: -x["edge"]):
+        # the same bet can come from two sources (Hot stats value + the odds overlays) under different names
+        # ("8+ Pts + Reb" vs "Over 7.5 (Points Rebounds)"): one identity for both, best edge wins
+        ck = same_bet(p)
+        if ck:
+            if ck in seen:
+                continue
+            seen.add(ck)
         if mute and (p.get("log") or {}).get("sport_key") and \
                 bet_log.bucket({"lg": p.get("lg"), "sport_key": p["log"]["sport_key"], "desc": p["log"]["desc"]}) in mute:
             continue
-        old = state.get(p["key"])
+        old = state.get(p["key"]) or (state.get(ck) if ck else None)
         cleared = "⚠️" in old.get("tag", "") if old else False   # was questionable, now isn't
         if old and p["edge"] < old["edge"] + 3 and p["price"] < old["price"] + REALERT_PRICE and not (cleared and "⚠️" not in p["tag"]):
             continue
         p["again"] = bool(old)
+        p["ck"] = ck
         new.append(p)
     if not new:
         print("value alerts: nothing new")
@@ -556,6 +572,8 @@ def main():
                 sent += rest
         for p in sent:
             state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
+            if p.get("ck"):
+                state[p["ck"]] = state[p["key"]]
         # hand every sent bet to the bet log (bet_log.py scores it on closing price + result)
         rows = [{**p["log"], "id": p["key"] + "|" + p.get("start", ""), "price": p["price"], "book": p["book"],
                  "edge": p["edge"], "stake": pstake(p), "sel": p["sel"], "game": p.get("game", ""),
