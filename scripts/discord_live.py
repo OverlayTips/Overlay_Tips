@@ -95,8 +95,21 @@ def find(nm, sel, rows):
         return rows[nm]
     team = re.search(r"\(([A-Z]{2,4})\)", sel or "")
     last = nm.split()[-1] if nm else ""
-    hits = [r for n, r in rows.items() if n.split() and n.split()[-1] == last and (not team or r["team"] == team.group(1))]
+    first = nm[:1]
+    # same surname AND same first initial (Jalen Johnson must never match Keshad Johnson)
+    hits = [r for n, r in rows.items() if n.split() and n.split()[-1] == last and n[:1] == first
+            and (not team or r["team"] == team.group(1))]
     return hits[0] if len(hits) == 1 else None
+
+
+def in_game(b, box):
+    """Is this box score the bet's game? The bet stores "Away Team @ Home Team"; match on team nicknames
+    (Hawks, Trail Blazers) so a player is never tracked in someone else's game. No game on the bet -> any."""
+    g = (b.get("game") or "").lower()
+    if not g:
+        return True
+    nick = [((box.get(s) or {}).get("name") or "").lower() for s in ("home_team", "visitor_team")]
+    return any(n and n in g for n in nick)
 
 
 def refresh_log():
@@ -362,8 +375,9 @@ def one_pass(lives, bets):
     for b in bets:
         nm = _nm(b["desc"])
         day = datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(ET).date().isoformat()
-        hit = next(((k, bp, r) for k, bp in where.items() if k.startswith(day + "|")
-                    for r in [find(nm, b["sel"], bp[1])] if r), None)   # that night's game, not a back-to-back
+        mine = [(k, bp) for k, bp in where.items() if k.startswith(day + "|") and in_game(b, bp[0])]   # that night's game, his teams only
+        hit = next(((k, bp, bp[1][nm]) for k, bp in mine if nm in bp[1]), None) \
+            or next(((k, bp, r) for k, bp in mine for r in [find(nm, b["sel"], bp[1])] if r), None)
         if not hit:
             if bp_started(b):
                 print(f"::notice::no box-score match for {b['sel']}")

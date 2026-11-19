@@ -596,6 +596,11 @@ async function loadPlans(prof){
     return;
   }
   show('planManage', false);
+  if (prof.tier==='vip' || prof.tier==='core') {   // given the tier directly (no Stripe plan): don't ask them to pay
+    $('planTitle').textContent = 'Your plan';
+    $('planSub').innerHTML = `<b>${esc(PLAN_INFO[prof.tier][0])}</b>, active` + (prof.tier==='vip' ? ' · <a href="odds.html">Open the odds tracker →</a>' : '');
+    $('planGrid').innerHTML = ''; return;
+  }
   $('planTitle').textContent = prof.tier==='founder' ? 'Upgrade' : 'Pick a plan';
   const notes = [prof.tier==='founder' ? "You're a Founding member, free for life. Upgrade for live bet tracking and the odds tracker." : 'Pick a plan to get straight in.'];
   if (prof.referred_by && !prof.referral_rewarded) notes.push("<b>Your mate's code gets you 50% off your first month.</b>");

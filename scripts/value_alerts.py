@@ -126,9 +126,14 @@ def tip(iso):
         return ""
 
 
+START_BUFFER = timedelta(minutes=float(os.environ.get("START_BUFFER_MIN", "10")))   # no alerts this close to (or after) start
+
+
 def started(iso, now):
+    """True once the game is within START_BUFFER of starting: too late to get on, and the
+    scheduled time can be off. Racing uses the same cutoff."""
     try:
-        return datetime.fromisoformat(iso.replace("Z", "+00:00")) <= now
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")) <= now + START_BUFFER
     except Exception:
         return False
 
@@ -521,6 +526,9 @@ def main():
         top = new[:MAX_SINGLE]
         sent = []
         for p in top:
+            if p.get("start") and started(p["start"], datetime.now(timezone.utc)):   # sending takes a while: check the clock again
+                print(f"skipped (starting): {p['sel']}")
+                continue
             lg = f" ({p['lg']})" if p.get("lg") else ""
             title = ("⬆️ Better price · " if p.get("again") else "💰 ") + f"+{p['edge']:.1f}% · {p['sel']}"
             lines = [f"{p['emoji']} {p['game']}{lg} · {tip(p['start'])}",

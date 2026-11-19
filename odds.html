@@ -259,6 +259,7 @@
       <h2>The odds tracker is for VIP members</h2>
       <p>Sign up and go VIP to see every Aussie bookie side by side. VIP members just log in and it unlocks.</p>
       <div class="og-tiers"><div class="og-t v"><b>VIP <span data-plan="vip-month"></span></b><ul><li>Everything in the Daily card</li><li>Odds tracker: every Aussie bookie side by side, Top EV, prop picks, head to head and arbs (incl. Betfair)</li><li>Tips the moment they're locked, before the price moves</li></ul></div></div>
+      <div class="err" id="autoMsg" hidden style="margin:4px 0 2px"></div>
       <div class="cta"><a class="p" href="membership.html">See memberships</a><a class="s" href="portal.html">Log in</a></div>
       <details><summary>Already a member with a password?</summary>
     <input type="text" name="username" value="overlay-odds" autocomplete="username" hidden>
@@ -441,7 +442,18 @@ $('gateForm').onsubmit=async e=>{
 };
 $('lockBtn').onclick=()=>{store.del('pw');DATA=null;$('app').hidden=true;$('gate').hidden=false;$('lockBtn').hidden=true;$('pw').value='';$('list').innerHTML='';};
 (async()=>{let pw=store.get('pw',null); if(pw && !(await unlock(pw,true))){ store.del('pw'); pw=null; }
-  if(!DATA&&window.OTKeys){ const k=await OTKeys.get('odds'); if(k&&(await unlock(k,true))) store.set('pw',k); }})();   // VIP members: unlocked by their portal login
+  if(!DATA&&window.OTKeys&&OTKeys.loggedIn()){   // VIP members: unlocked by their portal login
+    const m=$('autoMsg'); m.hidden=false; m.style.color='var(--muted)'; m.textContent='Logged in, unlocking…';
+    let k=await OTKeys.get('odds');
+    if(!k){ OTKeys.reset(); k=await OTKeys.get('odds'); }   // one retry for a flaky connection
+    if(k&&(await unlock(k,true))){ store.set('pw',k); m.hidden=true; return; }
+    // didn't unlock: say why instead of leaving a logged-in member on the sign-up card
+    const i=await OTKeys.info(); m.style.color='';
+    if(i.err||!i.loggedIn) m.textContent='Your login has expired. Tap Log in, sign in again, then come back here.';
+    else if(i.tier!=='vip') m.textContent='You\'re logged in'+(i.email?' as '+i.email:'')+' on the '+({founder:'Founding',core:'Daily card',pending:'inactive'}[i.tier]||i.tier)+' plan. The odds tracker is VIP only.';
+    else if(k) m.textContent='Your VIP login is fine but the odds key on our end is out of date. Message @overlay_tips and we\'ll fix it.';
+    else m.textContent='Your VIP login is fine but we couldn\'t load the odds key. Refresh the page, and if it keeps happening message @overlay_tips.';
+  }})();
 setInterval(async()=>{const pw=store.get('pw',null); if(DATA&&pw) unlock(pw,true);},10*60*1000);
 
 /* ---------- tables ---------- */
