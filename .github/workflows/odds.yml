@@ -77,6 +77,7 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}        # members' app alerts (web push)
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}   # alerts into the Discord channels
+          DEVIL_BOT_TOKEN: ${{ secrets.DEVIL_BOT_TOKEN }}   # optional: devil's advocate threads post as their own bot
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: |
           pip install -q pywebpush || true

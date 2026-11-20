@@ -92,14 +92,14 @@ def alert_tier(p):
     return ("founder" if founder_ok(p) else "core") if prop else "vip"
 
 
-def app_push(cat, title, lines, url, min_tier, full=None):
+def app_push(cat, title, lines, url, min_tier, full=None, thread=None):
     """Members' app alerts (web push, scripts/web_push.py), next to the ntfy channels, plus the matching
     Discord channel (scripts/discord_post.py). Discord gets `full` (the whole write-up) when given, since
     push notifications are short. Never fails the caller."""
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import discord_post
-        discord_post.alert(cat, title, full or lines, url, min_tier)
+        discord_post.alert(cat, title, full or lines, url, min_tier, thread=thread)
     except Exception as e:
         print(f"::warning::discord post failed: {e}")
     try:
@@ -308,7 +308,7 @@ def collect(now):
                     "game": v.get("game", ""), "lg": v.get("lg", ""), "emoji": emoji(v.get("sk"), v.get("lg")),
                     "sub": f"fair {100*v.get('prob',0):.0f}%",
                     "why": analysis(v, side),
-                    "add": add,
+                    "add": add, "src_item": v,   # devil's advocate reads the model's numbers off this
                     "log": {"ev": v.get("ev"), "mk": v.get("mk"), "desc": v.get("desc") or v["player"], "side": side,
                             "point": v.get("point"), "sport_key": v.get("sk"), "fair": round(1 / v["prob"], 3) if v.get("prob") else None,
                             "src": "hot-" + str(v.get("msrc") or "")}})
@@ -342,7 +342,7 @@ def collect(now):
                         "emoji": emoji(o.get("sport_key"), o.get("sport")),
                         "sub": f"fair {o['fair']:.2f}",
                         "why": [o["why"]] if o.get("why") else [],
-                        "add": None,
+                        "add": None, "src_item": o,
                         "log": {"ev": o.get("ev"), "mk": o.get("mk"), "desc": o.get("desc") or "", "side": o.get("side"),
                                 "point": o.get("point"), "sport_key": o.get("sport_key"), "fair": o.get("fair"),
                                 "src": o.get("fair_src")}})
@@ -601,9 +601,22 @@ def main():
             if cat not in ("nba", "nbl", "nfl", "racing", "games"):
                 cat = "games"
             why = (p.get("why") or [""])[0].split("\n\n")
+            th = None
+            if p.get("log") and p["key"].startswith(("hot|", "ov|")):   # devil's advocate: the case against, as a thread
+                try:
+                    import devils_advocate as da
+                    bk = None
+                    if (p["log"] or {}).get("sport_key"):
+                        import bet_log
+                        bk = bet_log.bucket({"lg": p.get("lg"), "sport_key": p["log"]["sport_key"], "desc": p["log"].get("desc")}).replace("|", " ")
+                    p["da"] = da.case(p, load(os.path.join(OUT, "record.json"), {}), bk)
+                    th = da.thread(p["da"], p["sel"])
+                    print(f"devil's advocate: {p['da']['level']} ({p['da']['score']}) vs {p['sel']}")
+                except Exception as e:
+                    print(f"::warning::devil's advocate failed: {e}")
             app_push(cat, title, lines[:2] + [w for w in why if w.startswith(("📈", "✅", "🤖"))][:2] or lines[:3],
                      (p.get("add") or SITE + "/odds.html"), alert_tier(p),
-                     full=lines[:2] + [w for w in why if w.strip()])   # Discord: every section (form, matchup, role, game, price, verdict)
+                     full=lines[:2] + [w for w in why if w.strip()], thread=th)   # Discord: every section (form, matchup, role, game, price, verdict)
         if len(new) > len(top):   # the rest in one summary
             rest = new[len(top):]
             lines = [f"+{p['edge']:.1f}% {p['text']} · {pstake(p):g}U" for p in rest[:10]]
@@ -621,7 +634,9 @@ def main():
                  "edge": p["edge"], "stake": pstake(p), "sel": p["sel"], "game": p.get("game", ""),
                  "lg": p.get("lg", ""), "start": p.get("start", ""),
                  # who got it in the app: props go to Daily card + VIP, game bets and racing to VIP only
-                 "tier": alert_tier(p)}
+                 "tier": alert_tier(p),
+                 # devil's advocate's case against (flag only), so the bet log can show if it's worth listening to
+                 **({"da": p["da"]["score"]} if p.get("da") else {})}
                 for p in sent if p.get("log") and p.get("start")]
         try:
             old = load(os.path.join(OUT, "new_alerts.json"), [])

@@ -243,6 +243,17 @@ def line(name, s):
     return " · ".join(bits)
 
 
+DEVIL_LEVELS = (("Strong case against", 4, 99), ("Some case against", 2, 3), ("Weak case against", 0, 1))
+
+
+def devil_split(bets):
+    """Bets the devil's advocate scored (alerts from its launch on), grouped by how strong its case against was.
+    If 'strong' keeps losing to the close and 'weak' keeps beating it, its flags are worth a veto."""
+    rated = [b for b in bets if b.get("da") is not None]
+    return [{"name": n, **summarise(bs)} for n, lo, hi in DEVIL_LEVELS
+            for bs in [[b for b in rated if lo <= b["da"] <= hi]] if bs]
+
+
 def report(log, now):
     bets = log["bets"]
     wk = [b for b in bets if _parse(b["t"]) > now - timedelta(days=7)]
@@ -256,6 +267,9 @@ def report(log, now):
     for b in bets:
         srcs.setdefault({"pin": "Pinnacle fair", "mkt": "Bookie consensus"}.get(b.get("src"), b.get("src") or "?"), []).append(b)
     lines += ["", "By fair-price source:"] + [line(k, summarise(v)) for k, v in srcs.items()]
+    dev = devil_split(bets)
+    if dev:   # devil's advocate: do picks it argued hard against actually do worse?
+        lines += ["", "By devil's advocate case against:"] + [line(d["name"], d) for d in dev]
     lines += ["", "CLV > 0 over 100+ bets = real edge. Under 100 bets the results are mostly luck."]
     return lines
 
@@ -322,6 +336,7 @@ def write_public(log, now):
                        "all": summarise(done)},
            "groups": [{"name": k.replace("|", " "), **summarise(v)} for k, v in sorted(groups.items(), key=lambda x: -len(x[1]))],
            "sources": [{"name": k, **summarise(v)} for k, v in srcs.items()],
+           "devil": devil_split(done),   # how picks went by how strong the devil's advocate's case against was
            "units": days,
            "clv_days": clv_days,
            "members": members,     # Daily card

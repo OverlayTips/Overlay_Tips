@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 
 API = "https://discord.com/api/v10"
 TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "").strip()
+DEVIL_TOKEN = os.environ.get("DEVIL_BOT_TOKEN", "").strip()   # optional 2nd bot: devil's advocate threads post as it
 GUILD = os.environ.get("DISCORD_GUILD_ID", "").strip()
 MEL = ZoneInfo("Australia/Melbourne")
 FOOT = "-# Price signals, not sure things. 18+ · Gamble responsibly · 1800 858 858"
@@ -23,11 +24,11 @@ def enabled():
     return bool(TOKEN and GUILD)
 
 
-def _call(method, path, body=None, tries=5):
+def _call(method, path, body=None, tries=5, token=None):
     """One Discord API call. On a rate limit (429) waits as long as Discord says and tries again."""
     for i in range(tries):
         req = urllib.request.Request(API + path, method=method, data=json.dumps(body).encode() if body is not None else None,
-                                     headers={"Authorization": f"Bot {TOKEN}", "Content-Type": "application/json",
+                                     headers={"Authorization": f"Bot {token or TOKEN}", "Content-Type": "application/json",
                                               "User-Agent": "DiscordBot (https://overlay.tips, 1.0)"})
         try:
             with urllib.request.urlopen(req, timeout=20) as r:
@@ -63,7 +64,7 @@ def channel_for(cat, min_tier):
 
 
 def send(channel, title, lines, url=None, foot=FOOT):
-    """Post one message. Returns True if it went."""
+    """Post one message. Returns the posted message (truthy) if it went, else False."""
     if not enabled():
         return False
     try:
@@ -77,8 +78,7 @@ def send(channel, title, lines, url=None, foot=FOOT):
         if len(body) > room:   # Discord caps a message at 2000: cut at a line break so the link + footer always fit
             cut = body[:room - 2]
             body = (cut[:cut.rfind("\n")] if "\n" in cut else cut).rstrip() + "\n…"
-        _call("POST", f"/channels/{cid}/messages", {"content": head + body + tail, "allowed_mentions": {"parse": []}})
-        return True
+        return _call("POST", f"/channels/{cid}/messages", {"content": head + body + tail, "allowed_mentions": {"parse": []}}) or True
     except Exception as e:
         print(f"::warning::discord post to #{channel} failed: {type(e).__name__} {e}")
         return False
@@ -97,11 +97,38 @@ def posted(channel, needle, limit=100):
         return False
 
 
-def alert(cat, title, lines, url, min_tier):
+def open_thread(msg, name, lines):
+    """Start a thread under a posted message and post `lines` in it (devil's advocate). Never raises."""
+    if not (isinstance(msg, dict) and msg.get("id")):
+        return False
+    try:
+        th = _call("POST", f"/channels/{msg['channel_id']}/messages/{msg['id']}/threads",
+                   {"name": name[:100], "auto_archive_duration": 1440})
+        body = {"content": "\n".join(lines)[:1990], "allowed_mentions": {"parse": []}}
+        try:
+            _call("POST", f"/channels/{th['id']}/messages", body, token=DEVIL_TOKEN or None)
+        except Exception as e:
+            if not DEVIL_TOKEN:
+                raise
+            print(f"::notice::devil bot couldn't post ({e}), posting as the main bot")
+            _call("POST", f"/channels/{th['id']}/messages", body)
+        return True
+    except Exception as e:
+        print(f"::warning::discord thread failed: {type(e).__name__} {e}")
+        return False
+
+
+def alert(cat, title, lines, url, min_tier, thread=None):
+    """thread: optional (name, lines) posted as a thread under each copy of the alert (devil's advocate)."""
+    def go(ch):
+        m = send(ch, title, lines, url)
+        if m and thread:
+            open_thread(m, *thread)
+        return m
     if min_tier == "founder" and cat not in ("botd", "racing"):   # best-backed props: founders' channel + the usual one
-        send("founder-picks", title, lines, url)
-        return send(channel_for(cat, "core"), title, lines, url)
-    return send(channel_for(cat, min_tier), title, lines, url)
+        go("founder-picks")
+        return go(channel_for(cat, "core"))
+    return go(channel_for(cat, min_tier))
 
 
 def _day(units, clv, day):
