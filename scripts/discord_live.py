@@ -272,6 +272,8 @@ def load_bets(now):
         botd = set()
     seen, every = {}, []
     for b in sorted(log.get("bets", []), key=lambda b: -(b.get("edge") or 0)):
+        if str(b.get("mk") or "").endswith("_alternate"):   # alt lines (3+ threes) track like the main market
+            b = dict(b, mk=b["mk"][:-len("_alternate")])
         if b.get("mk") not in SPORTS.get(b.get("sport_key"), ()) or not b.get("desc"):
             continue
         if b["mk"] == "player_anytime_td":   # Yes = 1+ TD, i.e. Over 0.5
@@ -284,7 +286,7 @@ def load_bets(now):
             st = datetime.fromisoformat(b["start"].replace("Z", "+00:00"))
         except Exception:
             continue
-        k = (_nm(b["desc"]), b["mk"], b["side"], b["point"])
+        k = (_nm(b["desc"]), b["mk"], b["side"], b["point"], str(b["start"])[:10])   # per game, not ever
         if k in seen:
             if b.get("tier") == "founder":
                 seen[k]["tier"] = "founder"
