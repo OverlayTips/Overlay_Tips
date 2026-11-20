@@ -531,6 +531,83 @@ def race_morning(now, state):
     print(f"racing morning push: {len(tops['items'])} picks")
 
 
+FOUNDER_MIN = int(os.environ.get("FOUNDER_MIN", "2"))            # founders get at least this many props a day
+FOUNDER_FLOOR_HOUR = int(os.environ.get("FOUNDER_FLOOR_HOUR", "10"))   # Melbourne: top up from 10am if short
+
+
+def founder_day(state, now):
+    """Today's (Melbourne) founder-pick count, kept in the state file."""
+    day = now.astimezone(MEL).date().isoformat()
+    f = state.get("founder_day") or {}
+    if f.get("date") != day:
+        f = {"date": day, "n": 0, "keys": []}
+    f["at"] = now.isoformat()
+    state["founder_day"] = f
+    return f
+
+
+def founder_floor(now, state, mute):
+    """If fewer than FOUNDER_MIN props have gone to founders today by FOUNDER_FLOOR_HOUR, send the day's best
+    remaining props to #founder-picks so the channel is never empty. Best = the write-up's lean first
+    (liked verdict, good matchup, any lean), then edge. Logged as founder picks so the tracker counts them."""
+    f = founder_day(state, now)
+    if f["n"] >= FOUNDER_MIN or now.astimezone(MEL).hour < FOUNDER_FLOOR_HOUR:
+        return
+    cands = []
+    for p in collect(now):
+        lg = p.get("log") or {}
+        if not lg.get("desc") or p.get("emoji") in ("🏇", "🐕") or not p.get("start") or not (1.5 <= p["price"] <= 3.5):
+            continue
+        if p["key"] in f["keys"] or founder_ok(p):   # a founder_ok bet goes out through the normal alert
+            continue
+        if mute and lg.get("sport_key"):
+            import bet_log
+            b = {"lg": p.get("lg"), "sport_key": lg["sport_key"], "desc": lg["desc"], "mk": lg.get("mk")}
+            if bet_log.bucket(b) in mute or bet_log.mbucket(b) in mute:
+                continue
+        try:
+            mins = (datetime.fromisoformat(p["start"].replace("Z", "+00:00")) - now).total_seconds() / 60
+        except ValueError:
+            continue
+        if not 30 <= mins <= 20 * 60:
+            continue
+        w = (p.get("why") or [""])[0]
+        lean = (any(x in w for x in LIKED_VERDICT), any(x in w for x in GOOD_MATCHUP), "On balance it leans" in w)
+        if "doesn't back it up" in w or "enough warning signs" in w:
+            continue
+        cands.append((lean, p["edge"], p))
+    cands.sort(key=lambda c: (c[0], c[1]), reverse=True)
+    rows = []
+    for _, _, p in cands[:FOUNDER_MIN - f["n"]]:
+        title = f"🔒 Founder pick · +{p['edge']:.1f}% · {p['sel']}"
+        lines = [f"{p['emoji']} {p['game']}{' (' + p['lg'] + ')' if p.get('lg') else ''} · {tip(p['start'])}",
+                 f"${p['price']:.2f} at {p['book']} · {pstake(p):g}U · {p['sub']}"] + \
+                [w for w in (p.get("why") or [""])[0].split("\n\n") if w.strip()]
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import discord_post
+            if not discord_post.send("founder-picks", title, lines, p.get("add") or SITE + "/odds.html"):
+                continue
+        except Exception as e:
+            print(f"::warning::founder top-up post failed: {e}")
+            continue
+        f["n"] += 1
+        f["keys"].append(p["key"])
+        rows.append({**p["log"], "id": p["key"] + "|" + p["start"], "price": p["price"], "book": p["book"], "edge": p["edge"],
+                     "stake": pstake(p), "sel": p["sel"], "game": p.get("game", ""), "lg": p.get("lg", ""),
+                     "start": p["start"], "tier": "founder"})
+        print(f"founder top-up: {p['sel']} (+{p['edge']:.1f}%)")
+    if rows:
+        try:   # graded by the bet log; an already-logged bet just gets upgraded to a founder pick
+            old = load(os.path.join(OUT, "new_alerts.json"), [])
+            with open(os.path.join(OUT, "new_alerts.json"), "w") as fh:
+                json.dump(old + rows, fh)
+        except Exception as e:
+            print(f"::warning::couldn't log the founder top-up: {e}")
+    elif f["n"] < FOUNDER_MIN:
+        print(f"founder top-up: {f['n']}/{FOUNDER_MIN} today, nothing suitable yet")
+
+
 def main():
     now = datetime.now(timezone.utc)
     if os.environ.get("TEST") == "1":
@@ -625,6 +702,11 @@ def main():
             if push(f"💰 {len(rest)} more value bets", lines, click=SITE + "/odds.html",
                     actions=[{"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False}]):
                 sent += rest
+        fd = founder_day(state, now)
+        for p in sent:
+            if alert_tier(p) == "founder" and p["key"] not in fd["keys"]:
+                fd["n"] += 1
+                fd["keys"].append(p["key"])
         for p in sent:
             state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
             if p.get("ck"):
@@ -644,6 +726,10 @@ def main():
                 json.dump(old + rows, f)
         except Exception as e:
             print(f"::warning::couldn't hand alerts to the bet log: {e}")
+    try:
+        founder_floor(now, state, mute)
+    except Exception as e:
+        print(f"::warning::founder top-up failed: {e}")
     arb_sent = 0
     try:
         arb_sent = send_arbs(state, now) or 0
