@@ -40,6 +40,7 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
           MINUTES: "340"
+          PYTHONUNBUFFERED: "1"
           ONCE: ${{ inputs.once && '1' || '0' }}
         run: |
           pip install -q cryptography

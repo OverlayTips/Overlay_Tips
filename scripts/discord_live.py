@@ -130,6 +130,8 @@ def nfl_boxes():
     except Exception as e:
         print(f"::warning::NFL games: {e}")
         return {}
+    print("NFL games: " + ", ".join(f"{(g.get('visitor_team') or {}).get('abbreviation')}@{(g.get('home_team') or {}).get('abbreviation')}"
+                                   f" status={g.get('status')!r} state={g.get('status_state')!r} -> {nfl_state(g)}" for g in games))
     played = [g for g in games if nfl_state(g) != "pre"]
     stats = []
     if played:
@@ -137,6 +139,7 @@ def nfl_boxes():
             stats = nfl_get("/stats", [("game_ids[]", g["id"]) for g in played])
         except Exception as e:
             print(f"::warning::NFL stats: {e}")
+    print(f"NFL stat rows: {len(stats)} for {len(played)} started games")
     rows = {}   # game id -> {name: row}
     for s in stats:
         gid, pl, tm = (s.get("game") or {}).get("id"), s.get("player") or {}, s.get("team") or {}
