@@ -125,8 +125,17 @@ def nfl_boxes():
     ET date) plus _lg, _state, _clock and _rows (our per-player rows). Keyed nfl|date|home id."""
     today = datetime.now(ET).date()
     try:
-        games = nfl_get("/games", [("dates[]", (today - timedelta(days=d)).isoformat()) for d in (1, 0)]
-                        + [("season_types[]", 2), ("season_types[]", 3)])
+        # the NFL API ignores dates[] (returns nothing), so pull the season and keep the last two ET dates here
+        season = today.year if today.month >= 3 else today.year - 1
+        want = {(today - timedelta(days=d)).isoformat() for d in (1, 0)}
+
+        def et_day(g):
+            try:
+                return datetime.fromisoformat(str(g.get("date")).replace("Z", "+00:00")).astimezone(ET).date().isoformat()
+            except Exception:
+                return str(g.get("date") or "")[:10]
+        games = [g for g in nfl_get("/games", [("seasons[]", season), ("season_types[]", 2), ("season_types[]", 3)])
+                 if et_day(g) in want]
     except Exception as e:
         print(f"::warning::NFL games: {e}")
         return {}
