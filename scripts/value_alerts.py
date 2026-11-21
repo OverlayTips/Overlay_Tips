@@ -92,14 +92,14 @@ def alert_tier(p):
     return ("founder" if founder_ok(p) else "core") if prop else "vip"
 
 
-def app_push(cat, title, lines, url, min_tier, full=None, thread=None):
+def app_push(cat, title, lines, url, min_tier, full=None, thread=None, sent=None):
     """Members' app alerts (web push, scripts/web_push.py), next to the ntfy channels, plus the matching
     Discord channel (scripts/discord_post.py). Discord gets `full` (the whole write-up) when given, since
     push notifications are short. Never fails the caller."""
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import discord_post
-        discord_post.alert(cat, title, full or lines, url, min_tier, thread=thread)
+        discord_post.alert(cat, title, full or lines, url, min_tier, thread=thread, sent=sent)
     except Exception as e:
         print(f"::warning::discord post failed: {e}")
     try:
@@ -475,7 +475,12 @@ def bet_of_day(now, state):
             except Exception as e:
                 print(f"::warning::bet of the day ntfy failed: {e}")
             app_push("botd", title, lines + [x for x in why.split("\n\n") if x.startswith(("📈", "✅", "🤖"))][:2],
-                     SITE + "/#botd", "founder")
+                     SITE + "/#botd", "founder", sent=(posted := []))
+            try:
+                import live_prices
+                live_prices.add(p, posted)
+            except Exception as e:
+                print(f"::warning::live prices (bet of the day): {e}")
             try:   # graded by the bet log like every alert
                 old = load(os.path.join(OUT, "new_alerts.json"), [])
                 row = {**p["log"], "id": p["key"] + "|" + p["start"], "price": p["price"], "book": p["book"], "edge": p["edge"],
@@ -693,7 +698,12 @@ def main():
                     print(f"::warning::devil's advocate failed: {e}")
             app_push(cat, title, lines[:2] + [w for w in why if w.startswith(("📈", "✅", "🤖"))][:2] or lines[:3],
                      (p.get("add") or SITE + "/odds.html"), alert_tier(p),
-                     full=lines[:2] + [w for w in why if w.strip()], thread=th)   # Discord: every section (form, matchup, role, game, price, verdict)
+                     full=lines[:2] + [w for w in why if w.strip()], thread=th, sent=(posted := []))
+            try:   # live prices panel on those Discord messages (live_prices.py edits it every odds update)
+                import live_prices
+                live_prices.add(p, posted)
+            except Exception as e:
+                print(f"::warning::live prices: couldn't track {p['sel']}: {e}")   # Discord: every section (form, matchup, role, game, price, verdict)
         if len(new) > len(top):   # the rest in one summary
             rest = new[len(top):]
             lines = [f"+{p['edge']:.1f}% {p['text']} · {pstake(p):g}U" for p in rest[:10]]

@@ -83,6 +83,16 @@ jobs:
           pip install -q pywebpush || true
           python scripts/value_alerts.py
 
+      - name: Live prices on the Discord alerts (every bookie, edited each update until the start)
+        if: env.RUN == 'true' && env.PW_SET == 'true'
+        continue-on-error: true
+        env:
+          ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
+          ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: python scripts/live_prices.py
+
       - name: Odds Fantasy (rounds, multipliers, scoring -> Supabase)
         if: env.RUN == 'true' && env.PW_SET == 'true'
         continue-on-error: true
@@ -153,6 +163,7 @@ jobs:
           if [ -f hot.json ]; then cp hot.json .git-tmp/; fi   # free public Hot stats page
           if [ -f lines.json ]; then cp lines.json .git-tmp/; fi   # members Live page (encrypted)
           if [ -f alerted.json ]; then cp alerted.json .git-tmp/; fi   # value alerts already sent
+          if [ -f live_msgs.json ]; then cp live_msgs.json .git-tmp/; fi   # Discord alerts getting live prices (encrypted)
           if [ -f bet_log.json ]; then cp bet_log.json .git-tmp/; fi   # tracker's own bet log (encrypted)
           if [ -f record.json ]; then cp record.json .git-tmp/; fi     # public Tracker record page (started bets only)
           if [ -f racing_log.json ]; then cp racing_log.json .git-tmp/; fi         # racing picks log (encrypted)

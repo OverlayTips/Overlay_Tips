@@ -118,12 +118,15 @@ def open_thread(msg, name, lines):
         return False
 
 
-def alert(cat, title, lines, url, min_tier, thread=None):
-    """thread: optional (name, lines) posted as a thread under each copy of the alert (devil's advocate)."""
+def alert(cat, title, lines, url, min_tier, thread=None, sent=None):
+    """thread: optional (name, lines) posted as a thread under each copy of the alert (devil's advocate).
+    sent: optional list that gets every posted message (live_prices.py edits their prices in)."""
     def go(ch):
         m = send(ch, title, lines, url)
         if m and thread:
             open_thread(m, *thread)
+        if isinstance(m, dict) and sent is not None:
+            sent.append(m)
         return m
     if min_tier == "founder" and cat not in ("botd", "racing"):   # best-backed props: founders' channel + the usual one
         go("founder-picks")
