@@ -1,0 +1,28 @@
+name: Racing read
+
+# On demand: Gemini reads the form for today's model top picks that haven't raced yet and sends a BACK / PASS
+# on each to Jayden's ntfy channel (scripts/race_read.py). Actions -> "Racing read" -> Run workflow.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Load today's racing data
+        run: git fetch --depth=1 origin odds-data && git worktree add odds-data FETCH_HEAD
+      - name: Read the form
+        env:
+          ODDS_ALERTS_KEY: ${{ secrets.ODDS_ALERTS_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          pip install -q cryptography
+          python scripts/race_read.py
