@@ -49,13 +49,16 @@ export default {
       "stake, potential return, bonus bet labels, race number/venue/runner. Keep each value on the same line as its " +
       "label (e.g. 'Stake $10.00'). Skip phone status bars, menus, ads and promos. Don't add, guess or fix anything; " +
       "if part is unreadable leave it out. Plain text only, no commentary.";
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL || "gemini-flash-latest"}:generateContent`, {
+    // newer Flash models "think" first, and that counts toward the output limit: keep it low, leave room
+    const call = (cfg) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL || "gemini-flash-latest"}:generateContent`, {
       method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: img } }] }],
-        generationConfig: { maxOutputTokens: 1500 },
+        generationConfig: cfg,
       }),
     });
+    let r = await call({ maxOutputTokens: 4500, thinkingConfig: { thinkingLevel: "low" } });
+    if (r.status === 400) r = await call({ maxOutputTokens: 4500 });
     if (!r.ok) return json({ error: "gemini " + r.status }, 502, cors);
     const res = await r.json();
     const text = ((((res.candidates || [])[0] || {}).content || {}).parts || []).map((p) => p.text || "").join("").trim();

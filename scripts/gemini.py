@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent"
 MAX_PER_RUN = int(os.environ.get("GEMINI_MAX_PER_RUN", "25"))
+THINKING = os.environ.get("GEMINI_THINKING", "low")   # minimal / low / high: less = cheaper + faster
+THINK_ROOM = 3000                                      # extra output tokens for the thinking itself
 
 _calls = 0
 _day = None       # {"d": "YYYY-MM-DD", "n": calls today} inside the caller's state, see use_budget
@@ -60,6 +62,13 @@ def _json(text):
     return json.loads(text[i:j + 1]) if i >= 0 and j > i else None
 
 
+def _post(body, key, timeout):
+    req = urllib.request.Request(URL.format(MODEL), data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.load(r)
+
+
 def ask(prompt, json_out=False, search=False, image=None, max_tokens=800, timeout=45, label="gemini"):
     global _calls, _last_sources
     _last_sources = []
@@ -70,26 +79,32 @@ def ask(prompt, json_out=False, search=False, image=None, max_tokens=800, timeou
     if image:
         data, mime = image
         parts.append({"inline_data": {"mime_type": mime, "data": base64.b64encode(data).decode()}})
-    cfg = {"maxOutputTokens": max_tokens}
+    # Newer Flash models "think" first and that thinking counts toward the output limit: keep it low and leave
+    # plenty of room, or the reply comes back empty / cut off. max_tokens is the size of the answer we want.
+    cfg = {"maxOutputTokens": max_tokens + THINK_ROOM, "thinkingConfig": {"thinkingLevel": THINKING}}
     if json_out and not search:   # JSON mode and the search tool don't mix on every model: ask for JSON in words then
         cfg["responseMimeType"] = "application/json"
     body = {"contents": [{"role": "user", "parts": parts}], "generationConfig": cfg}
     if search:
         body["tools"] = [{"google_search": {}}]
-    req = urllib.request.Request(URL.format(MODEL), data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json", "x-goog-api-key": key})
     _calls += 1
     if _day is not None:
         _day["n"] += 1
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            res = json.load(r)
+        try:
+            res = _post(body, key, timeout)
+        except urllib.error.HTTPError as e:
+            if e.code != 400:
+                raise
+            body["generationConfig"].pop("thinkingConfig", None)   # model without thinking settings: plain retry
+            res = _post(body, key, timeout)
         cand = (res.get("candidates") or [{}])[0]
         text = "".join(p.get("text", "") for p in (cand.get("content") or {}).get("parts") or [])
         meta = cand.get("groundingMetadata") or {}
         _last_sources = [((c.get("web") or {}).get("title") or "", (c.get("web") or {}).get("uri") or "")
                          for c in meta.get("groundingChunks") or [] if (c.get("web") or {}).get("uri")]
         if not text.strip():
+            print(f"::warning::{label} (Gemini): empty reply (finish: {cand.get('finishReason')})")
             return None
         return _json(text) if json_out else text.strip()
     except urllib.error.HTTPError as e:

@@ -167,10 +167,13 @@ async function whyFor(q, env) {
     "[hit, games], 'l5' the last 5, 'vs' vs tonight's opponent, 'prob' our rated chance, 'mkt' the market's, " +
     "'value' expected return %, 'games' newest first [date, opp, home/away, stat, minutes]. No emojis, no " +
     "'guaranteed'. Start each with the bet in bold like **Points 25+ @ $1.90 (Sportsbet)**.\n\n" + JSON.stringify(data);
-  const g = await fetch(GEMINI + (env.GEMINI_MODEL || "gemini-flash-latest") + ":generateContent", {
+  // newer Flash models "think" first, and that counts toward the output limit: keep it low, leave room
+  const call = (cfg) => fetch(GEMINI + (env.GEMINI_MODEL || "gemini-flash-latest") + ":generateContent", {
     method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 700 } }),
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: cfg }),
   });
+  let g = await call({ maxOutputTokens: 3700, thinkingConfig: { thinkingLevel: "low" } });
+  if (g.status === 400) g = await call({ maxOutputTokens: 3700 });
   if (!g.ok) throw new Error("gemini " + g.status);
   const res = await g.json();
   const text = (((res.candidates || [])[0] || {}).content || {}).parts?.map((p) => p.text || "").join("").trim();
