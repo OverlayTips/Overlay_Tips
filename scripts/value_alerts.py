@@ -505,24 +505,42 @@ def bet_of_day(now, state):
         json.dump(pub, f, separators=(",", ":"))
 
 
+RACE_VERDICT = {"back": "✅ BACK", "pass": "❌ PASS"}
+
+
 def race_form(items, syd):
-    """{runner name (lower): one-line form note} for the morning picks, from one Google-search-grounded Gemini
-    call (only what the form guides it finds say). {} without a key or if it fails."""
+    """{runner name (lower): {"note": one-line form note, "verdict": "back"|"pass"|"", "why": short reason}} for the
+    morning picks, from one Google-search-grounded Gemini call (only what the form guides it finds say).
+    {} without a key or if it fails."""
     try:
         import gemini
         if not gemini.enabled() or not items:
             return {}
-        runs = [{"runner": x["name"], "kind": x["kind"], "track": x["venue"], "race": x.get("num"), "box_or_no": x.get("no")}
+        runs = [{"runner": x["name"], "kind": x["kind"], "track": x["venue"], "race": x.get("num"), "box_or_no": x.get("no"),
+                 "model_rated_price": x.get("rated"), "next_best": f"{x.get('next')} (${x.get('next_rated', 0):.2f})"}
                 for x in items]
         out = gemini.ask(
-            f"Today is {syd.strftime('%A %-d %B %Y')} in Australia. For each runner below, search the latest form "
-            "guides and write ONE short line (max 20 words) on its recent form: last few starts, track/distance record, "
-            "anything notable like a class drop, a gear change or a wide barrier/box. Only state what a source says; "
-            "if you can't find this runner's form, leave it out. Plain Aussie punter language, no emojis, no tips.\n"
-            "Reply as JSON only: {\"notes\": [{\"runner\": name exactly as given, \"note\": the line}]}\n\n"
-            + json.dumps(runs), json_out=True, search=True, max_tokens=1200, label="racing form")
-        return {str(n.get("runner", "")).lower(): str(n.get("note", "")).strip()
-                for n in (out or {}).get("notes") or [] if n.get("runner") and str(n.get("note", "")).strip()}
+            f"Today is {syd.strftime('%A %-d %B %Y')} in Australia. These are a ratings model's top picks in today's races, "
+            "each with the model's rated price. For each runner, search the latest form guides and race news and:\n"
+            "1) write ONE short line (max 20 words) on its recent form: last few starts, track/distance record, anything "
+            "notable like a class drop, a gear change or a wide barrier/box;\n"
+            "2) make the call a sharp punter would: \"back\" if you'd take a price at or above the rated one, \"pass\" if "
+            "the form gives a real reason against (bad barrier/box, poor map, fitness, class rise, scratchings). Don't pass "
+            "everything. Always give a verdict for every runner you have form for, plus a short reason (max 12 words).\n"
+            "Only state what a source says; if you can't find this runner's form, leave it out. Plain Aussie punter "
+            "language, no emojis.\n"
+            "Reply as JSON only: {\"notes\": [{\"runner\": name exactly as given, \"note\": the form line, "
+            "\"verdict\": \"back\"|\"pass\", \"why\": the short reason}]}\n\n"
+            + json.dumps(runs), json_out=True, search=True, max_tokens=2000, label="racing form")
+        res = {}
+        for n in (out or {}).get("notes") or []:
+            note = str(n.get("note", "")).strip()
+            if not (n.get("runner") and note):
+                continue
+            v = str(n.get("verdict", "")).strip().lower()
+            res[str(n["runner"]).lower()] = {"note": note, "verdict": v if v in RACE_VERDICT else "",
+                                             "why": str(n.get("why", "")).strip()}
+        return res
     except Exception as e:
         print(f"::warning::racing form notes: {e}")
         return {}
@@ -554,11 +572,14 @@ def race_morning(now, state):
         for x in xs:
             lines.append(f"{x['venue']} R{x['num']}: {(str(x['no']) + '. ') if x.get('no') else ''}{x['name']} rated ${x['rated']:.2f} "
                          f"(next best {x['next']} ${x['next_rated']:.2f})")
-            if form.get(x["name"].lower()):
-                lines.append(f"   ↳ {form[x['name'].lower()]}")
+            fm = form.get(x["name"].lower())
+            if fm:
+                lines.append(f"   ↳ {fm['note']}")
+                if fm["verdict"]:
+                    lines.append(f"   ↳ {RACE_VERDICT[fm['verdict']]}" + (f" · {fm['why']}" if fm["why"] else ""))
     lines += ["", "Rated prices from Betfair's data scientists' models. Only back them if your bookie pays more than the rated price."]
     if form:
-        lines.append("Form notes: Gemini's summary of a Google search, so double-check the form guide.")
+        lines.append("Form notes and BACK/PASS calls: Gemini's read of a Google search, so double-check the form guide.")
     title = f"🏇 Model's top picks · {syd.strftime('%a %-d %b')}"
     _push(TOPIC, title, lines[1:], click=SITE + "/odds.html", priority=3)
     app_push("racing", title, [l for l in lines[1:] if l and not l.startswith("   ↳")][:6], SITE + "/odds.html", "founder",
