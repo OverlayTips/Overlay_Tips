@@ -260,6 +260,34 @@ def news(p):
             "sources": g.sources()[:3]}
 
 
+def race(p):
+    """Gemini reads a racing value alert: a live Google search of the form guide for the runner and race (recent
+    starts, track/distance, barrier or box, track condition, scratchings, gear, jockey changes), then BACK or PASS
+    at the alerted price. {"verdict", "why", "points", "sources"} or None."""
+    g = _gem()
+    if not g.enabled():
+        return None
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    kind = "greyhound" if p.get("emoji") == "🐕" else "horse"
+    prompt = (
+        f"It's {now}. Australian {kind} racing: {p.get('game')} (jumps {p.get('start') or 'soon'}). Our model likes "
+        f"{p.get('sel')} at ${p.get('price')} on Betfair; Betfair's data scientists' model {p.get('sub') or ''}.\n"
+        "Search the latest form guide and race news for this runner and race: last few starts, record at this track "
+        "and distance, barrier/box, today's track condition, class change, gear or jockey changes, scratchings, and "
+        "who the main danger is. Only state what a source says; don't guess.\n"
+        "Then make the call a sharp punter would at this price: BACK or PASS. Don't pass everything: pass only when "
+        "the form gives a real reason, not just because it can lose.\n"
+        "Reply as JSON only: {\"verdict\": \"back\"|\"pass\", \"why\": one short sentence, "
+        "\"points\": [up to 3 short form notes, casual Aussie punter voice, no emojis]}")
+    out = g.ask(prompt, json_out=True, search=True, max_tokens=500, label="racing read")
+    vd = str((out or {}).get("verdict", "")).lower()
+    if vd not in ("back", "pass"):
+        return None
+    return {"verdict": vd, "why": str(out.get("why") or "").strip(),
+            "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3], "sources": g.sources()[:3]}
+
+
 def thread(d, sel):
     """(thread name, message lines) for the Discord thread."""
     lines = [f"**🧐 Devil's advocate · {HEAD[d['level']]}** ({d['score']})"]

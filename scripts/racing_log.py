@@ -105,15 +105,22 @@ def collect(log, now):
         log["tops_day"] = today
 
     # racing value picks (live Betfair back price over the rated price)
+    byid = {p["id"]: p for p in log["picks"]}
     for o in summ.get("racing_value") or []:
         if not (o.get("mid") and o.get("sid")):
+            continue
+        gem = (state.get(f"race|{o.get('game')}|{o.get('pick')}") or {}).get("gem")   # Gemini's BACK/PASS on the alert
+        old = byid.get(f"value|{_mid(o['mid'])}|{o['sid']}")
+        if old is not None:
+            if gem and not old.get("gem"):
+                old["gem"] = gem
             continue
         d = datetime.fromisoformat(str(o["start"]).replace("Z", "+00:00")).astimezone(SYD).date().isoformat()
         add({"id": f"value|{_mid(o['mid'])}|{o['sid']}", "type": "value",
              "kind": "Horse" if o.get("sport") == "Racing" else "Greyhound", "date": d, "start": o["start"],
              "mid": _mid(o["mid"]), "sid": o["sid"], "venue": o.get("game"), "num": None, "no": None,
              "name": o["pick"].split(". ", 1)[-1], "rated": o.get("fair"), "price": o.get("price"),
-             "edge": o.get("edge_pct"), "t": now.isoformat()})
+             "edge": o.get("edge_pct"), "t": now.isoformat(), **({"gem": gem} if gem else {})})
     return added
 
 
@@ -249,7 +256,10 @@ def write_public(log, now):
     out = {"updated": now.isoformat().replace("+00:00", "Z"),
            "since": done[0]["date"] if done else None,
            "periods": {"7d": summarise(since(7)), "30d": summarise(since(30)), "all": summarise(done)},
-           "groups": [{"name": k, **summarise(v)} for k, v in sorted(groups.items(), key=lambda x: -len(x[1]))],
+           "groups": [{"name": k, **summarise(v)} for k, v in sorted(groups.items(), key=lambda x: -len(x[1]))]
+                     # Gemini's racing calls: if its PASSes lose and BACKs win, its form read is worth following
+                     + [{"name": n, **summarise(v)} for k, n in (("back", "Gemini said BACK"), ("pass", "Gemini said PASS"))
+                        for v in [[p for p in done if p.get("gem") == k]] if v],
            "units": pts,
            "recent": [{k: p.get(k) for k in keep} for p in reversed(done[-80:])]}
     with open(PUB, "w") as f:

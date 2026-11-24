@@ -712,6 +712,19 @@ def main():
                      f"${p['price']:.2f} at {p['book']} · {pstake(p):g}U · {p['sub']}"] + p.get("why", [])
             acts = [{"action": "view", "label": "Log bet", "url": p["add"], "clear": False}] if p["add"] else []
             acts.append({"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False})
+            if p["key"].startswith("race|"):   # Gemini reads the form guide for racing alerts: BACK / PASS (flag only)
+                try:
+                    import devils_advocate as da
+                    rd = da.race(p)
+                    if rd:
+                        p["gem"] = rd
+                        print(f"racing read (Gemini): {rd['verdict']} for {p['sel']}")
+                        lines[1] += f"\n🤖 Gemini: {da.VERDICT[rd['verdict']]}" + (f" · {rd['why']}" if rd.get("why") else "")
+                        lines += [f"• {t}" for t in rd["points"]]
+                        if rd.get("sources"):
+                            lines.append("Form: " + " · ".join(u for _, u in rd["sources"]))
+                except Exception as e:
+                    print(f"::warning::racing read failed: {e}")
             # devil's advocate first (news check + Gemini's BACK/PASS go on the alert itself, incl. Jayden's push)
             th = None
             if p.get("log") and p["key"].startswith(("hot|", "ov|")):   # devil's advocate: the case against, as a thread
@@ -770,7 +783,8 @@ def main():
                 fd["n"] += 1
                 fd["keys"].append(p["key"])
         for p in sent:
-            state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat()}
+            state[p["key"]] = {"edge": p["edge"], "price": p["price"], "tag": p["tag"], "at": now.isoformat(),
+                               **({"gem": p["gem"]["verdict"]} if p.get("gem") else {})}   # racing: Gemini's call, graded by racing_log.py
             if p.get("ck"):
                 state[p["ck"]] = state[p["key"]]
         # hand every sent bet to the bet log (bet_log.py scores it on closing price + result)
