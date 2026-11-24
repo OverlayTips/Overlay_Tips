@@ -712,14 +712,7 @@ def main():
                      f"${p['price']:.2f} at {p['book']} · {pstake(p):g}U · {p['sub']}"] + p.get("why", [])
             acts = [{"action": "view", "label": "Log bet", "url": p["add"], "clear": False}] if p["add"] else []
             acts.append({"action": "view", "label": "Odds tracker", "url": SITE + "/odds.html", "clear": False})
-            if push(title, lines, click=SITE + "/odds.html", actions=acts):
-                sent.append(p)
-            # app alerts: props by league to Daily card + VIP; game bets and racing value to VIP
-            prop = bool((p.get("log") or {}).get("desc"))
-            cat = "racing" if p["emoji"] in ("🏇", "🐕") else (str(p.get("lg") or "").lower() if prop else "games")
-            if cat not in ("nba", "nbl", "nfl", "racing", "games"):
-                cat = "games"
-            why = (p.get("why") or [""])[0].split("\n\n")
+            # devil's advocate first (news check + Gemini's BACK/PASS go on the alert itself, incl. Jayden's push)
             th = None
             if p.get("log") and p["key"].startswith(("hot|", "ov|")):   # devil's advocate: the case against, as a thread
                 try:
@@ -729,10 +722,6 @@ def main():
                         import bet_log
                         bk = bet_log.bucket({"lg": p.get("lg"), "sport_key": p["log"]["sport_key"], "desc": p["log"].get("desc")}).replace("|", " ")
                     p["da"] = da.case(p, load(os.path.join(OUT, "record.json"), {}), bk)
-                    ai = da.gemini(p, p["da"])
-                    if ai:
-                        p["da"]["ai"] = ai
-                        print(f"devil's advocate (Gemini): {ai['level']} vs {p['sel']}")
                     if p["key"].startswith("hot|") and (alert_tier(p) == "founder" or pstake(p) >= NEWS_MIN_UNITS):
                         nw = da.news(p)   # late news: a live Google search for scratches / minutes limits
                         if nw:
@@ -741,10 +730,24 @@ def main():
                             if nw["status"] in ("out", "warning") and nw["points"]:
                                 lines[1] += "\n" + ("🚫 " if nw["status"] == "out" else "⚠️ ") + "Late news: " + nw["points"][0] \
                                             + " Check before betting."   # on line 2 so the short app alert shows it too
+                    ai = da.gemini(p, p["da"])   # after the news check, so its call can weigh the news
+                    if ai:
+                        p["da"]["ai"] = ai
+                        print(f"devil's advocate (Gemini): {ai['level']}, {ai.get('verdict')} vs {p['sel']}")
+                        if ai.get("verdict"):   # BACK / PASS on the alert itself (flag only, the alert still goes)
+                            lines[1] += f"\n🤖 Gemini: {da.VERDICT[ai['verdict']]}" + (f" · {ai['why']}" if ai.get("why") else "")
                     th = da.thread(p["da"], p["sel"])
                     print(f"devil's advocate: {p['da']['level']} ({p['da']['score']}) vs {p['sel']}")
                 except Exception as e:
                     print(f"::warning::devil's advocate failed: {e}")
+            if push(title, lines, click=SITE + "/odds.html", actions=acts):
+                sent.append(p)
+            # app alerts: props by league to Daily card + VIP; game bets and racing value to VIP
+            prop = bool((p.get("log") or {}).get("desc"))
+            cat = "racing" if p["emoji"] in ("🏇", "🐕") else (str(p.get("lg") or "").lower() if prop else "games")
+            if cat not in ("nba", "nbl", "nfl", "racing", "games"):
+                cat = "games"
+            why = (p.get("why") or [""])[0].split("\n\n")
             app_push(cat, title, lines[:2] + [w for w in why if w.startswith(("📈", "✅", "🤖"))][:2] or lines[:3],
                      (p.get("add") or SITE + "/odds.html"), alert_tier(p),
                      full=lines[:2] + [w for w in why if w.strip()], thread=th, sent=(posted := []))
@@ -778,7 +781,8 @@ def main():
                  "tier": alert_tier(p),
                  # devil's advocate's case against (flag only), so the bet log can show if it's worth listening to
                  **({"da": p["da"]["score"]} if p.get("da") else {}),
-                 **({"dai": p["da"]["ai"]["level"]} if (p.get("da") or {}).get("ai") else {})}
+                 **({"dai": p["da"]["ai"]["level"]} if (p.get("da") or {}).get("ai") else {}),
+                 **({"dav": p["da"]["ai"]["verdict"]} if ((p.get("da") or {}).get("ai") or {}).get("verdict") else {})}
                 for p in sent if p.get("log") and p.get("start")]
         try:
             old = load(os.path.join(OUT, "new_alerts.json"), [])

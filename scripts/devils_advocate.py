@@ -200,19 +200,31 @@ def gemini(p, d):
     prompt = (
         "You're the devil's advocate for a sports betting tips service. Our model flagged the bet below as value. "
         "Argue AGAINST it as hard as the numbers honestly allow.\n"
-        "Rules: use ONLY the data given. Don't invent injuries, news, quotes or stats that aren't in it. "
+        "Rules: use ONLY the data given (plus the news check below, if there is one). Don't invent injuries, news, "
+        "quotes or stats that aren't in it. "
         "'l10' is his hit rate over the last 15 games, 'l5' last 5, 'vs' vs tonight's opponent, 'games' the game log "
         "(newest first: date, opp, home/away, stat, minutes), 'mkt' the market's chance, 'prob' ours.\n"
         "Our rule-based checks already raised these, so don't repeat them, find what they missed:\n"
-        + "\n".join(f"- {t}" for t in d.get("points") or ["(nothing)"]) +
-        "\n\nReply as JSON: {\"level\": \"strong\"|\"some\"|\"weak\", \"points\": [up to 3 short sentences, "
-        "casual Aussie punter voice, no emojis]}. 'strong' = you'd skip this bet, 'weak' = it holds up.\n\n"
+        + "\n".join(f"- {t}" for t in d.get("points") or ["(nothing)"])
+        + (f"\n\nLate news check (Google search): {d['news']['status']}: " + " ".join(d["news"]["points"])
+           if d.get("news") else "") +
+        "\n\nAfter arguing against it, make the call a sharp punter would: BACK it or PASS. Don't just pass "
+        "everything: most of our alerts should be backable, so pass only when the case against is real, "
+        "not because there's some risk (every bet has some).\n"
+        "Reply as JSON: {\"level\": \"strong\"|\"some\"|\"weak\", \"points\": [up to 3 short sentences, "
+        "casual Aussie punter voice, no emojis], \"verdict\": \"back\"|\"pass\", \"why\": one short sentence "
+        "on the call}. 'strong' = a real case against, 'weak' = it holds up.\n\n"
         + json.dumps(bet, default=str))
     out = g.ask(prompt, json_out=True, max_tokens=600, label="devil's advocate")
     lvl = str((out or {}).get("level", "")).lower()
     if lvl not in HEAD:
         return None
-    return {"level": lvl, "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3], "model": g.MODEL}
+    vd = str(out.get("verdict", "")).lower()
+    return {"level": lvl, "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3], "model": g.MODEL,
+            "verdict": vd if vd in ("back", "pass") else None, "why": str(out.get("why") or "").strip()}
+
+
+VERDICT = {"back": "✅ BACK", "pass": "❌ PASS"}
 
 
 NEWS = {"clear": "✅ Nothing worrying", "warning": "⚠️ Worth a look", "out": "🚫 Reported out"}
@@ -259,6 +271,8 @@ def thread(d, sel):
     if ai:
         lines += ["", f"**🤖 Gemini's take · {HEAD[ai['level']]}**"]
         lines += [f"• {t}" for t in ai["points"]] or ["Nothing extra to add."]
+        if ai.get("verdict"):
+            lines.append(f"**🤖 Gemini says: {VERDICT[ai['verdict']]}**" + (f" · {ai['why']}" if ai.get("why") else ""))
     nw = d.get("news")
     if nw:
         lines += ["", f"**📰 Late news check · {NEWS[nw['status']]}**"]

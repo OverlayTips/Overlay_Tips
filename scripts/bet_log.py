@@ -257,7 +257,10 @@ def devil_split(bets):
 def gemini_split(bets):
     """Same idea for Gemini's verdict ("dai" on the row): does 'strong' actually lose more than 'weak'?"""
     names = (("strong", "Gemini: strong case against"), ("some", "Gemini: some case against"), ("weak", "Gemini: weak case against"))
-    return [{"name": n, **summarise(bs)} for k, n in names for bs in [[b for b in bets if b.get("dai") == k]] if bs]
+    out = [{"name": n, **summarise(bs)} for k, n in names for bs in [[b for b in bets if b.get("dai") == k]] if bs]
+    # its BACK / PASS call ("dav"): if PASS picks lose and BACK picks win, its call is worth following
+    return out + [{"name": n, **summarise(bs)} for k, n in (("back", "Gemini said BACK"), ("pass", "Gemini said PASS"))
+                  for bs in [[b for b in bets if b.get("dav") == k]] if bs]
 
 
 VOLUME_DROP, VOLUME_MIN_AVG = 0.4, 10   # alarm when yesterday < 40% of the usual, once the usual is 10+ a day
