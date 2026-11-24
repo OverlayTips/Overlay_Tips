@@ -692,6 +692,10 @@ def main():
                         import bet_log
                         bk = bet_log.bucket({"lg": p.get("lg"), "sport_key": p["log"]["sport_key"], "desc": p["log"].get("desc")}).replace("|", " ")
                     p["da"] = da.case(p, load(os.path.join(OUT, "record.json"), {}), bk)
+                    ai = da.gemini(p, p["da"])
+                    if ai:
+                        p["da"]["ai"] = ai
+                        print(f"devil's advocate (Gemini): {ai['level']} vs {p['sel']}")
                     th = da.thread(p["da"], p["sel"])
                     print(f"devil's advocate: {p['da']['level']} ({p['da']['score']}) vs {p['sel']}")
                 except Exception as e:
@@ -728,7 +732,8 @@ def main():
                  # who got it in the app: props go to Daily card + VIP, game bets and racing to VIP only
                  "tier": alert_tier(p),
                  # devil's advocate's case against (flag only), so the bet log can show if it's worth listening to
-                 **({"da": p["da"]["score"]} if p.get("da") else {})}
+                 **({"da": p["da"]["score"]} if p.get("da") else {}),
+                 **({"dai": p["da"]["ai"]["level"]} if (p.get("da") or {}).get("ai") else {})}
                 for p in sent if p.get("log") and p.get("start")]
         try:
             old = load(os.path.join(OUT, "new_alerts.json"), [])

@@ -10,8 +10,11 @@ score is saved on the bet log row ("da"), so bet_log.py can show how picks went 
 If strong-case picks keep losing and weak-case picks keep winning, it's earned a veto; if not, ignore it.
 
 Optional env: DEVIL_BOT_TOKEN, a second Discord bot's token, so the thread posts under its own name/avatar.
+Optional env: GEMINI_API_KEY (Google AI Studio key) adds a second opinion from Gemini under the rule-based points.
+It only sees the same numbers (no web, no news), so it can't make up injuries. Its verdict is saved on the bet log
+row ("dai") so it gets graded separately. GEMINI_MODEL picks the model (default gemini-flash-latest).
 """
-import math
+import json, math, os, urllib.request
 
 STRONG, SOME = 4, 2   # score -> "strong" (4+), "some" (2-3), "weak" (0-1)
 
@@ -83,7 +86,7 @@ def _prop(v, side, pts):
     if len(mins) >= 6:
         r3, r10 = sum(mins[:3]) / 3, sum(mins) / len(mins)
         if r3 < r10 * 0.9:
-            pts.append((1, f"Minutes are dropping: {r3:.0f} a game over his last 3 vs {r10:.0f} over 10"))
+            pts.append((1, f"Minutes are dropping: {r3:.0f} a game over his last 3 vs {r10:.0f} over {len(mins)}"))
     proj, mean = v.get("proj") or {}, v.get("mean")
     if mean is not None and pt is not None and ((over and mean < pt) or (not over and mean > pt)):
         pts.append((2, f"Our own minutes x rate projection has him at {mean} for tonight, {'under' if over else 'over'} the {pt}"))
@@ -168,14 +171,63 @@ def case(p, record=None, bucket_name=None):
     return {"score": score, "level": level(score), "points": [t for _, t in pts]}
 
 
+HEAD = {"strong": "💪 Strong case against", "some": "🤏 Some case against", "weak": "🙂 Not much against it"}
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+_DROP = {"prices", "ev", "mk", "desc", "sk", "why", "ctx"}   # bulky or not useful to it
+
+
+def gemini(p, d):
+    """Gemini's case against this alert: {"level", "points", "model"}, or None (no key, or the call failed).
+    Fed only the alert's own numbers plus the rule-based points, and told to add what those missed."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        return None
+    src = {k: v for k, v in (p.get("src_item") or {}).items() if k not in _DROP}
+    prices = (p.get("src_item") or {}).get("prices") or {}
+    bet = {"bet": p.get("sel"), "side": (p.get("log") or {}).get("side"), "price": p.get("price"), "book": p.get("book"),
+           "our_edge_pct": p.get("edge"), "other_bookie_prices": dict(list(prices.items())[:8]), "data": src}
+    prompt = (
+        "You're the devil's advocate for a sports betting tips service. Our model flagged the bet below as value. "
+        "Argue AGAINST it as hard as the numbers honestly allow.\n"
+        "Rules: use ONLY the data given. Don't invent injuries, news, quotes or stats that aren't in it. "
+        "'l10' is his hit rate over the last 15 games, 'l5' last 5, 'vs' vs tonight's opponent, 'games' the game log "
+        "(newest first: date, opp, home/away, stat, minutes), 'mkt' the market's chance, 'prob' ours.\n"
+        "Our rule-based checks already raised these, so don't repeat them, find what they missed:\n"
+        + "\n".join(f"- {t}" for t in d.get("points") or ["(nothing)"]) +
+        "\n\nReply as JSON: {\"level\": \"strong\"|\"some\"|\"weak\", \"points\": [up to 3 short sentences, "
+        "casual Aussie punter voice, no emojis]}. 'strong' = you'd skip this bet, 'weak' = it holds up.\n\n"
+        + json.dumps(bet, default=str))
+    body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"responseMimeType": "application/json", "maxOutputTokens": 600}}
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
+        data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            res = json.load(r)
+        text = "".join(pt.get("text", "") for pt in res["candidates"][0]["content"]["parts"])
+        out = json.loads(text[text.find("{"):text.rfind("}") + 1])
+        lvl = str(out.get("level", "")).lower()
+        if lvl not in HEAD:
+            return None
+        return {"level": lvl, "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3],
+                "model": GEMINI_MODEL}
+    except Exception as e:   # never stop an alert over this
+        print(f"::warning::devil's advocate (Gemini): {type(e).__name__} {e}")
+        return None
+
+
 def thread(d, sel):
     """(thread name, message lines) for the Discord thread."""
-    head = {"strong": "💪 Strong case against", "some": "🤏 Some case against", "weak": "🙂 Not much against it"}[d["level"]]
-    lines = [f"**🧐 Devil's advocate · {head}** ({d['score']})"]
+    lines = [f"**🧐 Devil's advocate · {HEAD[d['level']]}** ({d['score']})"]
     if d["points"]:
         lines += [f"• {t}" for t in d["points"][:7]]
     else:
         lines.append("Went through the numbers and couldn't find much against this one.")
+    ai = d.get("ai")
+    if ai:
+        lines += ["", f"**🤖 Gemini's take · {HEAD[ai['level']]}**"]
+        lines += [f"• {t}" for t in ai["points"]] or ["Nothing extra to add."]
     lines.append("-# Flag only, the pick still stands. Tracking whether the case against is worth listening to.")
     name = f"🧐 Devil's advocate · {sel}"
     return name[:95], lines

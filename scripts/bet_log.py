@@ -254,6 +254,12 @@ def devil_split(bets):
             for bs in [[b for b in rated if lo <= b["da"] <= hi]] if bs]
 
 
+def gemini_split(bets):
+    """Same idea for Gemini's verdict ("dai" on the row): does 'strong' actually lose more than 'weak'?"""
+    names = (("strong", "Gemini: strong case against"), ("some", "Gemini: some case against"), ("weak", "Gemini: weak case against"))
+    return [{"name": n, **summarise(bs)} for k, n in names for bs in [[b for b in bets if b.get("dai") == k]] if bs]
+
+
 def report(log, now):
     bets = log["bets"]
     wk = [b for b in bets if _parse(b["t"]) > now - timedelta(days=7)]
@@ -270,6 +276,9 @@ def report(log, now):
     dev = devil_split(bets)
     if dev:   # devil's advocate: do picks it argued hard against actually do worse?
         lines += ["", "By devil's advocate case against:"] + [line(d["name"], d) for d in dev]
+    gem = gemini_split(bets)
+    if gem:
+        lines += ["", "By Gemini's case against:"] + [line(d["name"], d) for d in gem]
     lines += ["", "CLV > 0 over 100+ bets = real edge. Under 100 bets the results are mostly luck."]
     return lines
 
@@ -336,7 +345,7 @@ def write_public(log, now):
                        "all": summarise(done)},
            "groups": [{"name": k.replace("|", " "), **summarise(v)} for k, v in sorted(groups.items(), key=lambda x: -len(x[1]))],
            "sources": [{"name": k, **summarise(v)} for k, v in srcs.items()],
-           "devil": devil_split(done),   # how picks went by how strong the devil's advocate's case against was
+           "devil": devil_split(done), "gemini": gemini_split(done),   # how picks went by how strong the devil's advocate's case against was
            "units": days,
            "clv_days": clv_days,
            "members": members,     # Daily card

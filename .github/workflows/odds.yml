@@ -78,6 +78,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}   # alerts into the Discord channels
           DEVIL_BOT_TOKEN: ${{ secrets.DEVIL_BOT_TOKEN }}   # optional: devil's advocate threads post as their own bot
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}     # optional: Gemini's second opinion in the devil's advocate thread
           DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
         run: |
           pip install -q pywebpush || true
