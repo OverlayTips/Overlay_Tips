@@ -8,7 +8,7 @@
 Never raises: no key, the free limit hit or a bad reply all just return None, and callers carry on without it.
 
 Env: GEMINI_API_KEY (no key = everything here is off), GEMINI_MODEL (default gemini-flash-latest),
-GEMINI_MAX_PER_RUN (default 25) so one run can't burn the free tier's daily requests.
+GEMINI_MAX_PER_RUN (default 50) so one run can't burn the free tier's daily requests.
 use_budget(state, per_day) adds a daily cap kept in the caller's saved state (value_alerts.py's alerted.json).
 """
 import base64, json, os, urllib.error, urllib.request
@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent"
-MAX_PER_RUN = int(os.environ.get("GEMINI_MAX_PER_RUN", "25"))
+MAX_PER_RUN = int(os.environ.get("GEMINI_MAX_PER_RUN", "50"))
 THINKING = os.environ.get("GEMINI_THINKING", "low")   # minimal / low / high: less = cheaper + faster
 THINK_ROOM = 3000                                      # extra output tokens for the thinking itself
 
@@ -24,6 +24,7 @@ _calls = 0
 _day = None       # {"d": "YYYY-MM-DD", "n": calls today} inside the caller's state, see use_budget
 _per_day = None
 _last_sources = []
+last_error = None   # why the last ask() returned None, in a few words (shown in the devil's advocate thread)
 
 
 def enabled():
@@ -70,11 +71,16 @@ def _post(body, key, timeout):
 
 
 def ask(prompt, json_out=False, search=False, image=None, max_tokens=800, timeout=45, label="gemini"):
-    global _calls, _last_sources
+    global _calls, _last_sources, last_error
     _last_sources = []
     key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not key or left() <= 0:
+    if not key:
+        last_error = "no API key"
         return None
+    if left() <= 0:
+        last_error = "hit the per-run limit" if MAX_PER_RUN - _calls <= 0 else "hit the daily limit"
+        return None
+    last_error = None
     parts = [{"text": prompt}]
     if image:
         data, mime = image
@@ -105,11 +111,17 @@ def ask(prompt, json_out=False, search=False, image=None, max_tokens=800, timeou
                          for c in meta.get("groundingChunks") or [] if (c.get("web") or {}).get("uri")]
         if not text.strip():
             print(f"::warning::{label} (Gemini): empty reply (finish: {cand.get('finishReason')})")
+            last_error = "empty reply"
             return None
-        return _json(text) if json_out else text.strip()
+        out = _json(text) if json_out else text.strip()
+        if out is None:
+            last_error = "unreadable reply"
+        return out
     except urllib.error.HTTPError as e:
         msg = e.read().decode(errors="replace")[:200]
         print(f"::warning::{label} (Gemini): HTTP {e.code} {msg}")
+        last_error = {429: "Google rate limit / out of credit", 403: "key rejected"}.get(e.code, f"Google error {e.code}")
     except Exception as e:
         print(f"::warning::{label} (Gemini): {type(e).__name__} {e}")
+        last_error = "timed out" if "timeout" in f"{type(e).__name__} {e}".lower() else "call failed"
     return None

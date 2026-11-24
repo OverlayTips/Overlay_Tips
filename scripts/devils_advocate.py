@@ -218,6 +218,7 @@ def gemini(p, d):
     out = g.ask(prompt, json_out=True, max_tokens=600, label="devil's advocate")
     lvl = str((out or {}).get("level", "")).lower()
     if lvl not in HEAD:
+        d["ai_err"] = g.last_error or "unreadable reply"   # thread() shows it, so a skip isn't silent
         return None
     vd = str(out.get("verdict", "")).lower()
     return {"level": lvl, "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3], "model": g.MODEL,
@@ -302,6 +303,8 @@ def thread(d, sel):
         lines += [f"• {t}" for t in ai["points"]] or ["Nothing extra to add."]
         if ai.get("verdict"):
             lines.append(f"**🤖 Gemini says: {VERDICT[ai['verdict']]}**" + (f" · {ai['why']}" if ai.get("why") else ""))
+    elif d.get("ai_err"):
+        lines += ["", f"-# 🤖 Gemini unavailable for this one ({d['ai_err']})"]
     nw = d.get("news")
     if nw:
         lines += ["", f"**📰 Late news check · {NEWS[nw['status']]}**"]

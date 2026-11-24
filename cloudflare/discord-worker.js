@@ -1,6 +1,7 @@
 // Overlay Tips: the /stats and /why commands in the Overlay Discord.
 //   /stats Zion        -> his live NBA line
 //   /why Jalen Brunson -> Gemini explains today's pick(s) on that player, from the same numbers the model used
+//   /why (inside an alert's devil's advocate thread) -> explains that exact alert, never a different bet
 //                         (the public Hot stats feed: hit rates, game log, matchup, minutes, prices)
 //
 // Runs as a Cloudflare Worker that Discord calls (Developer Portal -> your app -> General Information ->
@@ -12,6 +13,8 @@
 //   BDL_KEY             (Secret) your BALLDONTLIE API key, same as the overlay-live Worker
 //   DISCORD_PUBLIC_KEY  (Secret) Developer Portal -> General Information -> Public Key
 //   GEMINI_API_KEY      (Secret) Google AI Studio key, for /why (same key as the GitHub secret is fine)
+//   DISCORD_BOT_TOKEN   (Secret) optional, same as the GitHub secret: lets /why in an alert thread read the alert
+//                                write-up + live prices. Without it /why there only has the thread name to go on.
 //   ALLOWED_ROLE_IDS    (Text)   comma-separated role ids allowed to use /stats and /why (the Discord setup
 //                                workflow prints them). Leave empty to allow everyone in the server.
 // The command itself is registered by scripts/discord_commands.py (Discord setup workflow).
@@ -47,7 +50,7 @@ export default {
 async function answer(it, q, env, cmd) {
   let content;
   try {
-    content = cmd === "why" ? await whyFor(q, env) : await statsFor(q, env);
+    content = cmd === "why" ? await whyFor(q, env, it) : await statsFor(q, env);
   } catch (e) {
     content = cmd === "why" ? "Couldn't pull the pick right now. Try again in a minute."
       : "Couldn't get live stats right now. Try again in a minute.";
@@ -136,12 +139,84 @@ const HOT = "https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-dat
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/";
 const WHY_FOOT = "-# Gemini's read of the model's numbers, not a guarantee · 18+ · Gamble responsibly · 1800 858 858";
 
-async function whyFor(q, env) {
-  if (!q) return "Tell me who, e.g. `/why Jalen Brunson`.";
+const DA = "🧐 Devil's advocate · ";   // devil's advocate thread names: DA + the alert's selection
+
+function msgText(m) {   // a Discord message as plain text: content + embeds (the live prices panel is an embed)
+  const parts = [m.content || ""];
+  for (const e of m.embeds || []) {
+    parts.push([e.title, e.description, ...(e.fields || []).map((f) => `${f.name}: ${f.value}`),
+      e.footer && e.footer.text].filter(Boolean).join("\n"));
+  }
+  return parts.filter(Boolean).join("\n").trim();
+}
+
+// /why typed inside an alert's devil's advocate thread: that exact alert, never another bet on the player.
+// The thread name holds the selection; with DISCORD_BOT_TOKEN set on the Worker it also reads the alert
+// write-up + live prices panel (the thread's starter message) and the devil's advocate points.
+async function alertFor(it, env) {
+  const ch = it.channel || {};
+  if (![10, 11, 12].includes(ch.type) || !String(ch.name || "").startsWith(DA)) return null;
+  const a = { sel: ch.name.slice(DA.length).trim(), text: "", against: "" };
+  if (env.DISCORD_BOT_TOKEN && ch.parent_id) {
+    const h = { headers: { Authorization: "Bot " + env.DISCORD_BOT_TOKEN } };
+    const get = (u) => fetch(API + u, h).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const [m, t] = await Promise.all([get(`/channels/${ch.parent_id}/messages/${ch.id}`),
+      get(`/channels/${ch.id}/messages?limit=5`)]);
+    if (m) a.text = msgText(m).slice(0, 2500);
+    a.against = (t || []).map(msgText).filter((s) => s.includes("Devil's advocate")).join("\n\n").slice(0, 1500);
+  }
+  return a;
+}
+
+async function whyAlert(a, hot, env) {
+  // the hot stats card for this exact bet (same player, same line), if it's in today's feed
+  const s = norm(a.sel), nums = (a.sel.match(/\d+(\.\d+)?/g) || []);
+  const pool = [...(hot.value || []), ...(hot.items || []), ...(hot.cold || [])];
+  const card = pool.find((x) => x.player && s.includes(norm(x.player)) && s.includes(norm(x.stat))
+    && (nums.includes(String(x.point)) || a.sel.includes(String(x.line))));
+  if (!a.text && !card) {
+    return `**🤖 ${a.sel}**\nCan't see this alert's numbers from here, so no read on it (it's not in today's Hot stats ` +
+      "feed). Check the alert above.\n" + WHY_FOOT;
+  }
+  const keep = ["stat", "line", "side", "price", "book", "l10", "l5", "vs", "season", "avg", "prob", "mkt", "value",
+    "games", "h2h", "wo", "proj", "mu", "pace", "moved"];
+  const prompt =
+    "A member of Overlay Tips (an Aussie sports tips service) asked why we tipped this exact bet: " + a.sel + ".\n" +
+    "Explain THIS bet only, in 3-4 short sentences, casual Aussie punter voice: why the model rated it value, " +
+    "whether the live prices panel says it's still value now (and at which bookie), and the main risk against it. " +
+    "Never talk about a different market or line. Use ONLY the text below, don't invent injuries, news or stats. " +
+    "No emojis, no 'guaranteed'. Start with the bet in bold.\n\n" +
+    (a.text ? "The alert as posted (write-up + live prices panel):\n" + a.text + "\n\n" : "") +
+    (a.against ? "Devil's advocate thread:\n" + a.against + "\n\n" : "") +
+    (card ? "Model numbers ('l10' = last 15 games [hit, games], 'l5' last 5, 'vs' vs opponent, 'prob' our chance, " +
+      "'mkt' the market's, 'games' newest first [date, opp, home/away, stat, minutes]):\n" +
+      JSON.stringify(Object.fromEntries(keep.filter((k) => card[k] != null).map((k) => [k, card[k]]))) : "");
+  return `**🤖 Why this one?**\n${(await gem(prompt, env)).slice(0, 1700)}\n${WHY_FOOT}`;
+}
+
+async function gem(prompt, env) {
+  // newer Flash models "think" first, and that counts toward the output limit: keep it low, leave room
+  const call = (cfg) => fetch(GEMINI + (env.GEMINI_MODEL || "gemini-flash-latest") + ":generateContent", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: cfg }),
+  });
+  let g = await call({ maxOutputTokens: 3700, thinkingConfig: { thinkingLevel: "low" } });
+  if (g.status === 400) g = await call({ maxOutputTokens: 3700 });
+  if (!g.ok) throw new Error("gemini " + g.status);
+  const res = await g.json();
+  const text = (((res.candidates || [])[0] || {}).content || {}).parts?.map((p) => p.text || "").join("").trim();
+  if (!text) throw new Error("empty");
+  return text;
+}
+
+async function whyFor(q, env, it) {
   if (!env.GEMINI_API_KEY) return "/why isn't switched on yet.";
+  const a = await alertFor(it || {}, env);
+  if (!q && !a) return "Tell me who, e.g. `/why Jalen Brunson`, or use `/why` inside an alert's devil's advocate thread.";
   const r = await fetch(HOT, { cf: { cacheTtl: 120 } });
   if (!r.ok) throw new Error("hot " + r.status);
   const hot = await r.json();
+  if (a && (!q || norm(a.sel).includes(norm(q)))) return await whyAlert(a, hot, env);
   const want = norm(q), last = want.split(" ").pop();
   const pool = [...(hot.value || []).map((x) => ({ ...x, _k: "value pick" })),
     ...(hot.items || []).map((x) => ({ ...x, _k: "hot stat" })),
@@ -166,19 +241,13 @@ async function whyFor(q, env) {
     "it. Use ONLY this data, don't invent injuries, news or stats. 'l10' is his record over the last 15 games " +
     "[hit, games], 'l5' the last 5, 'vs' vs tonight's opponent, 'prob' our rated chance, 'mkt' the market's, " +
     "'value' expected return %, 'games' newest first [date, opp, home/away, stat, minutes]. No emojis, no " +
-    "'guaranteed'. Start each with the bet in bold like **Points 25+ @ $1.90 (Sportsbet)**.\n\n" + JSON.stringify(data);
-  // newer Flash models "think" first, and that counts toward the output limit: keep it low, leave room
-  const call = (cfg) => fetch(GEMINI + (env.GEMINI_MODEL || "gemini-flash-latest") + ":generateContent", {
-    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: cfg }),
-  });
-  let g = await call({ maxOutputTokens: 3700, thinkingConfig: { thinkingLevel: "low" } });
-  if (g.status === 400) g = await call({ maxOutputTokens: 3700 });
-  if (!g.ok) throw new Error("gemini " + g.status);
-  const res = await g.json();
-  const text = (((res.candidates || [])[0] || {}).content || {}).parts?.map((p) => p.text || "").join("").trim();
-  if (!text) throw new Error("empty");
-  return `**🤖 Why ${names[0]}?**\n${text.slice(0, 1700)}\n${WHY_FOOT}`;
+    "'guaranteed'. Start each with the bet in bold like **Points 25+ @ $1.90 (Sportsbet)**. '_k' says what it is: " +
+    "a 'value pick' is one we rate as value; a 'hot stat' or 'cold stat' is just a form card, NOT a bet we tipped, " +
+    "so say that, and if its 'value' is negative say it isn't value at that price.\n\n" + JSON.stringify(data);
+  const text = await gem(prompt, env);
+  const note = picks.some((x) => x._k === "value pick") ? ""
+    : `-# No value pick on ${names[0]} right now: this is his form card, not a tip.\n`;
+  return `**🤖 Why ${names[0]}?**\n${note}${text.slice(0, 1650)}\n${WHY_FOOT}`;
 }
 
 async function verify(req, body, pub) {   // Discord signs every request with Ed25519

@@ -14,8 +14,8 @@ COMMANDS = [{
     "options": [{"type": 3, "name": "player", "description": "Player name, e.g. Zion or Jalen Brunson", "required": True}],
 }, {
     "name": "why", "type": 1,
-    "description": "Why is this player on today's board? Gemini explains the pick from our numbers",
-    "options": [{"type": 3, "name": "player", "description": "Player name, e.g. Jalen Brunson", "required": True}],
+    "description": "Why this pick? Use it in an alert thread, or name a player",
+    "options": [{"type": 3, "name": "player", "description": "Player name (leave blank inside an alert thread)", "required": False}],
 }]
 
 
