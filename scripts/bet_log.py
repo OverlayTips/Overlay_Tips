@@ -260,6 +260,31 @@ def gemini_split(bets):
     return [{"name": n, **summarise(bs)} for k, n in names for bs in [[b for b in bets if b.get("dai") == k]] if bs]
 
 
+VOLUME_DROP, VOLUME_MIN_AVG = 0.4, 10   # alarm when yesterday < 40% of the usual, once the usual is 10+ a day
+
+
+def volume_check(bets, now):
+    """(yesterday's alert count, 2-week daily average) when yesterday's alerts fell well below the usual, else None.
+    Days are Melbourne dates of when the alert went out ("t"); only counts days since the log started."""
+    y = (now.astimezone(MEL) - timedelta(days=1)).date()
+    days = {}
+    for b in bets:
+        try:
+            d = _parse(b["t"]).astimezone(MEL).date()
+        except Exception:
+            continue
+        days[d] = days.get(d, 0) + 1
+    if not days:
+        return None
+    first = min(days)
+    prev = [y - timedelta(days=i) for i in range(1, 15) if y - timedelta(days=i) >= first]
+    if len(prev) < 5:
+        return None   # not enough history yet
+    avg = sum(days.get(d, 0) for d in prev) / len(prev)
+    n = days.get(y, 0)
+    return (n, avg) if avg >= VOLUME_MIN_AVG and n < VOLUME_DROP * avg else None
+
+
 def report(log, now):
     bets = log["bets"]
     wk = [b for b in bets if _parse(b["t"]) > now - timedelta(days=7)]
@@ -452,7 +477,8 @@ def main():
         print(f"bet log: unmuting market {k}")
 
     log = {"bets": bets, "muted": mutes, "muted_mk": mk_mutes, "report_day": log.get("report_day"), "discord_day": log.get("discord_day"),
-           "weekly_day": log.get("weekly_day"), "league_day": log.get("league_day"), "tease": log.get("tease") or {}}
+           "weekly_day": log.get("weekly_day"), "league_day": log.get("league_day"), "tease": log.get("tease") or {},
+           "volume_day": log.get("volume_day")}
 
     # 5. daily report
     local = now.astimezone(MEL)
@@ -465,6 +491,23 @@ def main():
             import value_alerts
             value_alerts._push(topic, "📈 Tracker report", lines, click=value_alerts.SITE + "/odds.html", priority=3)
         log["report_day"] = today
+
+    # 6. volume alarm: once a day from 9am, yesterday's alerts vs the usual (filters getting too tight)
+    if local.hour >= 9 and log.get("volume_day") != today and bets:
+        try:
+            v = volume_check(bets, now)
+            if v:
+                print(f"bet log: volume alarm: {v[0]} alerts yesterday vs {v[1]:.0f} usual")
+                topic = re.sub(r"[^A-Za-z0-9_-]", "", os.environ.get("NTFY_TOPIC", ""))
+                if topic:
+                    import value_alerts
+                    value_alerts._push(topic, "🦄 Alerts have dried up", [
+                        f"Only {v[0]} alert{'' if v[0] == 1 else 's'} yesterday vs about {v[1]:.0f} a day over the 2 weeks before.",
+                        "If there were plenty of games on, the filters might be too tight (the 'waiting for a unicorn' problem).",
+                        "Worth checking before it costs a week of action."], click=value_alerts.SITE + "/odds.html", priority=4)
+        except Exception as e:
+            print("bet log: volume check failed:", type(e).__name__, e)
+        log["volume_day"] = today
 
     save_log(log)
     try:
