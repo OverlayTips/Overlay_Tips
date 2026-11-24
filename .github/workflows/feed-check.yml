@@ -1,0 +1,21 @@
+# Manual: what the odds feed has for one bookie (default Dabble, Champions League). Counts + names only, no prices.
+name: Feed check
+on:
+  workflow_dispatch:
+    inputs:
+      book: {description: "Bookie key", default: "dabble_au"}
+      sport: {description: "Sport key", default: "soccer_uefa_champs_league"}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: pip install -q cryptography
+      - run: git fetch --depth=1 origin odds-data && git worktree add odds-data FETCH_HEAD
+      - run: python scripts/feed_check.py
+        env:
+          ODDS_PAGE_PASSWORD: ${{ secrets.ODDS_PAGE_PASSWORD }}
+          BOOK: ${{ inputs.book }}
+          SPORT: ${{ inputs.sport }}
