@@ -1,4 +1,7 @@
-// Overlay Tips: the /stats command in the Overlay Discord ("/stats Zion" -> his live NBA line).
+// Overlay Tips: the /stats and /why commands in the Overlay Discord.
+//   /stats Zion        -> his live NBA line
+//   /why Jalen Brunson -> Gemini explains today's pick(s) on that player, from the same numbers the model used
+//                         (the public Hot stats feed: hit rates, game log, matchup, minutes, prices)
 //
 // Runs as a Cloudflare Worker that Discord calls (Developer Portal -> your app -> General Information ->
 // Interactions Endpoint URL = this Worker's URL). Replies are only shown to the member who asked
@@ -8,7 +11,8 @@
 // Cloudflare settings (Worker -> Settings -> Variables and Secrets):
 //   BDL_KEY             (Secret) your BALLDONTLIE API key, same as the overlay-live Worker
 //   DISCORD_PUBLIC_KEY  (Secret) Developer Portal -> General Information -> Public Key
-//   ALLOWED_ROLE_IDS    (Text)   comma-separated role ids allowed to use /stats (the Discord setup
+//   GEMINI_API_KEY      (Secret) Google AI Studio key, for /why (same key as the GitHub secret is fine)
+//   ALLOWED_ROLE_IDS    (Text)   comma-separated role ids allowed to use /stats and /why (the Discord setup
 //                                workflow prints them). Leave empty to allow everyone in the server.
 // The command itself is registered by scripts/discord_commands.py (Discord setup workflow).
 
@@ -24,27 +28,29 @@ export default {
     const it = JSON.parse(body);
     if (it.type === 1) return reply({ type: 1 });   // Discord's PING when you save the endpoint URL
 
-    if (it.type === 2 && it.data && it.data.name === "stats") {
+    if (it.type === 2 && it.data && (it.data.name === "stats" || it.data.name === "why")) {
+      const cmd = it.data.name;
       const allowed = String(env.ALLOWED_ROLE_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
       const roles = (it.member && it.member.roles) || [];
       if (allowed.length && !roles.some((r) => allowed.includes(r))) {
         return reply({ type: 4, data: { flags: 64, content:
-          "🔒 /stats is for Overlay members. Sign up free at <https://overlay.tips/portal.html> and tap **Connect Discord**." } });
+          `🔒 /${cmd} is for Overlay members. Sign up free at <https://overlay.tips/portal.html> and tap **Connect Discord**.` } });
       }
       const q = String(((it.data.options || []).find((o) => o.name === "player") || {}).value || "").trim();
-      ctx.waitUntil(answer(it, q, env));
+      ctx.waitUntil(answer(it, q, env, cmd));
       return reply({ type: 5, data: { flags: 64 } });   // "thinking…", then answer() edits it
     }
     return reply({ type: 4, data: { flags: 64, content: "Unknown command." } });
   },
 };
 
-async function answer(it, q, env) {
+async function answer(it, q, env, cmd) {
   let content;
   try {
-    content = await statsFor(q, env);
+    content = cmd === "why" ? await whyFor(q, env) : await statsFor(q, env);
   } catch (e) {
-    content = "Couldn't get live stats right now. Try again in a minute.";
+    content = cmd === "why" ? "Couldn't pull the pick right now. Try again in a minute."
+      : "Couldn't get live stats right now. Try again in a minute.";
   }
   await fetch(`${API}/webhooks/${it.application_id}/${it.token}/messages/@original`, {
     method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -123,6 +129,53 @@ function hex(s) {
   const out = new Uint8Array(s.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(s.substr(i * 2, 2), 16);
   return out;
+}
+
+// ---------------- /why ----------------
+const HOT = "https://raw.githubusercontent.com/OverlayTips/Overlay_Tips/odds-data/hot.json";
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/";
+const WHY_FOOT = "-# Gemini's read of the model's numbers, not a guarantee · 18+ · Gamble responsibly · 1800 858 858";
+
+async function whyFor(q, env) {
+  if (!q) return "Tell me who, e.g. `/why Jalen Brunson`.";
+  if (!env.GEMINI_API_KEY) return "/why isn't switched on yet.";
+  const r = await fetch(HOT, { cf: { cacheTtl: 120 } });
+  if (!r.ok) throw new Error("hot " + r.status);
+  const hot = await r.json();
+  const want = norm(q), last = want.split(" ").pop();
+  const pool = [...(hot.value || []).map((x) => ({ ...x, _k: "value pick" })),
+    ...(hot.items || []).map((x) => ({ ...x, _k: "hot stat" })),
+    ...(hot.cold || []).map((x) => ({ ...x, _k: "cold stat (Under)" }))];
+  let hits = pool.filter((x) => norm(x.player) === want);
+  if (!hits.length) hits = pool.filter((x) => norm(x.player).includes(want) || norm(x.player).split(" ").pop() === last);
+  const names = [...new Set(hits.map((x) => x.player))];
+  if (!hits.length) return `No pick on **${q}** in today's feed. Check <https://overlay.tips/hot.html> for who's on it.`;
+  if (names.length > 1) return `A few players match: ${names.slice(0, 5).join(", ")}. Try the full name.`;
+  // value picks first, then the best hit rate; one line per stat
+  const seen = new Set(), picks = [];
+  for (const x of hits.sort((a, b) => (a._k === "value pick" ? -1 : 0) - (b._k === "value pick" ? -1 : 0))) {
+    const k = x.stat + "|" + (x.side || "Over");
+    if (!seen.has(k)) { seen.add(k); picks.push(x); }
+  }
+  const keep = ["player", "team", "opp", "game", "start", "stat", "line", "side", "price", "book", "l10", "l5", "vs",
+    "season", "avg", "prob", "mkt", "value", "games", "h2h", "wo", "proj", "mu", "pace", "moved", "_k"];
+  const data = picks.slice(0, 3).map((x) => Object.fromEntries(keep.filter((k) => x[k] != null).map((k) => [k, x[k]])));
+  const prompt =
+    "A member of Overlay Tips (an Aussie sports tips service) asked why these picks are on our board. Explain each " +
+    "one in 2-3 short sentences, casual Aussie punter voice: what the numbers say for it and the main risk against " +
+    "it. Use ONLY this data, don't invent injuries, news or stats. 'l10' is his record over the last 15 games " +
+    "[hit, games], 'l5' the last 5, 'vs' vs tonight's opponent, 'prob' our rated chance, 'mkt' the market's, " +
+    "'value' expected return %, 'games' newest first [date, opp, home/away, stat, minutes]. No emojis, no " +
+    "'guaranteed'. Start each with the bet in bold like **Points 25+ @ $1.90 (Sportsbet)**.\n\n" + JSON.stringify(data);
+  const g = await fetch(GEMINI + (env.GEMINI_MODEL || "gemini-flash-latest") + ":generateContent", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 700 } }),
+  });
+  if (!g.ok) throw new Error("gemini " + g.status);
+  const res = await g.json();
+  const text = (((res.candidates || [])[0] || {}).content || {}).parts?.map((p) => p.text || "").join("").trim();
+  if (!text) throw new Error("empty");
+  return `**🤖 Why ${names[0]}?**\n${text.slice(0, 1700)}\n${WHY_FOOT}`;
 }
 
 async function verify(req, body, pub) {   // Discord signs every request with Ed25519

@@ -1,5 +1,7 @@
 /* Overlay Tips: read a bet slip screenshot into the bet tracker.
-   Runs entirely in the browser: Tesseract OCR (self-hosted in /ocr), then parseSlip() turns the text
+   First tries Gemini through the overlay-ai Worker (cloudflare/ai-worker.js, far better on dark-mode and SGM
+   slips), and if that's not set up or fails, falls back to Tesseract OCR in the browser (self-hosted in /ocr).
+   Either way parseSlip() turns the text
    into {kind, player, stat, side, line, legs, desc, odds, stake, book}. The tracker opens it in the
    add-bet form so the member checks it before saving.
    OTSlip.read(file, names, onProgress) -> Promise<{bet, text}>;  OTSlip.parse(text, names) -> bet */
@@ -259,7 +261,40 @@
   function timeout(p, ms, msg) {
     return Promise.race([p, new Promise(function (_, bad) { setTimeout(function () { bad(new Error(msg)); }, ms); })]);
   }
+  var AI_URL = 'https://overlay-ai.borgjayden005.workers.dev/slip';
+  // shrink to <=1600px on the long side as a JPEG (keeps the upload small; colour kept, Gemini doesn't need prep)
+  function jpeg(file) {
+    return new Promise(function (ok, bad) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        ok(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      };
+      img.onerror = function () { bad(new Error("that file isn't an image")); };
+      img.src = url;
+    });
+  }
+  function readAI(file, prog) {
+    if (!window.fetch || !AI_URL) return Promise.reject(new Error('no AI reader'));
+    prog('Reading the slip…');
+    return jpeg(file).then(function (b64) {
+      return timeout(fetch(AI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: b64, mime: 'image/jpeg' }) }), 30000, 'AI reader timed out');
+    }).then(function (r) { if (!r.ok) throw new Error('AI reader ' + r.status); return r.json(); })
+      .then(function (j) { if (!j || !j.text) throw new Error('AI reader: no text'); return j.text; });
+  }
   function read(file, names, onProgress) {
+    var prog = onProgress || function () {};
+    return readAI(file, prog).then(function (text) {
+      var bets = parseAll(text, names);
+      var any = bets.some(function (b) { return b.player || (b.legs && b.legs.length) || b.odds > 1 || b.stake > 0 || b.desc; });
+      if (!any) throw new Error('AI read nothing usable');
+      return { bet: bets[0], bets: bets, text: text, via: 'ai' };
+    }).catch(function () { return readOCR(file, names, prog); });
+  }
+  function readOCR(file, names, onProgress) {
     var prog = onProgress || function () {};
     return (window.Tesseract ? Promise.resolve() : loadScript(BASE + 'tesseract.min.js')).then(function () {
       if (worker) return worker;
@@ -309,6 +344,6 @@
   var RUNNER = /(?:^|[^\w])\d{1,2}\s*[.)]\s*[A-Z][A-Za-z'’ .\-]{1,30}?\s*\(\d{1,2}\)/;
   function selectionLike(l) { return /\b(over|under)\s*\d|\d\s*\+/i.test(l); }
 
-  var api = { parse: parse, parseAll: parseAll, read: read, snapName: snapName };
+  var api = { parse: parse, parseAll: parseAll, read: read, readOCR: readOCR, snapName: snapName };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.OTSlip = api;
 })(typeof window !== 'undefined' ? window : this);

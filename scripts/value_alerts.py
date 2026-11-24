@@ -23,6 +23,8 @@ MIN_VALUE = 4.0      # % edge needed to alert
 REALERT_PRICE = 0.05   # same pick alerts again only when the price is up this much (or the edge is up 3+ points)
 MAX_PRICE = float(os.environ.get("MAX_PRICE", "2.0"))   # sports bets over this price never alert (racing exempt)
 DISCORD = SITE + "/discord.html"
+NEWS_MIN_UNITS = float(os.environ.get("NEWS_MIN_UNITS", "2"))   # late news check (Google search via Gemini): founder picks + alerts staked this big
+GEMINI_PER_DAY = int(os.environ.get("GEMINI_PER_DAY", "200"))   # Gemini calls a day from the alerts (free tier cap is per day)
 MIN_FORM = float(os.environ.get("MIN_FORM", "0.6"))   # player props: he must have landed this side in 60%+ of his last 15
 MIN_FORM_GAMES = 3
 
@@ -503,6 +505,29 @@ def bet_of_day(now, state):
         json.dump(pub, f, separators=(",", ":"))
 
 
+def race_form(items, syd):
+    """{runner name (lower): one-line form note} for the morning picks, from one Google-search-grounded Gemini
+    call (only what the form guides it finds say). {} without a key or if it fails."""
+    try:
+        import gemini
+        if not gemini.enabled() or not items:
+            return {}
+        runs = [{"runner": x["name"], "kind": x["kind"], "track": x["venue"], "race": x.get("num"), "box_or_no": x.get("no")}
+                for x in items]
+        out = gemini.ask(
+            f"Today is {syd.strftime('%A %-d %B %Y')} in Australia. For each runner below, search the latest form "
+            "guides and write ONE short line (max 20 words) on its recent form: last few starts, track/distance record, "
+            "anything notable like a class drop, a gear change or a wide barrier/box. Only state what a source says; "
+            "if you can't find this runner's form, leave it out. Plain Aussie punter language, no emojis, no tips.\n"
+            "Reply as JSON only: {\"notes\": [{\"runner\": name exactly as given, \"note\": the line}]}\n\n"
+            + json.dumps(runs), json_out=True, search=True, max_tokens=1200, label="racing form")
+        return {str(n.get("runner", "")).lower(): str(n.get("note", "")).strip()
+                for n in (out or {}).get("notes") or [] if n.get("runner") and str(n.get("note", "")).strip()}
+    except Exception as e:
+        print(f"::warning::racing form notes: {e}")
+        return {}
+
+
 def race_morning(now, state):
     """Once a race day, from 9am Sydney: the Betfair models' standout picks (top-rated runner well clear of
     the next best), so there's a racing push even without live Betfair prices."""
@@ -519,6 +544,7 @@ def race_morning(now, state):
     day = syd.date().isoformat()
     if tops.get("date") != day or not tops.get("items") or (state.get("race_am") or {}).get("date") == day:
         return
+    form = race_form(tops["items"], syd)
     lines = []
     for kind, emo in (("Horse", "🏇"), ("Greyhound", "🐕")):
         xs = [x for x in tops["items"] if x["kind"] == kind]
@@ -528,10 +554,15 @@ def race_morning(now, state):
         for x in xs:
             lines.append(f"{x['venue']} R{x['num']}: {(str(x['no']) + '. ') if x.get('no') else ''}{x['name']} rated ${x['rated']:.2f} "
                          f"(next best {x['next']} ${x['next_rated']:.2f})")
+            if form.get(x["name"].lower()):
+                lines.append(f"   ↳ {form[x['name'].lower()]}")
     lines += ["", "Rated prices from Betfair's data scientists' models. Only back them if your bookie pays more than the rated price."]
+    if form:
+        lines.append("Form notes: Gemini's summary of a Google search, so double-check the form guide.")
     title = f"🏇 Model's top picks · {syd.strftime('%a %-d %b')}"
     _push(TOPIC, title, lines[1:], click=SITE + "/odds.html", priority=3)
-    app_push("racing", title, [l for l in lines[1:] if l][:6], SITE + "/odds.html", "founder")   # free for every member
+    app_push("racing", title, [l for l in lines[1:] if l and not l.startswith("   ↳")][:6], SITE + "/odds.html", "founder",
+             full=[l for l in lines[1:] if l])   # free for every member
     state["race_am"] = {"at": now.isoformat(), "date": day}
     print(f"racing morning push: {len(tops['items'])} picks")
 
@@ -623,6 +654,12 @@ def main():
     # forget anything older than 2 days
     cutoff = (now - timedelta(days=2)).isoformat()
     state = {k: v for k, v in state.items() if v.get("at", "") >= cutoff}
+    try:   # Gemini extras (devil's advocate, news check, racing form) share a daily cap under the free tier
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import gemini
+        gemini.use_budget(state, GEMINI_PER_DAY)
+    except Exception as e:
+        print(f"::warning::gemini budget: {e}")
 
     try:   # league + market types the bet log found don't beat the closing price
         import bet_log
@@ -696,6 +733,14 @@ def main():
                     if ai:
                         p["da"]["ai"] = ai
                         print(f"devil's advocate (Gemini): {ai['level']} vs {p['sel']}")
+                    if p["key"].startswith("hot|") and (alert_tier(p) == "founder" or pstake(p) >= NEWS_MIN_UNITS):
+                        nw = da.news(p)   # late news: a live Google search for scratches / minutes limits
+                        if nw:
+                            p["da"]["news"] = nw
+                            print(f"news check: {nw['status']} for {p['sel']}")
+                            if nw["status"] in ("out", "warning") and nw["points"]:
+                                lines[1] += "\n" + ("🚫 " if nw["status"] == "out" else "⚠️ ") + "Late news: " + nw["points"][0] \
+                                            + " Check before betting."   # on line 2 so the short app alert shows it too
                     th = da.thread(p["da"], p["sel"])
                     print(f"devil's advocate: {p['da']['level']} ({p['da']['score']}) vs {p['sel']}")
                 except Exception as e:

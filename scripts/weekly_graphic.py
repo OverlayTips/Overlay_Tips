@@ -6,7 +6,8 @@ the week's running profit, in the Overlay Tips colours. The PNG goes to the grap
 ntfy channel with a ready-to-paste caption.
 
 Usage: python scripts/weekly_graphic.py [record.json path or URL] [out.png] [--week-ending YYYY-MM-DD]
-Env (optional): NTFY_TOPIC, GRAPHIC_URL (public URL of the PNG, for the ntfy attachment)
+Env (optional): NTFY_TOPIC, GRAPHIC_URL (public URL of the PNG, for the ntfy attachment),
+GEMINI_API_KEY (Gemini writes the caption's opening lines and a members' recap; the numbers are always our own)
 """
 import json, os, sys, urllib.request
 from datetime import datetime, date, timedelta
@@ -171,12 +172,42 @@ def draw(s, bets, start, end, out):
     im.save(out, optimize=True)
 
 
-def caption(s, start, end):
+def ai_copy(s, bets, start, end):
+    """Gemini's words for the post: {"hook", "body", "recap"} or None (no GEMINI_API_KEY, or it failed).
+    It never writes the numbers or the gambling-help footer: caption() puts the real figures in itself."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import gemini
+        if not gemini.enabled():
+            return None
+        facts = {"week": f"{start.isoformat()} to {end.isoformat()}", "wins": s["w"], "losses": s["l"], "units": s["units"],
+                 "flat_roi_pct": s["roi"], "avg_clv_pct": s["clv"], "best_winner": s["best"],
+                 "bets": [{"day": b["d"].strftime("%a"), "bet": b["sel"], "result": b["res"], "units": b["u"]} for b in bets][:40]}
+        out = gemini.ask(
+            "You write the Instagram copy for Overlay Tips, an Aussie sports tips page (@overlay_tips) that tracks every "
+            "tip publicly, wins and losses. Write in a casual young Aussie punter's voice: short, honest, a bit of banter, "
+            "never hype or 'guaranteed', never tell people to chase losses or bet more. If it was a losing week, own it.\n"
+            "Use ONLY the facts below. Don't put any numbers in hook or body (the real figures get added separately), "
+            "and don't add hashtags, links or a gambling-help line (also added separately).\n"
+            "Reply as JSON only: {\"hook\": one punchy opening line (max 12 words, 1 emoji ok), "
+            "\"body\": 1-2 short lines on how the week went (which sports/players carried it or let us down), "
+            "\"recap\": a 3-5 sentence weekly recap for members in the Discord, which CAN use the numbers given}\n\n"
+            + json.dumps(facts, default=str), json_out=True, max_tokens=700, label="weekly recap")
+        if out and str(out.get("hook", "")).strip():
+            return {k: str(out.get(k, "")).strip() for k in ("hook", "body", "recap")}
+    except Exception as e:
+        print(f"::warning::weekly recap (Gemini): {e}")
+    return None
+
+
+def caption(s, start, end, ai=None):
     b = s["best"]
-    lines = [f"Week in review 📊 {start.day}–{end.day} {end.strftime('%b')}",
+    lines = [ai["hook"] if ai else f"Week in review 📊 {start.day}–{end.day} {end.strftime('%b')}",
              f"{s['w']}–{s['l']} · {'+' if s['units'] >= 0 else ''}{s['units']:g} units" + (f" · {'+' if s['roi'] >= 0 else ''}{s['roi']:g}% ROI" if s["roi"] is not None else "")]
     if b:
         lines.append(f"Best winner: {b['sel']}" + (f" @ ${b['price']:.2f}" if b.get("price") else "") + " ✅")
+    if ai and ai.get("body"):
+        lines += ["", ai["body"]]
     lines += ["", "Every alert is tracked publicly on overlay.tips (Tracker record), wins and losses.",
               "Link in bio to join 🔗", "", "18+ | Gamble responsibly | Gambling Help 1800 858 858",
               "#overlaytips #sportsbetting #nba #nfl #bettingtips"]
@@ -196,8 +227,12 @@ def notify(title, text, img_url):
 
 def main():
     if "--notify" in sys.argv:   # after the PNG is public: python weekly_graphic.py --notify caption.txt
-        cap = open(sys.argv[sys.argv.index("--notify") + 1]).read()
+        path = sys.argv[sys.argv.index("--notify") + 1]
+        cap = open(path).read()
         notify("📸 Weekly results post ready", "Caption (copy + paste):\n\n" + cap, os.environ.get("GRAPHIC_URL", ""))
+        rp = path.rsplit(".", 1)[0] + "-recap.txt"
+        if os.path.exists(rp):   # Gemini's members recap, ready to paste in the Discord
+            notify("📝 Weekly recap for the Discord", open(rp).read(), "")
         return 0
     argv = sys.argv[1:]
     we = None
@@ -219,8 +254,12 @@ def main():
         print(f"no graded bets {start}..{end}: no graphic")
         return 1
     draw(s, bets, start, end, out)
-    cap = caption(s, start, end)
+    ai = ai_copy(s, bets, start, end)
+    cap = caption(s, start, end, ai)
     open(out.rsplit(".", 1)[0] + ".txt", "w").write(cap)
+    if ai and ai.get("recap"):
+        open(out.rsplit(".", 1)[0] + "-recap.txt", "w").write(
+            ai["recap"] + "\n\nEvery alert is tracked on overlay.tips/record.html · 18+ · Gamble responsibly · 1800 858 858")
     print(f"graphic: {out} ({s['w']}-{s['l']}, {s['units']:+g}U)")
     return 0
 

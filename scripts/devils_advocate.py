@@ -13,8 +13,10 @@ Optional env: DEVIL_BOT_TOKEN, a second Discord bot's token, so the thread posts
 Optional env: GEMINI_API_KEY (Google AI Studio key) adds a second opinion from Gemini under the rule-based points.
 It only sees the same numbers (no web, no news), so it can't make up injuries. Its verdict is saved on the bet log
 row ("dai") so it gets graded separately. GEMINI_MODEL picks the model (default gemini-flash-latest).
+news(p): the late news check, a live Google search through Gemini for scratches, minutes limits and role changes
+the stats can't see yet. value_alerts.py runs it on the bigger player-prop alerts only (it costs search quota).
 """
-import json, math, os, urllib.request
+import json, math, os
 
 STRONG, SOME = 4, 2   # score -> "strong" (4+), "some" (2-3), "weak" (0-1)
 
@@ -172,15 +174,20 @@ def case(p, record=None, bucket_name=None):
 
 
 HEAD = {"strong": "💪 Strong case against", "some": "🤏 Some case against", "weak": "🙂 Not much against it"}
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 _DROP = {"prices", "ev", "mk", "desc", "sk", "why", "ctx"}   # bulky or not useful to it
+
+
+def _gem():
+    import importlib, sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    return importlib.import_module("gemini")
 
 
 def gemini(p, d):
     """Gemini's case against this alert: {"level", "points", "model"}, or None (no key, or the call failed).
     Fed only the alert's own numbers plus the rule-based points, and told to add what those missed."""
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
+    g = _gem()
+    if not g.enabled():
         return None
     src = {k: v for k, v in (p.get("src_item") or {}).items() if k not in _DROP}
     prices = (p.get("src_item") or {}).get("prices") or {}
@@ -197,24 +204,44 @@ def gemini(p, d):
         "\n\nReply as JSON: {\"level\": \"strong\"|\"some\"|\"weak\", \"points\": [up to 3 short sentences, "
         "casual Aussie punter voice, no emojis]}. 'strong' = you'd skip this bet, 'weak' = it holds up.\n\n"
         + json.dumps(bet, default=str))
-    body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json", "maxOutputTokens": 600}}
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-        data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            res = json.load(r)
-        text = "".join(pt.get("text", "") for pt in res["candidates"][0]["content"]["parts"])
-        out = json.loads(text[text.find("{"):text.rfind("}") + 1])
-        lvl = str(out.get("level", "")).lower()
-        if lvl not in HEAD:
-            return None
-        return {"level": lvl, "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3],
-                "model": GEMINI_MODEL}
-    except Exception as e:   # never stop an alert over this
-        print(f"::warning::devil's advocate (Gemini): {type(e).__name__} {e}")
+    out = g.ask(prompt, json_out=True, max_tokens=600, label="devil's advocate")
+    lvl = str((out or {}).get("level", "")).lower()
+    if lvl not in HEAD:
         return None
+    return {"level": lvl, "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3], "model": g.MODEL}
+
+
+NEWS = {"clear": "✅ Nothing worrying", "warning": "⚠️ Worth a look", "out": "🚫 Reported out"}
+
+
+def news(p):
+    """Late news check: a live Google search (through Gemini) for anything since the stats were taken that the
+    numbers can't see, e.g. ruled out, a minutes limit, a late change to the starting five.
+    {"status": "clear"|"warning"|"out", "points", "sources": [(title, url)]} or None."""
+    g = _gem()
+    src = p.get("src_item") or {}
+    player = src.get("player")
+    if not g.enabled() or not player:
+        return None
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    prompt = (
+        f"It's {now}. Search the latest news for {player} ({src.get('team') or ''}, {src.get('lg') or ''}) ahead of "
+        f"{src.get('game') or 'his next game'} starting {src.get('start') or 'soon'}. We're about to tip: "
+        f"{p.get('sel')}.\n"
+        f"Our data says his injury tag is: {src.get('inj') or 'none listed'}.\n"
+        "Look ONLY for news from the last 48 hours that would change this bet: ruled out or doubtful, a minutes "
+        "restriction, moved to the bench or into the starting lineup, rest, a trade, or a key teammate's status.\n"
+        "Only report what a source actually says. If you find nothing relevant, say so; don't guess.\n"
+        "Reply as JSON only: {\"status\": \"clear\"|\"warning\"|\"out\", \"points\": [up to 3 short sentences, "
+        "each naming where it came from]}. 'out' = a source says he won't play, 'warning' = something that could cut "
+        "his role, 'clear' = nothing found that matters.")
+    out = g.ask(prompt, json_out=True, search=True, max_tokens=500, label="news check")
+    st = str((out or {}).get("status", "")).lower()
+    if st not in NEWS:
+        return None
+    return {"status": st, "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3],
+            "sources": g.sources()[:3]}
 
 
 def thread(d, sel):
@@ -228,6 +255,12 @@ def thread(d, sel):
     if ai:
         lines += ["", f"**🤖 Gemini's take · {HEAD[ai['level']]}**"]
         lines += [f"• {t}" for t in ai["points"]] or ["Nothing extra to add."]
+    nw = d.get("news")
+    if nw:
+        lines += ["", f"**📰 Late news check · {NEWS[nw['status']]}**"]
+        lines += [f"• {t}" for t in nw["points"]] or ["Searched the latest news, nothing that changes this."]
+        if nw.get("sources"):
+            lines.append("-# " + " · ".join(f"[{(t or 'source')[:40]}](<{u}>)" for t, u in nw["sources"]))
     lines.append("-# Flag only, the pick still stands. Tracking whether the case against is worth listening to.")
     name = f"🧐 Devil's advocate · {sel}"
     return name[:95], lines

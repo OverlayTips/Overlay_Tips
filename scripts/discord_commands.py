@@ -1,4 +1,4 @@
-"""Registers the bot's slash commands (/stats) in the Overlay Tips server, and prints what the
+"""Registers the bot's slash commands (/stats, /why) in the Overlay Tips server, and prints what the
 /stats Cloudflare Worker (cloudflare/discord-worker.js) needs: the app's public key and the member role ids.
 
 Safe to re-run. Env: DISCORD_BOT_TOKEN, DISCORD_GUILD_ID.
@@ -12,6 +12,10 @@ COMMANDS = [{
     "name": "stats", "type": 1,
     "description": "Live NBA stats for a player tonight",
     "options": [{"type": 3, "name": "player", "description": "Player name, e.g. Zion or Jalen Brunson", "required": True}],
+}, {
+    "name": "why", "type": 1,
+    "description": "Why is this player on today's board? Gemini explains the pick from our numbers",
+    "options": [{"type": 3, "name": "player", "description": "Player name, e.g. Jalen Brunson", "required": True}],
 }]
 
 

@@ -26,6 +26,8 @@ jobs:
           python-version: "3.12"
       - name: Draw
         id: draw
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # optional: Gemini writes the caption hook + a members' recap
         run: |
           pip install -q pillow
           WE="${{ inputs.week_ending }}"
@@ -42,6 +44,7 @@ jobs:
           name="week-$(date -u +%Y%m%d%H%M).png"
           git fetch -q --depth=1 origin graphics && git worktree add -q g FETCH_HEAD || { mkdir g && cd g && git init -q && cd ..; }
           cp out/week.png "g/$name" && cp out/week.txt "g/${name%.png}.txt" && cp out/week.png g/latest.png
+          if [ -f out/week-recap.txt ]; then cp out/week-recap.txt "g/${name%.png}-recap.txt"; fi
           cd g && git config user.name odds-bot && git config user.email odds-bot@users.noreply.github.com
           git add -A && git commit -qm "Weekly graphic $name" && git push -q "$REPO_URL" HEAD:refs/heads/graphics
           cd ..
