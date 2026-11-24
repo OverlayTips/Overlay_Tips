@@ -277,12 +277,13 @@ def race(p):
         "and distance, barrier/box, today's track condition, class change, gear or jockey changes, scratchings, and "
         "who the main danger is. Only state what a source says; don't guess.\n"
         "Then make the call a sharp punter would at this price: BACK or PASS. Don't pass everything: pass only when "
-        "the form gives a real reason, not just because it can lose.\n"
-        "Reply as JSON only: {\"verdict\": \"back\"|\"pass\", \"why\": one short sentence, "
+        "the form gives a real reason, not just because it can lose. If you can't find this runner's form, the "
+        "verdict is \"noread\" (no info isn't a reason against).\n"
+        "Reply as JSON only: {\"verdict\": \"back\"|\"pass\"|\"noread\", \"why\": one short sentence, "
         "\"points\": [up to 3 short form notes, casual Aussie punter voice, no emojis]}")
     out = g.ask(prompt, json_out=True, search=True, max_tokens=500, label="racing read")
     vd = str((out or {}).get("verdict", "")).lower()
-    if vd not in ("back", "pass"):
+    if vd not in ("back", "pass"):   # "noread" (no form found) or junk: no call, nothing on the alert
         return None
     return {"verdict": vd, "why": str(out.get("why") or "").strip(),
             "points": [str(t).strip() for t in out.get("points") or [] if str(t).strip()][:3], "sources": g.sources()[:3]}

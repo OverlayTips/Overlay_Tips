@@ -15,7 +15,7 @@ import gemini, picks, racing_log, value_alerts
 
 SYD = ZoneInfo("Australia/Sydney")
 OUT = os.environ.get("OUT", "odds-data")
-VERDICT = {"back": "✅ BACK", "pass": "❌ PASS"}
+VERDICT = {"back": "✅ BACK", "pass": "❌ PASS", "noread": "❔ No read"}
 
 
 def main():
@@ -50,8 +50,8 @@ def main():
         "(last few starts, track/distance record, barrier/box, today's track condition, class change, gear or jockey "
         "changes, scratchings) and make the call a sharp punter would: BACK if you'd take a price at or above the "
         "rated one, PASS if the form gives a real reason against. Don't pass everything. Only state what a source "
-        "says; if you can't find a runner's form, say so in 'why' and lean on the model.\n"
-        "Reply as JSON only: {\"calls\": [{\"runner\": name exactly as given, \"verdict\": \"back\"|\"pass\", "
+        "says. If you can't find a runner's form, the verdict is \"noread\" (not a pass: no info isn't a reason against).\n"
+        "Reply as JSON only: {\"calls\": [{\"runner\": name exactly as given, \"verdict\": \"back\"|\"pass\"|\"noread\", "
         "\"why\": one short sentence, casual Aussie punter voice, no emojis}]}\n\n" + json.dumps(runs),
         json_out=True, search=True, max_tokens=1500, label="racing read")
     calls = {str(c.get("runner", "")).lower(): c for c in (out or {}).get("calls") or []}
