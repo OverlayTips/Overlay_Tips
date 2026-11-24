@@ -124,6 +124,10 @@ def _prop(v, side, pts):
         pts.append((1, f"The with/without bump is built on just {wo['g']} games without {wo['n'].split()[-1]}"))
     if v.get("moved"):
         pts.append((1, "He's changed teams this season, older games came in a different role"))
+    rl = v.get("role")
+    if rl and rl.get("g", 99) < 10:
+        pts.append((1, f"His role changed {rl['g']} games ago ({rl['from']:.0f} to {rl['to']:.0f} min), "
+                       f"so the form only rests on those {rl['g']} games"))
 
 
 def _game(o, pts):

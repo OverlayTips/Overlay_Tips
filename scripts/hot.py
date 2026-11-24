@@ -171,6 +171,43 @@ def team_games(p, gs, h, a, sport="basketball_nba"):
     return gs, None
 
 
+ROLE_MIN_GAMES = 6      # need this many games in the new role before the form counts only those
+ROLE_MIN_SHIFT = 6.0    # minutes a game: the size of change that counts as a new role (and 20%+)
+
+
+def role_window(gs, sport="basketball_nba"):
+    """His form window (last FORM_N games), cut back to just the games since a role change on the same team:
+    e.g. moved into the starting five three weeks ago, or lost his starting spot. Without this, the older
+    games in the window come from a different role and skew the hit rate.
+    A role change = his minutes in the newest k games (k >= ROLE_MIN_GAMES) are clearly different from the
+    games before them (6+ min and 20%+), and that holds game by game (at least 80% of the new games sit on
+    the new side), not just one big night. Picks the longest such run so the sample stays as big as possible.
+    Returns (games, role): role = {"from": old avg min, "to": new avg min, "g": games in the new role} or None.
+    Basketball only (NFL logs have no minutes)."""
+    w = gs[:FORM_N]
+    if sport not in ("basketball_nba", "basketball_nbl") or len(w) < ROLE_MIN_GAMES + 3:
+        return w, None
+    mins = [g[3] for g in w]
+    avg = lambda xs: sum(xs) / len(xs)
+    best = None
+    for k in range(ROLE_MIN_GAMES, len(w) - 2):   # 3+ old-role games to compare against
+        new, old = avg(mins[:k]), avg(mins[k:])
+        if abs(new - old) < max(ROLE_MIN_SHIFT, 0.2 * old):
+            continue
+        mid, up = (new + old) / 2, new > old
+        side = sum(1 for m in mins[:k] if (m > mid) == up)
+        if side < 0.8 * k:
+            continue
+        # the cleanest split: most games on the right side of it (new role before, old role after); ties -> longer
+        fit = side + sum(1 for m in mins[k:] if (m > mid) != up)
+        if best is None or fit >= best[0]:
+            best = (fit, k, old, new)
+    if not best:
+        return w, None
+    _, k, old, new = best
+    return w[:k], {"from": round(old, 1), "to": round(new, 1), "g": k}
+
+
 WO_MIN_MINS, WO_MIN_GAMES = 20, 3   # teammate counts if he averages 20+ min over 3+ games this season
 WO_PRIOR = 6                        # pseudo-games pulling the "without him" hit rate toward normal form
 
@@ -340,7 +377,8 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
             if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
                 continue   # not enough games, or nothing recent (injured / last season)
             label, f = ST[mk]
-            l10, l5 = gs[:FORM_N], gs[:5]
+            l10, role = role_window(gs, sport)   # last 15, or just the games since a role change
+            l5 = gs[:5]
             hit = lambda xs: sum(1 for g in xs if f(g) > pt)
             h10, h5, hs = hit(l10), hit(l5), hit(gs)
             # with/without: his games since the injured teammate's first game this season, split by
@@ -412,6 +450,8 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
             }
             if moved:
                 item["moved"] = moved
+            if role:
+                item["role"] = role
             if nfl:   # NFL context for the write-up: workload trend, what the defence allows his position, game script
                 spr, tot = glines.get(ev["id"], ({}, None))
                 me = ev["home_team"] if p.get("team") == h else ev["away_team"] if p.get("team") == a else None
@@ -527,7 +567,8 @@ def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich
         if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
             continue
         label, f = ST[mk]
-        l10, l5 = gs[:FORM_N], gs[:5]
+        l10, role = role_window(gs, sport)
+        l5 = gs[:5]
         under = lambda xs: sum(1 for g in xs if f(g) < pt)
         u10, u5, us = under(l10), under(l5), under(gs)
         if u10 / len(l10) < MIN_HIT:
@@ -573,6 +614,8 @@ def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich
         }
         if moved:
             item["moved"] = moved
+        if role:
+            item["role"] = role
         meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
         if meet:
             item["h2h"] = [[g[0], g[1], g[2], f(g)] for g in meet[:3]]
