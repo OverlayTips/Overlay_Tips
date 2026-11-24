@@ -354,7 +354,7 @@ function propHits(e,mk,desc,over,point){
   const cnt=a=>[a.filter(ok).length,a.length], avg=a=>a.length?a.reduce((s,g)=>s+f(g),0)/a.length:null;
   const vs=p.opp?gs.filter(g=>g[1]===p.opp):[];
   const old=gs.length&&(Date.now()-Date.parse(gs[0][0]))>60*864e5;
-  return {p,f,gs,ok,l5:cnt(gs.slice(0,5)),l10:cnt(gs.slice(0,10)),all:cnt(gs),vs:cnt(vs),a5:avg(gs.slice(0,5)),a10:avg(gs.slice(0,10)),aAll:avg(gs),old};
+  return {p,f,gs,ok,l5:cnt(gs.slice(0,5)),l10:cnt(gs.slice(0,15)),all:cnt(gs),vs:cnt(vs),a5:avg(gs.slice(0,5)),a10:avg(gs.slice(0,15)),aAll:avg(gs),old};
 }
 function sideOf2(r,pt){ // -> [over?, point]
   if(r.ladder) return [r.over!==false, r.pt];
@@ -379,9 +379,9 @@ function statsPanel(e,mk,player,rows){
   const line=sd[1]!=null?`over ${sd[1]}`:'yes';
   const box=(t,c,sub)=>`<div>${t}<b>${pc(c)}</b>${sub||''}</div>`;
   const fm=v=>v==null?'–':v.toFixed(1);
-  const sum=`<div class="ps-sum">${box('Last 5',h.l5,sd[1]!=null?`avg ${fm(h.a5)}`:'')}${box('Last 10',h.l10,sd[1]!=null?`avg ${fm(h.a10)}`:'')}${box(h.old?'Last season':'Season',h.all,sd[1]!=null?`avg ${fm(h.aAll)}`:'')}${h.vs[1]?box('vs '+h.p.opp,h.vs):''}</div>`;
+  const sum=`<div class="ps-sum">${box('Last 5',h.l5,sd[1]!=null?`avg ${fm(h.a5)}`:'')}${box('Last 15',h.l10,sd[1]!=null?`avg ${fm(h.a10)}`:'')}${box(h.old?'Last season':'Season',h.all,sd[1]!=null?`avg ${fm(h.aAll)}`:'')}${h.vs[1]?box('vs '+h.p.opp,h.vs):''}</div>`;
   const nfl=e.sport_key==='americanfootball_nfl';
-  const tr=h.gs.slice(0,10).map(g=>{const v=h.f(g), y=h.ok(g); return `<tr><td>${new Date(g[0]+'T12:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</td><td>${g[2]==='@'?'@':'v'} ${esc(g[1])}</td>${nfl?`<td>${g[6]}/${g[7]} · ${g[4]}</td><td>${g[10]} · ${g[9]}</td><td>${g[11]}/${g[13]} · ${g[12]}</td>`:`<td>${g[3]}</td><td>${g[4]}</td><td>${g[5]}</td><td>${g[6]}</td><td>${g[7]}</td>`}<td class="${y?'y':'n'}">${mk.includes('double_double')?(v?'Yes':'No'):v} ${y?'✓':'✗'}</td></tr>`;}).join('');
+  const tr=h.gs.slice(0,15).map(g=>{const v=h.f(g), y=h.ok(g); return `<tr><td>${new Date(g[0]+'T12:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</td><td>${g[2]==='@'?'@':'v'} ${esc(g[1])}</td>${nfl?`<td>${g[6]}/${g[7]} · ${g[4]}</td><td>${g[10]} · ${g[9]}</td><td>${g[11]}/${g[13]} · ${g[12]}</td>`:`<td>${g[3]}</td><td>${g[4]}</td><td>${g[5]}</td><td>${g[6]}</td><td>${g[7]}</td>`}<td class="${y?'y':'n'}">${mk.includes('double_double')?(v?'Yes':'No'):v} ${y?'✓':'✗'}</td></tr>`;}).join('');
   return `<h4>Player stats <small>· ${esc(h.p.team||'')} · hit rate for ${esc(line)}${h.old?' · no games yet this season, showing last season':''}</small></h4>${sum}
     <div class="tbl-wrap"><table class="ps-tbl"><tr><th>Date</th><th>Opp</th>${nfl?'<th>Pass C/A · yds</th><th>Car · yds</th><th>Rec/Tgt · yds</th>':'<th>Min</th><th>Pts</th><th>Reb</th><th>Ast</th><th>3PM</th>'}<th>${esc((PROP_LABEL[mk]||'Stat').replace(' ladder',''))}</th></tr>${tr}</table></div>`;
 }
@@ -1159,7 +1159,7 @@ function renderSGM(){
       <td class="c-bet">${esc(l.player)} <span class="pt">${esc(l.line)} ${esc(l.stat)}</span><br><span class="bk">${esc(l.team||'')}</span></td>
       <td class="c-price"><b>${l.price.toFixed(2)}</b></td>
       <td class="c-fair">${Math.round(l.prob*100)}%</td>
-      <td class="c-game">L10 ${l.l10[0]}/${l.l10[1]} · L5 ${l.l5[0]}/${l.l5[1]}<br><span class="bk">avg ${l.avg}</span></td></tr>`).join('')}</table></div>
+      <td class="c-game">L15 ${l.l10[0]}/${l.l10[1]} · L5 ${l.l5[0]}/${l.l5[1]}<br><span class="bk">avg ${l.avg}</span></td></tr>`).join('')}</table></div>
     <div class="ev-meta" style="padding:8px 16px 14px">Build it at ${esc(g.book)}. Only bet if the SGM price on the betslip is <b>${g.fair.toFixed(2)}</b> or more.</div></div>`).join('');
 }
 function renderPropPicks(){

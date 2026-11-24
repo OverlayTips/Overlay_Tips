@@ -14,18 +14,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Overlay">
 <script src="/pwa.js" defer></script>
-<meta name="description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 10 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
+<meta name="description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 15 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
 <link rel="canonical" href="https://overlay.tips/cold.html">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overlay Tips">
 <meta property="og:title" content="Cold Stats | NBA, NFL + NBL unders players keep hitting | Overlay Tips">
-<meta property="og:description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 10 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
+<meta property="og:description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 15 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
 <meta property="og:url" content="https://overlay.tips/cold.html">
 <meta property="og:image" content="https://overlay.tips/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Cold Stats | NBA, NFL + NBL unders players keep hitting | Overlay Tips">
-<meta name="twitter:description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 10 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
+<meta name="twitter:description" content="Cold stats: NBA, NFL and NBL player props the player keeps falling short of, with last 15 games, under hit rates and the best Aussie bookie price for the Under. Updated every 5 minutes.">
 <meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
 <meta name="theme-color" content="#060807">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -145,7 +145,7 @@
   <div class="wrap">
     <div class="mono">Free · NBA, NFL + NBL unders</div>
     <h1>Cold stats</h1>
-    <p>Lines the player keeps falling short of: the unders. Each card shows his last 10 games against the line, how often he stayed under, and the best Under price at the Aussie bookies. Updated every 5 minutes.</p>
+    <p>Lines the player keeps falling short of: the unders. Each card shows his last 15 games against the line, how often he stayed under, and the best Under price at the Aussie bookies. Updated every 5 minutes.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0">
@@ -158,8 +158,8 @@
       <label class="hs-sort">Sort <select id="sort"><option value="hit">Under rate</option><option value="value">Value</option><option value="price">Price</option><option value="time">Tip-off</option></select></label></div>
     </div>
     <div class="hs-grid" id="grid"></div>
-    <p class="hs-note">Under rate = games the player stayed under the main line, out of his last 10 (last 5, and vs tonight's opponent this season). Only lines he's stayed under in 8+ of his last 10, with a two-sided market (Pinnacle, or 3+ Aussie bookies pricing both sides) so we can work out a fair price for the Under. Value uses the same market-led method as Hot stats. Bars in red went over the line. Past form isn't a guarantee, so check the price is still there before you bet. <a href="hot.html">Overs: Hot stats →</a></p>
-    <p class="hs-note" hidden>Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks lean mostly on the market (Pinnacle's sharp price when there is one, otherwise the Aussie bookies' consensus with their margin taken off), adjusted a little for player form (recent games count more), then compare that to the chance the best price needs. Anything that looks like more than +15% is left out: that's nearly always a stale or wrong price. Fair price = that rated chance turned into odds (1 ÷ chance), so a price above fair is value. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
+    <p class="hs-note">Under rate = games the player stayed under the main line, out of his last 15 (last 5, and vs tonight's opponent this season). Only lines he's stayed under in 12+ of his last 15, with a two-sided market (Pinnacle, or 3+ Aussie bookies pricing both sides) so we can work out a fair price for the Under. Value uses the same market-led method as Hot stats. Bars in red went over the line. Past form isn't a guarantee, so check the price is still there before you bet. <a href="hot.html">Overs: Hot stats →</a></p>
+    <p class="hs-note" hidden>Hit rate = games the player went over the line, out of the last 15 (last 5, and vs tonight's opponent this season). Value picks lean mostly on the market (Pinnacle's sharp price when there is one, otherwise the Aussie bookies' consensus with their margin taken off), adjusted a little for player form (recent games count more), then compare that to the chance the best price needs. Anything that looks like more than +15% is left out: that's nearly always a stale or wrong price. Fair price = that rated chance turned into odds (1 ÷ chance), so a price above fair is value. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
   </div>
 </section>
 </main>
@@ -243,7 +243,7 @@ function card(it,val){
       <div class="hs-line">🧊 ${esc(it.line)} ${esc(it.stat)}</div></div>
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
-    <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">Under L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
+    <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">Under L15 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
     ${lastGame(it)}
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     ${ctxRow(it)}

@@ -23,7 +23,7 @@ MIN_VALUE = 4.0      # % edge needed to alert
 REALERT_PRICE = 0.05   # same pick alerts again only when the price is up this much (or the edge is up 3+ points)
 MAX_PRICE = float(os.environ.get("MAX_PRICE", "2.0"))   # sports bets over this price never alert (racing exempt)
 DISCORD = SITE + "/discord.html"
-MIN_FORM = float(os.environ.get("MIN_FORM", "0.6"))   # player props: he must have landed this side in 60%+ of his last 10
+MIN_FORM = float(os.environ.get("MIN_FORM", "0.6"))   # player props: he must have landed this side in 60%+ of his last 15
 MIN_FORM_GAMES = 3
 
 
@@ -38,7 +38,7 @@ def backed(form):
 # Pts + Reb 5-9, main-line Overs 17-18 while Unders and ladders made the money)
 GAME_MIN = float(os.environ.get("GAME_MIN", "6.0"))     # game markets: Pinnacle-priced only, this much edge
 COMBO_MIN = float(os.environ.get("COMBO_MIN", "6.0"))   # Pts + Reb / Pts + Ast props
-OVER_FORM = float(os.environ.get("OVER_FORM", "0.7"))   # main-line Overs: this hit rate over his last 10...
+OVER_FORM = float(os.environ.get("OVER_FORM", "0.7"))   # main-line Overs: this hit rate over his last 15...
 OVER_MIN = float(os.environ.get("OVER_MIN", "6.0"))     # ...or this much edge
 COMBO = {"player_points_rebounds", "player_points_assists"}
 

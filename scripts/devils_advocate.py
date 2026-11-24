@@ -72,7 +72,7 @@ def _prop(v, side, pts):
     # 4. trending the wrong way
     l5, l10 = _rate(v.get("l5")), _rate(v.get("l10"))
     if l5 is not None and l10 is not None and l5 <= l10 - 0.2:
-        pts.append((1, f"Cooling off: {v['l5'][0]}/{v['l5'][1]} last 5 vs {v['l10'][0]}/{v['l10'][1]} last 10"))
+        pts.append((1, f"Cooling off: {v['l5'][0]}/{v['l5'][1]} last 5 vs {v['l10'][0]}/{v['l10'][1]} last 15"))
     if len(vals) >= 6 and pt is not None:
         last3 = vals[:3]
         if (over and all(x <= pt for x in last3)) or (not over and all(x >= pt for x in last3)):

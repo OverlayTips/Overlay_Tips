@@ -2,16 +2,16 @@
 
 Published UNENCRYPTED as odds-data/hot.json, so keep it to what the public page needs.
 For each player + stat we look at every over line the Aussie bookies offer (main over/unders and
-ladders like 25+), keep the lines he's cleared in 80%+ of his last 10 games, and show the one that
-pays the most. Ranked by last-10 hit rate, then last-5, then price.
-"cold" = cold streaks: main-line UNDERS the player has stayed under in 80%+ of his last 10 (cold.html).
+ladders like 25+), keep the lines he's cleared in 80%+ of his last 15 games, and show the one that
+pays the most. Ranked by last-15 hit rate, then last-5, then price.
+"cold" = cold streaks: main-line UNDERS the player has stayed under in 80%+ of his last 15 (cold.html).
 "value" = best value picks: expected return per $1 at the best price (prob x price - 1).
 prob leans mostly on the market, because bookie prices already know about minutes, injuries and
-matchups that a 10-game hit rate can't see:
+matchups that a 15-game hit rate can't see:
   market chance: Pinnacle's no-vig price at that line if it has one (sharpest), else the median no-vig
                  chance across Aussie bookies pricing both Over and Under, else the median Over price
                  with a ~10% ladder margin taken off;
-  form chance:   last 5 / last 10 / season hit rates (recent games count more), shrunk toward the
+  form chance:   last 5 / last 15 / season hit rates (recent games count more), shrunk toward the
                  market chance so a hot small sample can't run away with it;
   with/without: if a 20+ minute teammate is Out/Doubtful tonight, the form chance leans toward the
                  games he played without that teammate this season (3+ games each way needed);
@@ -120,8 +120,9 @@ def _nfl_lines(ev):
 PRA_MIN, PRA_MAX = 1.60, 1.90
 SKIP_BOOKS = {"betfair_ex_au", "pinnacle"}
 MIN_GAMES, MIN_HIT, MIN_PRICE, MAX_PRICE = 6, 0.8, 1.30, 4.0
+FORM_N = 15   # hit-rate window: last 15 games (the "l10" keys in the JSON hold these, name kept for the pages)
 LIMIT, PER_PLAYER = 30, 2
-VALUE_MIN_HIT, VALUE_MIN, VALUE_LIMIT = 0.7, 4.0, 8   # value picks: 70%+ last 10, 4%+ expected return, one per player
+VALUE_MIN_HIT, VALUE_MIN, VALUE_LIMIT = 0.7, 4.0, 8   # value picks: 70%+ last 15, 4%+ expected return, one per player
 VALUE_BOOKS, VALUE_MAX_PRICE = 3, 3.0   # need 3+ bookies on the line; skip long shots
 MARGIN_ONE_SIDED = 0.90                  # Over-only (ladder) prices: ~10% margin off the median
 FORM_W = {"pin": 0.15, "two": 0.2, "one": 0.25}   # how much form counts vs the market, by market source
@@ -155,7 +156,7 @@ def team_games(p, gs, h, a, sport="basketball_nba"):
     if h and a and cur and cur not in (h, a):
         return [], {"from": cur, "g": 0}
     n = 0
-    for g in gs[:10]:
+    for g in gs[:FORM_N]:
         t = g[-1] if isinstance(g[-1], str) and g[-1] else None
         if t is None:
             break   # untagged (older logs): can't tell from the rows
@@ -165,7 +166,7 @@ def team_games(p, gs, h, a, sport="basketball_nba"):
     mv = p.get("mv") or {}
     if mv.get("to") == cur and mv.get("d"):
         n = sum(1 for g in gs if g[0] >= mv["d"])
-        if n < 10:
+        if n < FORM_N:
             return gs[:n], {"from": mv.get("from"), "g": n}
     return gs, None
 
@@ -339,7 +340,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
             if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
                 continue   # not enough games, or nothing recent (injured / last season)
             label, f = ST[mk]
-            l10, l5 = gs[:10], gs[:5]
+            l10, l5 = gs[:FORM_N], gs[:5]
             hit = lambda xs: sum(1 for g in xs if f(g) > pt)
             h10, h5, hs = hit(l10), hit(l5), hit(gs)
             # with/without: his games since the injured teammate's first game this season, split by
@@ -369,7 +370,7 @@ def build(prop_events, stats, now, ts, out=(), sport="basketball_nba", ctx=None,
                 p_mkt, src = _median(sorted(both)), "two"
             else:
                 p_mkt, src = min(0.95, MARGIN_ONE_SIDED / med), "one"
-            # form chance: last 5 x3, last 10 x2, season x1, shrunk toward the market
+            # form chance: last 5 x3, last 15 x2, season x1, shrunk toward the market
             wh = 3 * h5 + 2 * h10 + hs
             wn = 3 * len(l5) + 2 * len(l10) + len(gs)
             wn_eff = wn / 6   # weighted games -> roughly "games of evidence"
@@ -509,7 +510,7 @@ COLD_MAX_PRICE = 3.0
 
 
 def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich=None, project=None, role_up=None):
-    """Cold streaks: main-line unders the player has stayed under in 80%+ of his last 10.
+    """Cold streaks: main-line unders the player has stayed under in 80%+ of his last 15.
     Needs a two-sided market (Pinnacle, or 3+ Aussie bookies pricing Over and Under) for a fair price.
     NBA: skipped when his role looks bigger tonight (starting, minutes up, or a minutes spike last game with the
     same teammates out again), since the under record comes from his normal role. Otherwise the chance blends in
@@ -526,7 +527,7 @@ def _cold(ev, bestu, allp, allu, pin, players, by, teams, ST, sport, now, enrich
         if len(gs) < (4 if sport == "americanfootball_nfl" else MIN_GAMES) or (now.date() - datetime.fromisoformat(gs[0][0]).date()).days > 45:
             continue
         label, f = ST[mk]
-        l10, l5 = gs[:10], gs[:5]
+        l10, l5 = gs[:FORM_N], gs[:5]
         under = lambda xs: sum(1 for g in xs if f(g) < pt)
         u10, u5, us = under(l10), under(l5), under(gs)
         if u10 / len(l10) < MIN_HIT:

@@ -305,7 +305,7 @@ def prop_item(o, stats, sport_key, ctx=None):
         return None
     under = side == "Under"
     hit = lambda xs: sum(1 for g in xs if (f(g) < pt if under else f(g) > pt))
-    l10, l5 = gs[:10], gs[:5]
+    l10, l5 = gs[:hot.FORM_N], gs[:5]
     opp = next((a for a in abbrs if a and a != p.get("team")), None)
     meet = [g for g in gs if opp and g[1] == opp] + [g for g in p.get("p", []) if opp and g[1] == opp and g[3] > 0]
     it = {"player": p.get("n") or desc, "team": p.get("team"), "opp": opp,

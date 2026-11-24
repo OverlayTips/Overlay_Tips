@@ -1,6 +1,6 @@
 """Value SGMs for the members' odds tracker (bundle["sgm"]).
 
-Legs come from hot.py: NBA overs the player has cleared in 70%+ of his last 10, each with our rated
+Legs come from hot.py: NBA overs the player has cleared in 70%+ of his last 15, each with our rated
 chance (form + bookie consensus). An SGM has to be at ONE bookie, so for every game and bookie we
 take the legs that bookie prices and look for 2-3 leg combos where:
   - every leg is value on its own at that bookie (our chance x price >= 1)

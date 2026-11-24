@@ -14,18 +14,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Overlay">
 <script src="/pwa.js" defer></script>
-<meta name="description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
+<meta name="description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 15 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <link rel="canonical" href="https://overlay.tips/hot.html">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overlay Tips">
 <meta property="og:title" content="Hot Stats | Free NBA, NFL + NBL player prop hit rates | Overlay Tips">
-<meta property="og:description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
+<meta property="og:description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 15 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <meta property="og:url" content="https://overlay.tips/hot.html">
 <meta property="og:image" content="https://overlay.tips/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Hot Stats | Free NBA, NFL + NBL player prop hit rates | Overlay Tips">
-<meta name="twitter:description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 10 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
+<meta name="twitter:description" content="Free hot stats: NBA, NFL and NBL player props the player keeps clearing, with last 15 games, hit rates and the best Aussie bookie price. Updated every 5 minutes.">
 <meta name="twitter:image" content="https://overlay.tips/og-image.jpg">
 <meta name="theme-color" content="#060807">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -145,7 +145,7 @@
   <div class="wrap">
     <div class="mono">Free · NBA, NFL + NBL player props</div>
     <h1>Hot stats</h1>
-    <p>Props the player keeps clearing. Each card shows the player's last 10 games against the line, the hit rate, and the best price at the Aussie bookies. Updated every 5 minutes.</p>
+    <p>Props the player keeps clearing. Each card shows the player's last 15 games against the line, the hit rate, and the best price at the Aussie bookies. Updated every 5 minutes.</p>
   </div>
 </header>
 <section class="page-sec" style="padding-top:0">
@@ -162,10 +162,10 @@
       <p class="hs-sub">Player form plus the bookies' consensus, against the best price. Biggest expected return first.</p>
       <div class="hs-grid" id="vgrid"></div>
       <h2 class="hs-h" style="margin-top:34px">🔥 Hot props</h2>
-      <p class="hs-sub">Lines cleared in 8+ of the player's last 10 games.</p>
+      <p class="hs-sub">Lines cleared in 12+ of the player's last 15 games.</p>
     </div>
     <div class="hs-grid" id="grid"></div>
-    <p class="hs-note">Hit rate = games the player went over the line, out of the last 10 (last 5, and vs tonight's opponent this season). Value picks lean mostly on the market (Pinnacle's sharp price when there is one, otherwise the Aussie bookies' consensus with their margin taken off), adjusted a little for player form (recent games count more), then compare that to the chance the best price needs. Anything that looks like more than +15% is left out: that's nearly always a stale or wrong price. Fair price = that rated chance turned into odds (1 ÷ chance), so a price above fair is value. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
+    <p class="hs-note">Hit rate = games the player went over the line, out of the last 15 (last 5, and vs tonight's opponent this season). Value picks lean mostly on the market (Pinnacle's sharp price when there is one, otherwise the Aussie bookies' consensus with their margin taken off), adjusted a little for player form (recent games count more), then compare that to the chance the best price needs. Anything that looks like more than +15% is left out: that's nearly always a stale or wrong price. Fair price = that rated chance turned into odds (1 ÷ chance), so a price above fair is value. Value = expected return per $1, e.g. a 66% chance at $1.65 = +9%. Only lines priced by 3+ bookies, up to $3. Past form isn't a guarantee, so check the price is still there before you bet. <a href="odds.html">Members: full odds tracker →</a></p>
   </div>
 </section>
 </main>
@@ -249,7 +249,7 @@ function card(it,val){
       <div class="hs-line">🔥 ${esc(it.line)} ${esc(it.stat)}</div></div>
       <div class="hs-price"><span>${esc(it.book)}</span><b>${it.price.toFixed(2)}</b></div></div>
     ${chart(it)}
-    <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">L10 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
+    <div class="hs-pills">${ls.pill}${typeof it.value==='number'&&(val||it.value>0)?`<span class="hs-pill val">${it.value>0?'+':''}${it.value.toFixed(0)}% value</span>`:''}${fair(it)}<span class="hs-pill ${val?'':'big'}">L15 ${pct(it.l10)}%</span><span class="hs-pill">L5 ${it.l5[0]}/${it.l5[1]}</span>${it.vs&&it.vs[1]?`<span class="hs-pill">vs ${esc(it.opp)} ${it.vs[0]}/${it.vs[1]}</span>`:''}<span class="hs-pill">avg ${it.avg}</span></div>
     ${lastGame(it)}
     ${val?`<div class="hs-why">Form <b>${Math.round(it.hit*100)}%</b> · bookies' view <b>${Math.round(it.mkt*100)}%</b> → we rate it <b>${Math.round(it.prob*100)}%</b> (fair <b>$${(1/it.prob).toFixed(2)}</b>). $${it.price.toFixed(2)} only needs <b>${Math.round(100/it.price)}%</b>.</div>`:''}
     ${ctxRow(it)}
